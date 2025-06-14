@@ -158,15 +158,17 @@ export const updateUserRole = async (req: AuthRequest, res: Response, next: Next
   }
 };
 
-export const resetPassword = async (req: Request, res: Response) => {
+export const resetPassword = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email et nouveau mot de passe requis.' });
+      res.status(400).json({ error: 'Email et nouveau mot de passe requis.' });
+      return;
     }
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({ error: 'Utilisateur non trouvé.' });
+      res.status(404).json({ error: 'Utilisateur non trouvé.' });
+      return;
     }
     user.password = await bcrypt.hash(password, 10);
     await user.save();
