@@ -14,8 +14,16 @@ dotenv.config();
 console.log('MONGODB_URI utilisé par le backend:', process.env.MONGODB_URI);
 
 const app = express();
-app.use(cors());
+
+// Configuration CORS pour Netlify
+app.use(cors({
+  origin: 'https://momotechservice.netlify.app',
+  credentials: true
+}));
+
 app.use(express.json());
+
+
 
 // Connexion MongoDB Atlas
 mongoose.connect(process.env.MONGODB_URI as string)
