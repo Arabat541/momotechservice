@@ -17,7 +17,7 @@ const app = express();
 
 // Configuration CORS pour Netlify
 app.use(cors({
-  origin: 'https://momotechservice.netlify.app', 'https://momotechservice.com',
+  origin: 'https://momotechservice.com',
   credentials: true
 }));
 
