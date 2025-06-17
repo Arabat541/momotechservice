@@ -19,6 +19,7 @@ import { useUserRole } from '@/hooks/useAuth';
 const menuItems = [
   { id: 'reparations-place', label: 'Réparation sur place', icon: Smartphone, path: '/reparations-place' },
   { id: 'reparations-rdv', label: 'Réparation sur rdv', icon: Calendar, path: '/reparations-rdv' },
+  { id: 'article', label: 'Vente de Pièce détâchée', icon: Package, path: '/article' },
   { id: 'liste-reparations', label: 'Liste-réparation', icon: List, path: '/liste-reparations' },
   { id: 'stocks', label: 'Gestion des stocks', icon: Package, path: '/stocks', onlyPatron: true },
   { id: 'parametres', label: 'Paramètres', icon: Settings, path: '/parametres', onlyPatron: true }

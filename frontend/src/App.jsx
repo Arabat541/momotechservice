@@ -14,6 +14,7 @@ import Barcode from 'react-barcode';
 import { Loader2 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import PropTypes from 'prop-types';
+import Article from './pages/Article';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useStocks } from '@/hooks/useStocks';
@@ -100,6 +101,8 @@ function App() {
   const [showStandalonePreviewModal, setShowStandalonePreviewModal] = useState(false);
   const [standalonePreviewData, setStandalonePreviewData] = useState(null);
   const [authTimedOut, setAuthTimedOut] = useState(false);
+  const [ventes, setVentes] = useState([]); // ventes directes
+  const [sortiesRechange, setSortiesRechange] = useState([]); // sorties pour réparation
 
   const componentRef = useRef();
   const handlePrint = useReactToPrint({
@@ -296,6 +299,37 @@ function App() {
     }
   };
 
+  // Handler pour la vente d'article
+  const handleVenteArticle = async ({ articleId, quantite, client }) => {
+    // Met à jour le stock (décrémentation)
+    const stockItem = stocks.find(s => (s.id || s._id) === articleId);
+    if (!stockItem || stockItem.quantite < quantite) {
+      toast({ variant: 'destructive', title: 'Stock insuffisant', description: 'Quantité demandée non disponible.' });
+      return;
+    }
+    await editStockItem({ ...stockItem, quantite: stockItem.quantite - quantite });
+    const vente = {
+      id: Date.now(),
+      nom: stockItem.nom,
+      quantite,
+      client,
+      date: new Date().toISOString(),
+    };
+    setVentes(prev => [vente, ...prev]);
+    toast({ title: 'Vente enregistrée', description: `${quantite} ${stockItem.nom} vendu à ${client}` });
+  };
+
+  // Handler pour annuler une vente
+  const handleAnnulerVente = async (vente, index) => {
+    // Remettre la quantité dans le stock
+    const stockItem = stocks.find(s => s.nom === vente.nom);
+    if (stockItem) {
+      await editStockItem({ ...stockItem, quantite: Number(stockItem.quantite) + Number(vente.quantite) });
+    }
+    setVentes(prev => prev.filter((_, i) => i !== index));
+    toast({ title: 'Vente annulée', description: `${vente.quantite} ${vente.nom} remis en stock.` });
+  };
+
   // Centralized loading screen
   // Show loading screen if loadingAuth is true AND auth has not timed out.
   if (loadingAuth && !authTimedOut) { 
@@ -396,6 +430,17 @@ function App() {
               fetchAllUsers={fetchAllUsers}
             />
           } 
+        />
+        <Route 
+          path="article" 
+          element={
+            <Article 
+              onVente={handleVenteArticle}
+              onAnnulerVente={handleAnnulerVente}
+              ventes={ventes}
+              sortiesRechange={sortiesRechange}
+            />
+          }
         />
       </Route>
       <Route path="*" element={<Navigate to={currentUser && !authTimedOut ? "/reparations-place" : "/auth"} replace />} />
