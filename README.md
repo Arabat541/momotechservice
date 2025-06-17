@@ -6,6 +6,7 @@ Ce projet est une application complète de gestion de réparations (atelier, SAV
 - Authentification JWT (employé, patron)
 - Gestion des réparations sur place et sur rendez-vous
 - Génération et impression de tickets/reçus
+- Vente de pièces détachées
 - Gestion des stocks de pièces détachées
 - Gestion des utilisateurs et des rôles
 - Paramétrage société et garantie
