@@ -207,6 +207,7 @@ const ListeReparations = ({ reparations, onView, onDeleteRepair, onUpdateRepair,
                 <TableHead className="cursor-pointer hover:bg-gray-200 text-right" onClick={() => requestSort('total_reparation')}>Total (fcfa){getSortIndicator('total_reparation')}</TableHead>
                 <TableHead className="cursor-pointer hover:bg-gray-200" onClick={() => requestSort('date_creation')}>Date Création{getSortIndicator('date_creation')}</TableHead>
                 <TableHead className="cursor-pointer hover:bg-gray-200" onClick={() => requestSort('statut_reparation')}>Statut{getSortIndicator('statut_reparation')}</TableHead>
+                <TableHead className="cursor-pointer hover:bg-gray-200">Récupéré ?</TableHead>
                 <TableHead className="text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -249,6 +250,34 @@ const ListeReparations = ({ reparations, onView, onDeleteRepair, onUpdateRepair,
                         {STATUTS.map(s => (
                           <SelectItem key={s} value={s}>{s}</SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      value={repair.dateRetrait || repair.date_retrait ? 'oui' : 'non'}
+                      onValueChange={async (newValue) => {
+                        let update = {};
+                        if (newValue === 'oui' && !repair.dateRetrait && !repair.date_retrait) {
+                          update = { ...repair, dateRetrait: new Date().toISOString() };
+                        } else if (newValue === 'non' && (repair.dateRetrait || repair.date_retrait)) {
+                          update = { ...repair, dateRetrait: null, date_retrait: null };
+                        } else {
+                          return;
+                        }
+                        if (typeof onUpdateRepair === 'function') {
+                          await onUpdateRepair(update);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className={`w-full text-xs ${
+                        repair.dateRetrait || repair.date_retrait ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      }`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="oui">Oui</SelectItem>
+                        <SelectItem value="non">Non</SelectItem>
                       </SelectContent>
                     </Select>
                   </TableCell>
