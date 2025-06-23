@@ -95,7 +95,7 @@ const Article = ({ onVente, onAnnulerVente, ventes = [], sortiesRechange = [] })
               <tr key={`rechange-${i}`} className="border-t">
                 <td className="p-2">{s.nom}</td>
                 <td className="p-2">{s.quantite}</td>
-                <td className="p-2">-</td>
+                <td className="p-2">{s.numeroReparation || '-'}</td>
                 <td className="p-2">Pièce de réchange</td>
                 <td className="p-2">{new Date(s.date).toLocaleString('fr-FR')}</td>
               </tr>

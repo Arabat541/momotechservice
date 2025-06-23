@@ -129,7 +129,6 @@ const ListeReparations = ({ reparations, onView, onDeleteRepair, onUpdateRepair,
     toast({ title: "Exportation CSV", description: "Liste des réparations exportée." });
   };
 
-
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -212,102 +211,110 @@ const ListeReparations = ({ reparations, onView, onDeleteRepair, onUpdateRepair,
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredAndSortedReparations.map((repair) => (
-                <TableRow key={repair.id || repair._id || repair.numeroReparation} className="hover:bg-gray-50 transition-colors">
-                  <TableCell className="font-medium text-blue-600">{repair.numeroReparation}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
-                      repair.type_reparation === 'place' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
-                    }`}>
-                      {repair.typeDisplay}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <div>{repair.client}</div>
-                    <div className="text-xs text-gray-500">{repair.telephone}</div>
-                  </TableCell>
-                  <TableCell>{repair.appareil}</TableCell>
-                  <TableCell className="text-right font-semibold">{repair.total?.toLocaleString('fr-FR')}</TableCell>
-                  <TableCell>{repair.date_creation ? new Date(repair.date_creation).toLocaleDateString('fr-FR') : 'N/A'}</TableCell>
-                  <TableCell>
-                    <Select
-                      value={repair.statut_reparation}
-                      onValueChange={async (newStatut) => {
-                        console.log('Select statut changed:', newStatut, repair);
-                        if (newStatut !== repair.statut_reparation && typeof onUpdateRepair === 'function') {
-                          await onUpdateRepair({ ...repair, statut_reparation: newStatut });
-                        }
-                      }}
-                    >
-                      <SelectTrigger className={`w-full text-xs ${
-                        repair.statut_reparation === 'Terminé' ? 'bg-green-100 text-green-800' : 
-                        (repair.statut_reparation === 'En cours' || repair.statut_reparation === 'En attente') ? 'bg-yellow-100 text-yellow-800' : 
-                        'bg-red-100 text-red-800'
+              {filteredAndSortedReparations.map((repair) => {
+                const key = repair.id || repair._id || repair.numeroReparation;
+                return (
+                  <TableRow key={key} className="hover:bg-gray-50 transition-colors">
+                    <TableCell className="font-medium text-blue-600">{repair.numeroReparation}</TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                        repair.type_reparation === 'place' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
                       }`}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {STATUTS.map(s => (
-                          <SelectItem key={s} value={s}>{s}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                      value={repair.dateRetrait || repair.date_retrait ? 'oui' : 'non'}
-                      onValueChange={async (newValue) => {
-                        let update = {};
-                        if (newValue === 'oui' && !repair.dateRetrait && !repair.date_retrait) {
-                          update = { ...repair, dateRetrait: new Date().toISOString() };
-                        } else if (newValue === 'non' && (repair.dateRetrait || repair.date_retrait)) {
-                          update = { ...repair, dateRetrait: null, date_retrait: null };
-                        } else {
-                          return;
-                        }
-                        if (typeof onUpdateRepair === 'function') {
-                          await onUpdateRepair(update);
-                        }
-                      }}
-                    >
-                      <SelectTrigger className={`w-full text-xs ${
-                        repair.dateRetrait || repair.date_retrait ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                      }`}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="oui">Oui</SelectItem>
-                        <SelectItem value="non">Non</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell className="text-center space-x-1">
-                    <Button size="icon" variant="ghost" onClick={() => onView(repair)} className="text-blue-600 hover:text-blue-800 h-8 w-8">
-                      <Eye size={18} />
-                    </Button>
-                    {/* Edit button removed, editing is done via RecuPreview */}
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button size="icon" variant="ghost" className="text-red-600 hover:text-red-800 h-8 w-8">
-                          <Trash2 size={18} />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Êtes-vous sûr de vouloir supprimer?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Cette action est irréversible et supprimera définitivement la réparation <span className="font-semibold">{repair.numeroReparation}</span>.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Annuler</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(repair.id || repair._id || repair.numeroReparation)} className="bg-red-600 hover:bg-red-700">Supprimer</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </TableCell>
-                </TableRow>
-              ))}
+                        {repair.typeDisplay}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div>{repair.client}</div>
+                      <div className="text-xs text-gray-500">{repair.telephone}</div>
+                    </TableCell>
+                    <TableCell>{repair.appareil}</TableCell>
+                    <TableCell className="text-right font-semibold">{repair.total?.toLocaleString('fr-FR')}</TableCell>
+                    <TableCell>{repair.date_creation ? new Date(repair.date_creation).toLocaleDateString('fr-FR') : 'N/A'}</TableCell>
+                    <TableCell>
+                      <Select
+                        value={repair.statut_reparation}
+                        onValueChange={async (newStatut) => {
+                          console.log('Select statut changed:', newStatut, repair);
+                          if (newStatut !== repair.statut_reparation && typeof onUpdateRepair === 'function') {
+                            await onUpdateRepair({ ...repair, statut_reparation: newStatut });
+                          }
+                        }}
+                      >
+                        <SelectTrigger className={`w-full text-xs ${
+                          repair.statut_reparation === 'Terminé' ? 'bg-green-100 text-green-800' : 
+                          (repair.statut_reparation === 'En cours' || repair.statut_reparation === 'En attente') ? 'bg-yellow-100 text-yellow-800' : 
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STATUTS.map(s => (
+                            <SelectItem key={s} value={s}>{s}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={repair.dateRetrait || repair.date_retrait ? 'oui' : 'non'}
+                        onValueChange={async (newValue) => {
+                          let update = { ...repair };
+                          if (newValue === 'oui') {
+                            const now = new Date().toISOString();
+                            update.dateRetrait = now;
+                            update.date_retrait = now;
+                          } else if (newValue === 'non') {
+                            update.dateRetrait = null;
+                            update.date_retrait = null;
+                          } else {
+                            return;
+                          }
+                          if (typeof onUpdateRepair === 'function') {
+                            await onUpdateRepair(update);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className={`w-full text-xs ${
+                          (repair.dateRetrait || repair.date_retrait ? 'oui' : 'non') === 'oui'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="oui">Oui</SelectItem>
+                          <SelectItem value="non">Non</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="text-center space-x-1">
+                      <Button size="icon" variant="ghost" onClick={() => onView(repair)} className="text-blue-600 hover:text-blue-800 h-8 w-8">
+                        <Eye size={18} />
+                      </Button>
+                      {/* Edit button removed, editing is done via RecuPreview */}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="icon" variant="ghost" className="text-red-600 hover:text-red-800 h-8 w-8">
+                            <Trash2 size={18} />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Êtes-vous sûr de vouloir supprimer?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Cette action est irréversible et supprimera définitivement la réparation <span className="font-semibold">{repair.numeroReparation}</span>.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Annuler</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(repair.id || repair._id || repair.numeroReparation)} className="bg-red-600 hover:bg-red-700">Supprimer</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
           {filteredAndSortedReparations.length === 0 && (

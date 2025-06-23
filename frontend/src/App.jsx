@@ -104,6 +104,24 @@ function App() {
   const [ventes, setVentes] = useState([]); // ventes directes
   const [sortiesRechange, setSortiesRechange] = useState([]); // sorties pour réparation
 
+  // Met à jour la liste des pièces de rechange sorties pour réparation
+  useEffect(() => {
+    const sorties = [];
+    reparations.forEach(r => {
+      if (Array.isArray(r.pieces_rechange_utilisees)) {
+        r.pieces_rechange_utilisees.forEach(piece => {
+          sorties.push({
+            nom: piece.nom,
+            quantite: piece.quantiteUtilisee,
+            date: r.date_mise_en_reparation || r.date_creation || new Date(),
+            numeroReparation: r.numeroReparation || r.numero_reparation || '', // Ajout du numéro de réparation
+          });
+        });
+      }
+    });
+    setSortiesRechange(sorties);
+  }, [reparations]);
+
   const componentRef = useRef();
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
@@ -277,8 +295,8 @@ function App() {
         statut_reparation: repair.statut_reparation || original.statut_reparation,
         date_creation: repair.date_creation || original.date_creation,
         date_mise_en_reparation: repair.date_mise_en_reparation || original.date_mise_en_reparation,
-        date_rendez_vous: repair.date_rendez_vous || original.date_rendez_vous,
-        date_retrait: repair.date_retrait || original.date_retrait,
+        date_rendez_vous: repair.hasOwnProperty('date_rendez_vous') ? repair.date_rendez_vous : original.date_rendez_vous,
+        date_retrait: repair.hasOwnProperty('date_retrait') ? repair.date_retrait : original.date_retrait,
         etat_paiement: repair.etat_paiement || original.etat_paiement,
         userId: repair.userId || original.userId
       };

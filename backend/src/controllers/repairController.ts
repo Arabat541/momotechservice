@@ -50,7 +50,16 @@ export const createRepair = async (req: Request, res: Response): Promise<void> =
 
 export const updateRepair = async (req: Request, res: Response): Promise<void> => {
   try {
-    const repair = await Repair.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    let update: any = { ...req.body };
+    let updateQuery;
+    // Si date_retrait est explicitement null, on unset le champ
+    if (Object.prototype.hasOwnProperty.call(req.body, 'date_retrait') && req.body.date_retrait === null) {
+      updateQuery = { $set: { ...update }, $unset: { date_retrait: '' } };
+      delete updateQuery.$set.date_retrait; // On retire date_retrait du $set
+    } else {
+      updateQuery = { $set: update };
+    }
+    const repair = await Repair.findByIdAndUpdate(req.params.id, updateQuery, { new: true });
     if (!repair) {
       res.status(404).json({ error: 'Réparation non trouvée.' });
       return;

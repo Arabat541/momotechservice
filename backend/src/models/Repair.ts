@@ -46,7 +46,7 @@ const RepairSchema = new Schema<IRepair>({
   date_creation: { type: Date, default: Date.now },
   date_mise_en_reparation: { type: Date },
   date_rendez_vous: { type: Date },
-  date_retrait: { type: Date },
+  date_retrait: { type: Date, default: null },
   etat_paiement: { type: String, required: true },
   userId: { type: String, required: true },
 });
