@@ -7,15 +7,15 @@ export function useReparations(stocks, updateStockQuantities) {
   const [loadingReparations, setLoadingReparations] = useState(true);
 
   const fetchReparations = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    const shopId = localStorage.getItem('currentShopId');
+    if (!token || token === 'null' || token === 'undefined' || !shopId) {
+      setLoadingReparations(false);
+      setReparations([]);
+      return;
+    }
     setLoadingReparations(true);
     try {
-      const token = localStorage.getItem('token');
-      if (!token || token === 'null' || token === 'undefined') {
-        setLoadingReparations(false);
-        setReparations([]);
-        toast({ variant: "destructive", title: "Non authentifié", description: "Veuillez vous reconnecter." });
-        return;
-      }
       const data = await fetchRepairs(token);
       setReparations(data);
     } catch (e) {
@@ -24,10 +24,6 @@ export function useReparations(stocks, updateStockQuantities) {
     }
     setLoadingReparations(false);
   }, []);
-
-  useEffect(() => {
-    fetchReparations();
-  }, [fetchReparations]);
 
   const generateNumeroReparation = (type) => {
     const prefix = type === 'place' ? 'RP' : '2AR';

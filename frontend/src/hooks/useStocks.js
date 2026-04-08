@@ -7,15 +7,15 @@ export function useStocks() {
   const [loadingStocks, setLoadingStocks] = useState(true);
 
   const fetchStocks = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    const shopId = localStorage.getItem('currentShopId');
+    if (!token || token === 'null' || token === 'undefined' || !shopId) {
+      setLoadingStocks(false);
+      setStocks([]);
+      return;
+    }
     setLoadingStocks(true);
     try {
-      const token = localStorage.getItem('token');
-      if (!token || token === 'null' || token === 'undefined') {
-        setLoadingStocks(false);
-        setStocks([]);
-        toast({ variant: "destructive", title: "Non authentifié", description: "Veuillez vous reconnecter." });
-        return;
-      }
       const data = await apiFetchStocks(token);
       setStocks(data);
     } catch (e) {
@@ -24,10 +24,6 @@ export function useStocks() {
     }
     setLoadingStocks(false);
   }, []);
-
-  useEffect(() => {
-    fetchStocks();
-  }, [fetchStocks]);
   
   const addStockItem = async (item) => {
     setLoadingStocks(true);

@@ -7,14 +7,15 @@ export function useSAV() {
   const [loadingSAV, setLoadingSAV] = useState(true);
 
   const fetchAll = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    const shopId = localStorage.getItem('currentShopId');
+    if (!token || token === 'null' || token === 'undefined' || !shopId) {
+      setLoadingSAV(false);
+      setSavList([]);
+      return;
+    }
     setLoadingSAV(true);
     try {
-      const token = localStorage.getItem('token');
-      if (!token || token === 'null' || token === 'undefined') {
-        setLoadingSAV(false);
-        setSavList([]);
-        return;
-      }
       const data = await fetchSAVs(token);
       setSavList(data);
     } catch (e) {
@@ -23,10 +24,6 @@ export function useSAV() {
     }
     setLoadingSAV(false);
   }, []);
-
-  useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
 
   const addSAV = async (savData) => {
     setLoadingSAV(true);
