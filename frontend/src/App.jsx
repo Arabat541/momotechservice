@@ -526,9 +526,10 @@ function App() {
           }
         />
       </Route>
-      {/* Public storefront — no auth required */}
+      {/* Public storefront — landing page, no auth required */}
+      <Route path="/" element={<Storefront />} />
       <Route path="/shop/:shopId" element={<Storefront />} />
-      <Route path="*" element={<Navigate to={currentUser && !authTimedOut ? "/reparations-place" : "/auth"} replace />} />
+      <Route path="*" element={<Navigate to={currentUser && !authTimedOut ? "/reparations-place" : "/"} replace />} />
       </Routes>
     </Suspense>
   );

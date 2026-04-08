@@ -277,6 +277,12 @@ export async function removeUserFromShop(token, shopId, userId) {
 }
 
 // --- Storefront (public, no auth) ---
+export async function getAllShopsPublic() {
+  const res = await fetch(`${API_URL}/storefront/all`);
+  if (!res.ok) throw new Error('Erreur chargement boutiques');
+  return res.json();
+}
+
 export async function getShopPublicInfo(shopId) {
   const res = await fetch(`${API_URL}/storefront/${shopId}`);
   if (!res.ok) throw new Error('Boutique introuvable');

@@ -1,9 +1,10 @@
 import express from 'express';
-import { getShopPublicInfo, trackRepair } from '../controllers/storefrontController';
+import { getAllShopsPublic, getShopPublicInfo, trackRepair } from '../controllers/storefrontController';
 
 const router = express.Router();
 
 // Public endpoints — no authentication required
+router.get('/all', getAllShopsPublic);
 router.get('/track/:numero', trackRepair);
 router.get('/:shopId', getShopPublicInfo);
 

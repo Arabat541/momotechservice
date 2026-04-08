@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getShopPublicInfo, trackRepair } from '@/lib/api';
-import { Loader2, Phone, Mail, MapPin, Search, ArrowLeft, Wrench, CheckCircle2, Clock, CalendarCheck } from 'lucide-react';
+import { getAllShopsPublic, getShopPublicInfo, trackRepair } from '@/lib/api';
+import { Loader2, Phone, Mail, MapPin, Search, Wrench, CheckCircle2, Clock, CalendarCheck, Store, LogIn } from 'lucide-react';
 
 const statusConfig = {
   'En attente': { color: 'bg-yellow-100 text-yellow-800', icon: Clock },
@@ -22,7 +22,7 @@ function StatusBadge({ statut }) {
   );
 }
 
-function RepairTracker({ shopId }) {
+function RepairTracker() {
   const [numero, setNumero] = useState('');
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
@@ -124,17 +124,26 @@ function RepairTracker({ shopId }) {
 
 export default function Storefront() {
   const { shopId } = useParams();
-  const [shopInfo, setShopInfo] = useState(null);
+  const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!shopId) return;
     setLoading(true);
-    getShopPublicInfo(shopId)
-      .then(setShopInfo)
-      .catch(() => setError('Boutique introuvable.'))
-      .finally(() => setLoading(false));
+    setError('');
+    if (shopId) {
+      // Single shop mode
+      getShopPublicInfo(shopId)
+        .then(data => setShops([{ ...data, _id: shopId }]))
+        .catch(() => setError('Boutique introuvable.'))
+        .finally(() => setLoading(false));
+    } else {
+      // All shops mode (landing page)
+      getAllShopsPublic()
+        .then(data => setShops(data))
+        .catch(() => setError('Impossible de charger les boutiques.'))
+        .finally(() => setLoading(false));
+    }
   }, [shopId]);
 
   if (loading) {
@@ -145,96 +154,121 @@ export default function Storefront() {
     );
   }
 
-  if (error || !shopInfo) {
+  if (error || shops.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 px-4">
         <div className="bg-white rounded-2xl shadow-lg p-8 text-center max-w-md">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Boutique introuvable</h1>
-          <p className="text-gray-500 mb-6">Le lien semble invalide ou la boutique n'existe plus.</p>
+          <Store className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">{error || 'Aucune boutique disponible'}</h1>
+          <p className="text-gray-500 mb-6">Revenez plus tard ou contactez-nous.</p>
           <Link to="/auth" className="text-blue-600 hover:underline flex items-center justify-center gap-1">
-            <ArrowLeft className="w-4 h-4" /> Retour à la connexion
+            <LogIn className="w-4 h-4" /> Espace professionnel
           </Link>
         </div>
       </div>
     );
   }
 
+  // Find main name for header (first shop or generic)
+  const mainShop = shops[0];
+  const headerName = shops.length === 1 ? mainShop.nom : (mainShop.nom || 'MOMO TECH');
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-100">
-        <div className="max-w-4xl mx-auto px-4 py-6 flex items-center gap-4">
-          {shopInfo.logoUrl && (
-            <img src={shopInfo.logoUrl} alt={shopInfo.nom} className="w-14 h-14 rounded-xl object-cover" />
-          )}
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{shopInfo.nom}</h1>
-            {shopInfo.slogan && <p className="text-gray-500 text-sm mt-0.5">{shopInfo.slogan}</p>}
+        <div className="max-w-5xl mx-auto px-4 py-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            {mainShop.logoUrl && (
+              <img src={mainShop.logoUrl} alt={headerName} className="w-14 h-14 rounded-xl object-cover" />
+            )}
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{headerName}</h1>
+              {mainShop.slogan && <p className="text-gray-500 text-sm mt-0.5">{mainShop.slogan}</p>}
+            </div>
           </div>
+          <Link to="/auth" className="text-sm text-gray-400 hover:text-blue-600 flex items-center gap-1 transition">
+            <LogIn className="w-4 h-4" /> Pro
+          </Link>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
-        {/* Contact info cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {shopInfo.telephone && (
-            <a href={`tel:${shopInfo.telephone}`} className="bg-white rounded-2xl shadow-sm p-5 flex items-center gap-4 hover:shadow-md transition group">
-              <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition">
-                <Phone className="w-5 h-5 text-blue-600" />
+      <main className="max-w-5xl mx-auto px-4 py-8 space-y-10">
+        {/* Shops list */}
+        {shops.map((shop) => (
+          <section key={shop._id} className="space-y-6">
+            {shops.length > 1 && (
+              <div className="flex items-center gap-3">
+                <Store className="w-5 h-5 text-blue-600" />
+                <h2 className="text-xl font-bold text-gray-900">{shop.nom}</h2>
+                {shop.slogan && <span className="text-gray-400 text-sm">— {shop.slogan}</span>}
               </div>
-              <div>
-                <p className="text-xs text-gray-500">Téléphone</p>
-                <p className="font-medium text-gray-900">{shopInfo.telephone}</p>
-              </div>
-            </a>
-          )}
-          {shopInfo.email && (
-            <a href={`mailto:${shopInfo.email}`} className="bg-white rounded-2xl shadow-sm p-5 flex items-center gap-4 hover:shadow-md transition group">
-              <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center group-hover:bg-purple-200 transition">
-                <Mail className="w-5 h-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Email</p>
-                <p className="font-medium text-gray-900 break-all">{shopInfo.email}</p>
-              </div>
-            </a>
-          )}
-          {shopInfo.adresse && (
-            <div className="bg-white rounded-2xl shadow-sm p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
-                <MapPin className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Adresse</p>
-                <p className="font-medium text-gray-900">{shopInfo.adresse}</p>
-              </div>
+            )}
+
+            {/* Contact info cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {shop.telephone && (
+                <a href={`tel:${shop.telephone}`} className="bg-white rounded-2xl shadow-sm p-5 flex items-center gap-4 hover:shadow-md transition group">
+                  <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition">
+                    <Phone className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Téléphone</p>
+                    <p className="font-medium text-gray-900">{shop.telephone}</p>
+                  </div>
+                </a>
+              )}
+              {shop.email && (
+                <a href={`mailto:${shop.email}`} className="bg-white rounded-2xl shadow-sm p-5 flex items-center gap-4 hover:shadow-md transition group">
+                  <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center group-hover:bg-purple-200 transition">
+                    <Mail className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Email</p>
+                    <p className="font-medium text-gray-900 break-all">{shop.email}</p>
+                  </div>
+                </a>
+              )}
+              {shop.adresse && (
+                <div className="bg-white rounded-2xl shadow-sm p-5 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
+                    <MapPin className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Adresse</p>
+                    <p className="font-medium text-gray-900">{shop.adresse}</p>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {/* Repair tracker */}
-        <RepairTracker shopId={shopId} />
+            {/* Warranty info */}
+            {(shop.warranty?.duree || shop.warranty?.conditions) && (
+              <div className="bg-white rounded-2xl shadow-sm p-6">
+                <h3 className="text-base font-bold text-gray-900 mb-2">Garantie</h3>
+                {shop.warranty.duree && (
+                  <p className="text-sm text-gray-700 mb-1">
+                    <span className="font-medium">Durée :</span> {shop.warranty.duree}
+                  </p>
+                )}
+                {shop.warranty.conditions && (
+                  <p className="text-sm text-gray-600 whitespace-pre-line">{shop.warranty.conditions}</p>
+                )}
+              </div>
+            )}
 
-        {/* Warranty info */}
-        {(shopInfo.warranty?.duree || shopInfo.warranty?.conditions) && (
-          <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Garantie</h2>
-            {shopInfo.warranty.duree && (
-              <p className="text-sm text-gray-700 mb-2">
-                <span className="font-medium">Durée :</span> {shopInfo.warranty.duree}
-              </p>
-            )}
-            {shopInfo.warranty.conditions && (
-              <p className="text-sm text-gray-600 whitespace-pre-line">{shopInfo.warranty.conditions}</p>
-            )}
-          </div>
-        )}
+            {shops.length > 1 && <hr className="border-gray-200" />}
+          </section>
+        ))}
+
+        {/* Repair tracker — global, always visible */}
+        <RepairTracker />
       </main>
 
       {/* Footer */}
       <footer className="border-t border-gray-200 bg-white mt-12">
-        <div className="max-w-4xl mx-auto px-4 py-6 text-center text-sm text-gray-400">
-          &copy; {new Date().getFullYear()} {shopInfo.nom}. Tous droits réservés.
+        <div className="max-w-5xl mx-auto px-4 py-6 text-center text-sm text-gray-400">
+          &copy; {new Date().getFullYear()} {headerName}. Tous droits réservés.
         </div>
       </footer>
     </div>

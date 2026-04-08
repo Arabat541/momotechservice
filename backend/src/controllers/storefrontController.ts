@@ -3,6 +3,32 @@ import Shop from '../models/Shop';
 import Settings from '../models/Settings';
 import Repair from '../models/Repair';
 
+// GET /api/storefront/all — All shops public info
+export const getAllShopsPublic = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const shops = await Shop.find().select('nom adresse telephone').sort({ _id: 1 });
+    const shopsWithSettings = await Promise.all(
+      shops.map(async (shop) => {
+        const settings = await Settings.findOne({ shopId: shop._id });
+        const ci = settings?.companyInfo || {};
+        return {
+          _id: shop._id,
+          nom: ci.nom || shop.nom,
+          adresse: ci.adresse || shop.adresse,
+          telephone: ci.telephone || shop.telephone,
+          email: ci.email || '',
+          slogan: ci.slogan || '',
+          logoUrl: ci.logoUrl || '',
+          warranty: settings?.warranty || {},
+        };
+      })
+    );
+    res.json(shopsWithSettings);
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur lors de la récupération des boutiques.' });
+  }
+};
+
 // GET /api/storefront/:shopId — Public shop info
 export const getShopPublicInfo = async (req: Request, res: Response): Promise<void> => {
   try {
