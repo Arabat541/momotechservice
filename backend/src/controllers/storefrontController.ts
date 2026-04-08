@@ -25,6 +25,7 @@ export const getAllShopsPublic = async (_req: Request, res: Response): Promise<v
     );
     res.json(shopsWithSettings);
   } catch (err) {
+    console.error('getAllShopsPublic error:', err);
     res.status(500).json({ error: 'Erreur lors de la récupération des boutiques.' });
   }
 };
