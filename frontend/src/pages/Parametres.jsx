@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/use-toast';
-import { Trash2, ShieldCheck, User as UserIcon, Save, FileText, Loader2 } from 'lucide-react';
+import { Trash2, ShieldCheck, User as UserIcon, Save, FileText, Loader2, Store, UserPlus, UserMinus } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,7 +20,7 @@ import {
 import { exportUsersCSV, exportUsersPDF, getSettings, updateSettings } from '../lib/api';
 
 
-const Parametres = ({ currentUser, users = [], onDeleteUser, fetchAllUsers }) => {
+const Parametres = ({ currentUser, users = [], onDeleteUser, fetchAllUsers, shops = [], currentShop, onEditShop, onDeleteShop, onAddUserToShop, onRemoveUserFromShop }) => {
   const [companyInfo, setCompanyInfo] = useState({
     nomEntreprise: "",
     adresse: "",
@@ -232,6 +232,29 @@ const Parametres = ({ currentUser, users = [], onDeleteUser, fetchAllUsers }) =>
           <Button onClick={saveCompanyInfo} className="mt-6 w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white">
             <Save size={18} className="mr-2" /> Enregistrer Infos Entreprise
           </Button>
+          {currentShop && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm font-medium text-blue-800 mb-1 flex items-center gap-1">
+                <Store size={16} /> Lien vitrine publique
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="text-xs bg-white px-3 py-1.5 rounded border border-blue-200 flex-1 break-all select-all">
+                  {window.location.origin}/shop/{currentShop._id || currentShop.id}
+                </code>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/shop/${currentShop._id || currentShop.id}`);
+                    toast({ title: "Copié !", description: "Lien copié dans le presse-papier." });
+                  }}
+                >
+                  Copier
+                </Button>
+              </div>
+              <p className="text-xs text-blue-600 mt-1">Partagez ce lien avec vos clients pour qu&apos;ils puissent voir vos infos et suivre leurs réparations.</p>
+            </div>
+          )}
         </motion.div>
 
         <motion.div
@@ -338,6 +361,91 @@ const Parametres = ({ currentUser, users = [], onDeleteUser, fetchAllUsers }) =>
         </motion.div>
       )}
 
+      {isPatron && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0, transition: { delay: 0.3, type: 'spring', stiffness: 100 } }}
+          className="bg-white rounded-xl shadow-xl p-6 border border-slate-200"
+        >
+          <h4 className="text-xl font-semibold mb-4 text-slate-700 flex items-center">
+            <Store size={22} className="mr-2 text-purple-600" />
+            Gestion des boutiques
+          </h4>
+          {shops.length === 0 && (
+            <p className="text-center text-slate-500 p-4">Aucune boutique configurée.</p>
+          )}
+          {shops.length > 0 && (
+            <div className="space-y-4">
+              {shops.map(shop => {
+                const shopId = shop._id || shop.id;
+                const isCurrent = currentShop && (currentShop._id || currentShop.id) === shopId;
+                return (
+                  <div key={shopId} className={`p-4 rounded-lg border ${isCurrent ? 'border-purple-300 bg-purple-50' : 'border-slate-200 bg-slate-50'} shadow-sm`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Store size={18} className="text-purple-500" />
+                        <span className="font-semibold text-slate-800">{shop.nom}</span>
+                        {isCurrent && <span className="text-xs bg-purple-200 text-purple-700 px-2 py-0.5 rounded-full">Active</span>}
+                      </div>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-100 hover:text-red-600">
+                            <Trash2 size={14} className="mr-1" /> Supprimer
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Supprimer la boutique ?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Cette action supprimera la boutique &quot;{shop.nom}&quot; et toutes ses données associées.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Annuler</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => onDeleteShop && onDeleteShop(shopId)} className="bg-red-600 hover:bg-red-700 text-white">
+                              Supprimer
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                    {shop.adresse && <p className="text-sm text-slate-600">Adresse : {shop.adresse}</p>}
+                    {shop.telephone && <p className="text-sm text-slate-600">Tél : {shop.telephone}</p>}
+                    
+                    {/* Assign user to this shop */}
+                    <div className="mt-3 pt-3 border-t border-slate-200">
+                      <p className="text-sm font-medium text-slate-600 mb-2">Membres de cette boutique :</p>
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {users.filter(u => u.shops && u.shops.some(s => (typeof s === 'string' ? s : (s._id || s.id)) === shopId)).map(u => (
+                          <span key={u._id || u.id} className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                            {u.email}
+                            <button onClick={() => onRemoveUserFromShop && onRemoveUserFromShop(shopId, u._id || u.id)} className="hover:text-red-500" title="Retirer">
+                              <UserMinus size={12} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {users.filter(u => !u.shops || !u.shops.some(s => (typeof s === 'string' ? s : (s._id || s.id)) === shopId)).map(u => (
+                          <button
+                            key={u._id || u.id}
+                            onClick={() => onAddUserToShop && onAddUserToShop(shopId, u._id || u.id)}
+                            className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full hover:bg-green-100 hover:text-green-700 transition-colors"
+                            title={`Ajouter ${u.email}`}
+                          >
+                            <UserPlus size={12} /> {u.email}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </motion.div>
+      )}
+
       <div className="mt-8 p-4 bg-slate-50 rounded-lg border border-slate-200">
         <h4 className="text-lg font-semibold mb-4 text-slate-700 flex items-center">
           <Save size={22} className="mr-2 text-green-600" />
@@ -372,9 +480,16 @@ Parametres.propTypes = {
     _id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     email: PropTypes.string,
     role: PropTypes.string,
+    shops: PropTypes.array,
   })),
   onDeleteUser: PropTypes.func,
   fetchAllUsers: PropTypes.func,
+  shops: PropTypes.array,
+  currentShop: PropTypes.object,
+  onEditShop: PropTypes.func,
+  onDeleteShop: PropTypes.func,
+  onAddUserToShop: PropTypes.func,
+  onRemoveUserFromShop: PropTypes.func,
 };
 
 export default Parametres;

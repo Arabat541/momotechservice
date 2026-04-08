@@ -1,12 +1,12 @@
 import express from 'express';
 import { getSettings, updateSettings } from '../controllers/settingsController';
-import { authenticateJWT } from '../middlewares/auth';
+import { authenticateJWT, requireShop } from '../middlewares/auth';
 
 const router = express.Router();
 
-// Récupérer les paramètres globaux
-router.get('/', authenticateJWT, getSettings);
-// Mettre à jour les paramètres globaux
-router.put('/', authenticateJWT, updateSettings);
+// Récupérer les paramètres de la boutique
+router.get('/', authenticateJWT, requireShop, getSettings);
+// Mettre à jour les paramètres de la boutique
+router.put('/', authenticateJWT, requireShop, updateSettings);
 
 export default router;

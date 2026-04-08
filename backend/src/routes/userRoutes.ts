@@ -1,14 +1,17 @@
 import express from 'express';
-import { register, login, getProfile, updateProfile, getAllUsers, deleteUser, updateUserRole, resetPassword } from '../controllers/userController';
+import { register, login, getProfile, updateProfile, getAllUsers, deleteUser, updateUserRole, resetPassword, confirmResetPassword } from '../controllers/userController';
 import { authenticateJWT, authorizeRole } from '../middlewares/auth';
+import { validate } from '../middlewares/validate';
+import { registerSchema, loginSchema, resetPasswordSchema, confirmResetSchema } from '../validators/schemas';
 
 const router = express.Router();
 
-router.post('/register', register);
-router.post('/login', login);
+router.post('/register', validate(registerSchema), register);
+router.post('/login', validate(loginSchema), login);
 router.get('/me', authenticateJWT, getProfile);
 router.put('/me', authenticateJWT, updateProfile);
-router.post('/reset-password', resetPassword);
+router.post('/reset-password', validate(resetPasswordSchema), resetPassword);
+router.post('/confirm-reset-password', validate(confirmResetSchema), confirmResetPassword);
 
 // Patron-only user management
 router.get('/users', authenticateJWT, authorizeRole(['patron']), getAllUsers);

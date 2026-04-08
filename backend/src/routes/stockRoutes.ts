@@ -6,14 +6,16 @@ import {
   updateStock,
   deleteStock
 } from '../controllers/stockController';
-import { authenticateJWT } from '../middlewares/auth';
+import { authenticateJWT, requireShop } from '../middlewares/auth';
+import { validate } from '../middlewares/validate';
+import { createStockSchema } from '../validators/schemas';
 
 const router = express.Router();
 
-router.get('/', authenticateJWT, getAllStocks);
-router.get('/:id', authenticateJWT, getStockById);
-router.post('/', authenticateJWT, createStock);
-router.put('/:id', authenticateJWT, updateStock);
-router.delete('/:id', authenticateJWT, deleteStock);
+router.get('/', authenticateJWT, requireShop, getAllStocks);
+router.get('/:id', authenticateJWT, requireShop, getStockById);
+router.post('/', authenticateJWT, requireShop, validate(createStockSchema), createStock);
+router.put('/:id', authenticateJWT, requireShop, updateStock);
+router.delete('/:id', authenticateJWT, requireShop, deleteStock);
 
 export default router;

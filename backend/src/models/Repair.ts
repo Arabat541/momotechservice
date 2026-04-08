@@ -1,6 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IRepair extends Document {
+  shopId: mongoose.Types.ObjectId;
   numeroReparation: string;
   type_reparation: 'place' | 'rdv';
   client_nom: string;
@@ -21,6 +22,7 @@ export interface IRepair extends Document {
 }
 
 const RepairSchema = new Schema<IRepair>({
+  shopId: { type: Schema.Types.ObjectId, ref: 'Shop', required: true, index: true },
   numeroReparation: { type: String, required: true, unique: true },
   type_reparation: { type: String, enum: ['place', 'rdv'], required: true },
   client_nom: { type: String, required: true },
@@ -50,5 +52,8 @@ const RepairSchema = new Schema<IRepair>({
   etat_paiement: { type: String, required: true },
   userId: { type: String, required: true },
 });
+
+// Compound index for shop-scoped date queries
+RepairSchema.index({ shopId: 1, date_creation: -1 });
 
 export default mongoose.model<IRepair>('Repair', RepairSchema);

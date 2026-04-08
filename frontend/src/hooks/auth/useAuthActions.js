@@ -71,10 +71,11 @@ export function useAuthActions(setCurrentUser, setLoadingAuth) {
   };
 
   const handleSignout = async () => {
-    // TODO: Implémenter la déconnexion via l'API backend (suppression du token côté client)
     setCurrentUser(null);
     localStorage.removeItem('token');
-    navigate('/login');
+    localStorage.removeItem('profile');
+    localStorage.removeItem('currentShopId');
+    navigate('/auth', { replace: true });
   };
 
   return { handleLogin, handleSignup, handleSignout };

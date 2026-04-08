@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import { getAllUsers, registerUser, deleteUserById } from '@/lib/api';
 
-export function useUserManagement(setCurrentUser, setLoadingAuth) {
+export function useUserManagement(setCurrentUser, setUsers) {
 
   // Fonction stable, jamais redéfinie
   const fetchAllUsers = useCallback(async () => {

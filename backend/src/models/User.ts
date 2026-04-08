@@ -8,6 +8,7 @@ export interface IUser extends Document {
   nom: string;
   prenom: string;
   role: UserRole;
+  shops: mongoose.Types.ObjectId[];
 }
 
 const UserSchema = new Schema<IUser>({
@@ -16,6 +17,7 @@ const UserSchema = new Schema<IUser>({
   nom: { type: String, required: true },
   prenom: { type: String, required: true },
   role: { type: String, enum: ['employé', 'patron'], default: 'employé' },
+  shops: [{ type: Schema.Types.ObjectId, ref: 'Shop' }],
 }, { timestamps: true });
 
 export default mongoose.model<IUser>('User', UserSchema);

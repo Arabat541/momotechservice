@@ -11,21 +11,23 @@ import {
   LogOut,
   Menu,
   X,
-  Loader2
+  Loader2,
+  ShieldAlert
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useUserRole } from '@/hooks/useAuth';
+import ShopSelector from '@/components/shared/ShopSelector';
 
 const menuItems = [
   { id: 'reparations-place', label: 'Réparation sur place', icon: Smartphone, path: '/reparations-place' },
   { id: 'reparations-rdv', label: 'Réparation sur rdv', icon: Calendar, path: '/reparations-rdv' },
   { id: 'article', label: 'Vente de Pièce détâchée', icon: Package, path: '/article' },
   { id: 'liste-reparations', label: 'Liste-réparation', icon: List, path: '/liste-reparations' },
+  { id: 'sav', label: 'SAV', icon: ShieldAlert, path: '/sav' },
   { id: 'stocks', label: 'Gestion des stocks', icon: Package, path: '/stocks', onlyPatron: true },
   { id: 'parametres', label: 'Paramètres', icon: Settings, path: '/parametres', onlyPatron: true }
 ];
 
-const DashboardLayout = ({ currentUser, onLogout = () => {}, loadingApp }) => {
+const DashboardLayout = ({ currentUser, onLogout = () => {}, loadingApp, shops = [], currentShop, onSelectShop, onCreateShop }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true); 
@@ -50,8 +52,7 @@ const DashboardLayout = ({ currentUser, onLogout = () => {}, loadingApp }) => {
   };
 
   // Supposons que le token JWT est stocké dans le localStorage
-  const token = localStorage.getItem('token');
-  const role = useUserRole(token);
+  const role = currentUser?.role || null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 to-blue-100 flex">
@@ -85,6 +86,17 @@ const DashboardLayout = ({ currentUser, onLogout = () => {}, loadingApp }) => {
             </Button>
           </div>
           <nav className={`space-y-2 ${isSidebarOpen ? 'p-4' : 'p-2'}`}>
+            {isSidebarOpen && (
+              <div className="mb-3">
+                <ShopSelector
+                  shops={shops}
+                  currentShop={currentShop}
+                  onSelectShop={onSelectShop}
+                  onCreateShop={onCreateShop}
+                  isPatron={role === 'patron'}
+                />
+              </div>
+            )}
             {menuItems.map((item) => {
               const Icon = item.icon;
               if (item.onlyPatron && role !== 'patron') return null;
@@ -180,6 +192,10 @@ DashboardLayout.propTypes = {
   }),
   onLogout: PropTypes.func.isRequired,
   loadingApp: PropTypes.bool,
+  shops: PropTypes.array,
+  currentShop: PropTypes.object,
+  onSelectShop: PropTypes.func,
+  onCreateShop: PropTypes.func,
 };
 
 export default DashboardLayout;

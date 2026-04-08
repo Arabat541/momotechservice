@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/use-toast';
 import { LogIn, UserPlus, Smartphone, Loader2, AlertTriangle } from 'lucide-react';
-import { getProfile, updateProfile, resetPasswordRequest } from '../lib/api';
+import { getProfile, updateProfile, resetPasswordRequest, confirmResetPassword } from '../lib/api';
 import { useLocation } from 'react-router-dom';
 
 const AuthPage = ({ onLogin, onSignup, authTimedOut }) => {
@@ -21,7 +21,9 @@ const AuthPage = ({ onLogin, onSignup, authTimedOut }) => {
   const [profil, setProfil] = useState(null);
   const [form, setForm] = useState({ nom: '', prenom: '', email: '', password: '' });
   const [message, setMessage] = useState('');
-  const [showResetPassword, setShowResetPassword] = useState(false); // Ajout du flag
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resetStep, setResetStep] = useState(1); // 1 = enter email, 2 = enter code + new password
+  const [resetEmail, setResetEmail] = useState('');
 
   const token = localStorage.getItem('token');
 
@@ -112,11 +114,20 @@ const AuthPage = ({ onLogin, onSignup, authTimedOut }) => {
     if (showResetPassword) {
       setIsSubmitting(true);
       try {
-        await resetPasswordRequest(form.email, form.password);
-        setMessage('Mot de passe réinitialisé avec succès. Vous pouvez vous connecter.');
-        setShowResetPassword(false);
+        if (resetStep === 1) {
+          await resetPasswordRequest(form.email || email);
+          setResetEmail(form.email || email);
+          setResetStep(2);
+          setMessage('Un code de réinitialisation a été envoyé (vérifiez les logs serveur).');
+        } else {
+          await confirmResetPassword(resetEmail, form.code, form.password);
+          setMessage('Mot de passe réinitialisé avec succès. Vous pouvez vous connecter.');
+          setShowResetPassword(false);
+          setResetStep(1);
+          setResetEmail('');
+        }
       } catch (e) {
-        setMessage('Erreur lors de la réinitialisation du mot de passe');
+        setMessage(e.message || 'Erreur lors de la réinitialisation du mot de passe');
       }
       setIsSubmitting(false);
       return;
@@ -152,43 +163,64 @@ const AuthPage = ({ onLogin, onSignup, authTimedOut }) => {
         {showResetPassword ? (
           <form onSubmit={handleProfileSubmit} className="space-y-6">
             <h2 className="text-xl font-semibold text-white mb-4">Réinitialiser le mot de passe</h2>
-            <div>
-              <Label htmlFor="email" className="text-purple-300">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="exemple@mail.com"
-                value={form.email || email}
-                onChange={e => setForm({ ...form, email: e.target.value })}
-                required
-                className="bg-white/20 border-purple-500 text-white placeholder-purple-400 focus:ring-purple-400"
-                disabled={isSubmitting || authTimedOut}
-              />
-            </div>
-            <div>
-              <Label htmlFor="password" className="text-purple-300">Nouveau mot de passe</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="Nouveau mot de passe"
-                value={form.password}
-                onChange={e => setForm({ ...form, password: e.target.value })}
-                required
-                className="bg-white/20 border-purple-500 text-white placeholder-purple-400 focus:ring-purple-400"
-                disabled={isSubmitting || authTimedOut}
-              />
-            </div>
+            {resetStep === 1 ? (
+              <div>
+                <Label htmlFor="email" className="text-purple-300">Email</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="exemple@mail.com"
+                  value={form.email || email}
+                  onChange={e => setForm({ ...form, email: e.target.value })}
+                  required
+                  className="bg-white/20 border-purple-500 text-white placeholder-purple-400 focus:ring-purple-400"
+                  disabled={isSubmitting || authTimedOut}
+                />
+              </div>
+            ) : (
+              <>
+                <div>
+                  <Label htmlFor="code" className="text-purple-300">Code reçu</Label>
+                  <Input
+                    id="code"
+                    name="code"
+                    type="text"
+                    placeholder="123456"
+                    value={form.code || ''}
+                    onChange={e => setForm({ ...form, code: e.target.value })}
+                    required
+                    maxLength={6}
+                    className="bg-white/20 border-purple-500 text-white placeholder-purple-400 focus:ring-purple-400"
+                    disabled={isSubmitting || authTimedOut}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="password" className="text-purple-300">Nouveau mot de passe</Label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    placeholder="Minimum 8 caractères"
+                    value={form.password}
+                    onChange={e => setForm({ ...form, password: e.target.value })}
+                    required
+                    minLength={8}
+                    className="bg-white/20 border-purple-500 text-white placeholder-purple-400 focus:ring-purple-400"
+                    disabled={isSubmitting || authTimedOut}
+                  />
+                </div>
+              </>
+            )}
             <Button 
               type="submit" 
               className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white py-3 text-lg font-semibold" 
               disabled={isSubmitting || loadingPage || authTimedOut}
             >
-              {isSubmitting ? <Loader2 size={20} className="mr-2 animate-spin" /> : 'Réinitialiser'}
+              {isSubmitting ? <Loader2 size={20} className="mr-2 animate-spin" /> : resetStep === 1 ? 'Envoyer le code' : 'Réinitialiser'}
             </Button>
             <div className="mt-4 text-center">
-              <button type="button" className="text-sm text-purple-300 hover:text-purple-100" onClick={() => setShowResetPassword(false)}>
+              <button type="button" className="text-sm text-purple-300 hover:text-purple-100" onClick={() => { setShowResetPassword(false); setResetStep(1); setResetEmail(''); }}>
                 Retour à la connexion
               </button>
             </div>

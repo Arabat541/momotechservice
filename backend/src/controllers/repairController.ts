@@ -1,11 +1,25 @@
 import { Request, Response } from 'express';
 import Repair from '../models/Repair';
-import Stock from '../models/Stock';
+import { AuthRequest } from '../middlewares/auth';
 
 export const getAllRepairs = async (req: Request, res: Response): Promise<void> => {
   try {
-    const repairs = await Repair.find().sort({ date_creation: -1 });
-    res.json(repairs);
+    const shopId = (req as AuthRequest).shopId;
+    const filter = shopId ? { shopId } : {};
+    const page = parseInt(req.query.page as string);
+    const limit = parseInt(req.query.limit as string);
+
+    if (page > 0 && limit > 0) {
+      const skip = (page - 1) * limit;
+      const [repairs, total] = await Promise.all([
+        Repair.find(filter).sort({ date_creation: -1 }).skip(skip).limit(limit),
+        Repair.countDocuments(filter),
+      ]);
+      res.json({ data: repairs, total, page, totalPages: Math.ceil(total / limit) });
+    } else {
+      const repairs = await Repair.find(filter).sort({ date_creation: -1 });
+      res.json(repairs);
+    }
   } catch (err) {
     res.status(500).json({ error: 'Erreur lors de la récupération des réparations.' });
   }
@@ -26,21 +40,13 @@ export const getRepairById = async (req: Request, res: Response): Promise<void> 
 
 export const createRepair = async (req: Request, res: Response): Promise<void> => {
   try {
-    const repair = new Repair(req.body);
-    await repair.save();
-
-    // Décrémentation du stock pour chaque pièce utilisée
-    if (Array.isArray(req.body.pieces_rechange_utilisees)) {
-      for (const piece of req.body.pieces_rechange_utilisees) {
-        if (piece.stockId && piece.quantiteUtilisee > 0) {
-          await Stock.findByIdAndUpdate(
-            piece.stockId,
-            { $inc: { quantite: -Math.abs(piece.quantiteUtilisee) } },
-            { new: true }
-          );
-        }
-      }
+    const shopId = (req as AuthRequest).shopId;
+    const repairData = { ...req.body };
+    if (shopId) {
+      repairData.shopId = shopId;
     }
+    const repair = new Repair(repairData);
+    await repair.save();
 
     res.status(201).json(repair);
   } catch (err) {

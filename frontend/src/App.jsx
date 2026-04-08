@@ -1,24 +1,29 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import AuthPage from '@/pages/AuthPage';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import ReparationsPlace from '@/pages/ReparationsPlace';
-import ReparationsRdv from '@/pages/ReparationsRdv';
-import ListeReparations from '@/pages/ListeReparations';
-import GestionStocks from '@/pages/GestionStocks';
-import Parametres from '@/pages/Parametres';
 import RecuPreview from '@/components/shared/RecuPreview';
 import { useReactToPrint } from 'react-to-print';
 import Barcode from 'react-barcode';
 import { Loader2 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import PropTypes from 'prop-types';
-import Article from './pages/Article';
+
+const ReparationsPlace = React.lazy(() => import('@/pages/ReparationsPlace'));
+const ReparationsRdv = React.lazy(() => import('@/pages/ReparationsRdv'));
+const ListeReparations = React.lazy(() => import('@/pages/ListeReparations'));
+const GestionStocks = React.lazy(() => import('@/pages/GestionStocks'));
+const Parametres = React.lazy(() => import('@/pages/Parametres'));
+const Article = React.lazy(() => import('./pages/Article'));
+const Storefront = React.lazy(() => import('@/pages/Storefront'));
+const SAVPage = React.lazy(() => import('@/pages/SAVPage'));
 
 import { useAuth } from '@/hooks/useAuth';
 import { useStocks } from '@/hooks/useStocks';
 import { useReparations } from '@/hooks/useReparations';
+import { useShop } from '@/hooks/useShop';
+import { useSAV } from '@/hooks/useSAV';
 
 const EtiquettePreview = React.forwardRef(({ repairData }, ref) => {
   const [companyName, setCompanyName] = useState("MOMO TECH");
@@ -83,6 +88,7 @@ EtiquettePreview.propTypes = {
 
 function App() {
   const { currentUser, users, loadingAuth, handleLogin, handleSignup, handleLogout, createUser, deleteUser, fetchAllUsers } = useAuth();
+  const { shops, currentShop, loadingShops, fetchShops, selectShop, createShop, editShop, deleteShop: deleteShopAction, addUserToShop, removeUserFromShop } = useShop();
   const { stocks, loadingStocks, addStockItem, editStockItem, deleteStockItem, updateStockQuantities, fetchStocks: refreshStocks } = useStocks();
   const { 
     reparations, 
@@ -94,9 +100,18 @@ function App() {
     fetchReparations: refreshReparations,
     updateRepair // <-- à ajouter dans le hook useReparations si manquant
   } = useReparations(stocks, updateStockQuantities);
+  const { savList, loadingSAV, addSAV, editSAV, removeSAV, refreshSAV } = useSAV();
 
   const location = useLocation();
   const navigate = useNavigate();
+
+  // When the selected shop changes, refresh repairs and stocks
+  const handleSelectShop = (shop) => {
+    selectShop(shop);
+    refreshStocks();
+    refreshReparations();
+    refreshSAV();
+  };
   
   const [showStandalonePreviewModal, setShowStandalonePreviewModal] = useState(false);
   const [standalonePreviewData, setStandalonePreviewData] = useState(null);
@@ -362,9 +377,16 @@ function App() {
     );
   }
 
+  const LazyFallback = () => (
+    <div className="flex items-center justify-center h-64">
+      <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+    </div>
+  );
+
   // Routes definition
   const AppRoutes = () => (
-    <Routes>
+    <Suspense fallback={<LazyFallback />}>
+      <Routes>
       <Route 
         path="/auth" 
         element={
@@ -384,7 +406,15 @@ function App() {
         path="/" 
         element={
           currentUser && !authTimedOut ? ( // Ensure user is present and no timeout
-            <DashboardLayout currentUser={currentUser} onLogout={handleLogout} loadingApp={loadingStocks || loadingReparations} />
+            <DashboardLayout 
+              currentUser={currentUser} 
+              onLogout={handleLogout} 
+              loadingApp={loadingStocks || loadingReparations}
+              shops={shops}
+              currentShop={currentShop}
+              onSelectShop={handleSelectShop}
+              onCreateShop={createShop}
+            />
           ) : (
             <Navigate to="/auth" replace /> 
           )
@@ -446,6 +476,12 @@ function App() {
               onCreateUser={createUser}
               onDeleteUser={deleteUser}
               fetchAllUsers={fetchAllUsers}
+              shops={shops}
+              currentShop={currentShop}
+              onEditShop={editShop}
+              onDeleteShop={deleteShopAction}
+              onAddUserToShop={addUserToShop}
+              onRemoveUserFromShop={removeUserFromShop}
             />
           } 
         />
@@ -460,9 +496,25 @@ function App() {
             />
           }
         />
+        <Route 
+          path="sav" 
+          element={
+            <SAVPage 
+              savList={savList}
+              loadingSAV={loadingSAV}
+              addSAV={addSAV}
+              editSAV={editSAV}
+              removeSAV={removeSAV}
+              currentUser={currentUser}
+            />
+          }
+        />
       </Route>
+      {/* Public storefront — no auth required */}
+      <Route path="/shop/:shopId" element={<Storefront />} />
       <Route path="*" element={<Navigate to={currentUser && !authTimedOut ? "/reparations-place" : "/auth"} replace />} />
-    </Routes>
+      </Routes>
+    </Suspense>
   );
 
   return (
