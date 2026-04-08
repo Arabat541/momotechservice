@@ -112,6 +112,22 @@ function App() {
     refreshReparations();
     refreshSAV();
   };
+
+  // After login: load shops (which auto-selects one)
+  useEffect(() => {
+    if (currentUser) {
+      fetchShops();
+    }
+  }, [currentUser, fetchShops]);
+
+  // When currentShop changes (after auto-select or manual select), refresh all data
+  useEffect(() => {
+    if (currentUser && currentShop) {
+      refreshStocks();
+      refreshReparations();
+      refreshSAV();
+    }
+  }, [currentShop?._id]);
   
   const [showStandalonePreviewModal, setShowStandalonePreviewModal] = useState(false);
   const [standalonePreviewData, setStandalonePreviewData] = useState(null);
