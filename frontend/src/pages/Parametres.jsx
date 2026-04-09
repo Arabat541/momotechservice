@@ -20,7 +20,7 @@ import {
 import { exportUsersCSV, exportUsersPDF, getSettings, updateSettings } from '../lib/api';
 
 
-const Parametres = ({ currentUser, users = [], onDeleteUser, fetchAllUsers, shops = [], currentShop, onEditShop, onDeleteShop, onAddUserToShop, onRemoveUserFromShop }) => {
+const Parametres = ({ currentUser, users = [], onCreateUser, onDeleteUser, fetchAllUsers, shops = [], currentShop, onEditShop, onDeleteShop, onAddUserToShop, onRemoveUserFromShop }) => {
   const [companyInfo, setCompanyInfo] = useState({
     nomEntreprise: "",
     adresse: "",
@@ -33,6 +33,7 @@ const Parametres = ({ currentUser, users = [], onDeleteUser, fetchAllUsers, shop
   });
   const [isSubmittingUser, setIsSubmittingUser] = useState(false);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [newEmployee, setNewEmployee] = useState({ nom: '', prenom: '', email: '', password: '' });
 
 
   useEffect(() => {
@@ -323,11 +324,12 @@ const Parametres = ({ currentUser, users = [], onDeleteUser, fetchAllUsers, shop
                   <div className="flex items-center">
                     {user.role === 'patron' ? <ShieldCheck size={24} className="mr-3 text-amber-500" /> : <UserIcon size={24} className="mr-3 text-blue-500" />}
                     <div>
-                      <p className="font-medium text-slate-800">{user.email}</p>
+                      <p className="font-medium text-slate-800">{user.nom} {user.prenom}</p>
+                      <p className="text-xs text-slate-500">{user.email}</p>
                       <p className="text-xs text-slate-500 capitalize bg-slate-200 px-2 py-0.5 rounded-full inline-block">{user.role}</p>
                     </div>
                   </div>
-                  {currentUser && currentUser.id !== user.id && (
+                  {currentUser && currentUser.id !== user.id && user.role !== 'patron' && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-100 hover:text-red-600" disabled={isSubmittingUser}>
@@ -358,6 +360,47 @@ const Parametres = ({ currentUser, users = [], onDeleteUser, fetchAllUsers, shop
               ))}
             </div>
           )}
+
+          {/* Formulaire de création d'employé */}
+          <div className="mt-6 pt-6 border-t border-slate-200">
+            <h5 className="text-md font-medium text-slate-600 mb-3 flex items-center">
+              <UserPlus size={18} className="mr-2 text-green-600" />
+              Créer un compte employé
+            </h5>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setIsSubmittingUser(true);
+              const success = await onCreateUser(newEmployee.email, newEmployee.password, newEmployee.nom, newEmployee.prenom, 'employé');
+              if (success) {
+                setNewEmployee({ nom: '', prenom: '', email: '', password: '' });
+                if (fetchAllUsers) await fetchAllUsers();
+              }
+              setIsSubmittingUser(false);
+            }} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="new-emp-nom" className="block text-sm font-medium text-slate-600 mb-1">Nom</Label>
+                <Input id="new-emp-nom" type="text" placeholder="Nom" value={newEmployee.nom} onChange={e => setNewEmployee({ ...newEmployee, nom: e.target.value })} required disabled={isSubmittingUser} className="w-full" />
+              </div>
+              <div>
+                <Label htmlFor="new-emp-prenom" className="block text-sm font-medium text-slate-600 mb-1">Prénoms</Label>
+                <Input id="new-emp-prenom" type="text" placeholder="Prénoms" value={newEmployee.prenom} onChange={e => setNewEmployee({ ...newEmployee, prenom: e.target.value })} required disabled={isSubmittingUser} className="w-full" />
+              </div>
+              <div>
+                <Label htmlFor="new-emp-email" className="block text-sm font-medium text-slate-600 mb-1">Email</Label>
+                <Input id="new-emp-email" type="email" placeholder="email@example.com" value={newEmployee.email} onChange={e => setNewEmployee({ ...newEmployee, email: e.target.value })} required disabled={isSubmittingUser} className="w-full" />
+              </div>
+              <div>
+                <Label htmlFor="new-emp-password" className="block text-sm font-medium text-slate-600 mb-1">Mot de passe</Label>
+                <Input id="new-emp-password" type="password" placeholder="Min. 8 caractères" value={newEmployee.password} onChange={e => setNewEmployee({ ...newEmployee, password: e.target.value })} required minLength={8} disabled={isSubmittingUser} className="w-full" />
+              </div>
+              <div className="sm:col-span-2">
+                <Button type="submit" className="w-full bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white" disabled={isSubmittingUser}>
+                  {isSubmittingUser ? <Loader2 size={16} className="mr-2 animate-spin" /> : <UserPlus size={16} className="mr-2" />}
+                  Créer l&apos;employé
+                </Button>
+              </div>
+            </form>
+          </div>}
         </motion.div>
       )}
 
@@ -482,6 +525,7 @@ Parametres.propTypes = {
     role: PropTypes.string,
     shops: PropTypes.array,
   })),
+  onCreateUser: PropTypes.func,
   onDeleteUser: PropTypes.func,
   fetchAllUsers: PropTypes.func,
   shops: PropTypes.array,

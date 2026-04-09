@@ -8,6 +8,11 @@ import { AuthRequest } from '../middlewares/auth';
 
 export const register = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
+    // Only authenticated patron can create users
+    if (!req.user || req.user.role !== 'patron') {
+      res.status(403).json({ error: 'Seul le patron peut créer des comptes.' });
+      return;
+    }
     let { email, password, nom, prenom, role } = req.body as { email: string; password: string; nom: string; prenom: string; role: string };
     email = email.trim().toLowerCase();
     if (password.length < 8) {
@@ -15,8 +20,9 @@ export const register = async (req: AuthRequest, res: Response, next: NextFuncti
       return;
     }
     if (role === 'employe') role = 'employé';
-    if (!['employé', 'patron'].includes(role)) {
-      res.status(400).json({ error: 'Rôle invalide' });
+    // Only employees can be created (patron is unique)
+    if (role !== 'employé') {
+      res.status(400).json({ error: 'Seuls des comptes employés peuvent être créés.' });
       return;
     }
     const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -26,57 +32,17 @@ export const register = async (req: AuthRequest, res: Response, next: NextFuncti
     }
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    if (req.user) {
-      // Created by an authenticated patron — assign to their current shop
-      const shopId = req.shopId || req.headers['x-shop-id'] as string;
-      const user = await prisma.user.create({
-        data: {
-          email, password: hashedPassword, nom, prenom, role,
-          ...(shopId ? { shops: { connect: { id: shopId } } } : {}),
-        },
-        include: { shops: true },
-      });
-      const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: '1d' });
-      const { password: _pw, ...userSafe } = user;
-      res.status(201).json({ message: 'Utilisateur créé', token, user: withId(userSafe as any) });
-    } else if (role === 'patron') {
-      // Self-registration as patron — create a default shop + settings in a transaction
-      const result = await prisma.$transaction(async (tx) => {
-        const user = await tx.user.create({
-          data: { email, password: hashedPassword, nom, prenom, role },
-        });
-        const defaultShop = await tx.shop.create({
-          data: {
-            nom: `Boutique de ${prenom} ${nom}`,
-            adresse: '',
-            telephone: '',
-            createdBy: user.id,
-            users: { connect: { id: user.id } },
-          },
-        });
-        await tx.settings.create({
-          data: {
-            shopId: defaultShop.id,
-            companyInfo: { nom: '', adresse: '', telephone: '', slogan: '', email: '', siret: '', tva: '', logoUrl: '' },
-            warranty: { duree: '', conditions: '' },
-          },
-        });
-        const fullUser = await tx.user.findUnique({ where: { id: user.id }, include: { shops: true } });
-        return fullUser!;
-      });
-      const token = jwt.sign({ id: result.id, role: result.role }, process.env.JWT_SECRET as string, { expiresIn: '1d' });
-      const { password: _pw, ...userSafe } = result;
-      res.status(201).json({ message: 'Utilisateur créé', token, user: withId(userSafe as any) });
-    } else {
-      // Employee self-registration (no shop)
-      const user = await prisma.user.create({
-        data: { email, password: hashedPassword, nom, prenom, role },
-        include: { shops: true },
-      });
-      const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: '1d' });
-      const { password: _pw, ...userSafe } = user;
-      res.status(201).json({ message: 'Utilisateur créé', token, user: withId(userSafe as any) });
-    }
+    // Patron creates employee — optionally assign to their current shop
+    const shopId = req.shopId || req.headers['x-shop-id'] as string;
+    const user = await prisma.user.create({
+      data: {
+        email, password: hashedPassword, nom, prenom, role,
+        ...(shopId ? { shops: { connect: { id: shopId } } } : {}),
+      },
+      include: { shops: true },
+    });
+    const { password: _pw, ...userSafe } = user;
+    res.status(201).json({ message: 'Utilisateur créé', user: withId(userSafe as any) });
   } catch (err) {
     const error = err instanceof Error ? err : new Error('Erreur inconnue');
     res.status(400).json({ error: error.message });
@@ -144,12 +110,10 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
   }
 };
 
-// Get all users (patron only) — filtered by current shop
+// Get all users (patron only) — patron sees ALL users across all shops
 export const getAllUsers = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const shopId = req.shopId;
-    const where = shopId ? { shops: { some: { id: shopId } } } : {};
-    const allUsers = await prisma.user.findMany({ where });
+    const allUsers = await prisma.user.findMany({ include: { shops: true } });
     const users = allUsers.map(({ password: _pw, ...u }) => u);
     res.json(withIds(users as any[]));
   } catch (err) {

@@ -87,7 +87,7 @@ EtiquettePreview.propTypes = {
 
 
 function App() {
-  const { currentUser, users, loadingAuth, handleLogin, handleSignup, handleLogout, createUser, deleteUser, fetchAllUsers } = useAuth();
+  const { currentUser, users, loadingAuth, handleLogin, handleLogout, createUser, deleteUser, fetchAllUsers } = useAuth();
   const { shops, currentShop, loadingShops, fetchShops, selectShop, createShop, editShop, deleteShop: deleteShopAction, addUserToShop, removeUserFromShop } = useShop();
   const { stocks, loadingStocks, addStockItem, editStockItem, deleteStockItem, updateStockQuantities, fetchStocks: refreshStocks } = useStocks();
   const { 
@@ -409,8 +409,7 @@ function App() {
           authTimedOut || !currentUser ? (
             <AuthPage 
               onLogin={handleLogin} 
-              onSignup={handleSignup} 
-              authTimedOut={authTimedOut} // Pass the flag to AuthPage
+              authTimedOut={authTimedOut}
             />
           ) : (
             <Navigate to="/reparations-place" replace />

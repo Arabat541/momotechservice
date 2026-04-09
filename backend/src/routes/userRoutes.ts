@@ -6,7 +6,7 @@ import { registerSchema, loginSchema, resetPasswordSchema, confirmResetSchema } 
 
 const router = express.Router();
 
-router.post('/register', validate(registerSchema), register);
+router.post('/register', authenticateJWT, validate(registerSchema), register);
 router.post('/login', validate(loginSchema), login);
 router.get('/me', authenticateJWT, getProfile);
 router.put('/me', authenticateJWT, updateProfile);

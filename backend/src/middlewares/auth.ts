@@ -53,10 +53,13 @@ export const requireShop = async (req: AuthRequest, res: Response, next: NextFun
       res.status(401).json({ error: 'Utilisateur non trouvé' });
       return;
     }
-    const hasAccess = user.shops.some((s) => s.id === req.shopId);
-    if (!hasAccess) {
-      res.status(403).json({ error: 'Accès refusé à cette boutique' });
-      return;
+    // Le patron a accès à toutes les boutiques
+    if (user.role !== 'patron') {
+      const hasAccess = user.shops.some((s) => s.id === req.shopId);
+      if (!hasAccess) {
+        res.status(403).json({ error: 'Accès refusé à cette boutique' });
+        return;
+      }
     }
     next();
   } catch (err) {

@@ -14,7 +14,7 @@ export function useAuth() {
   
   useAuthSession(fetchUserRoleAndSetCurrentUser, setLoadingAuth, setCurrentUser);
   
-  const { handleLogin, handleSignup, handleSignout } = useAuthActions(setCurrentUser, setLoadingAuth);
+  const { handleLogin, handleSignout } = useAuthActions(setCurrentUser, setLoadingAuth);
   
   // Utiliser useUserManagement sans dépendance à currentUser
   const { 
@@ -54,11 +54,10 @@ export function useAuth() {
     users, 
     loadingAuth, 
     handleLogin, 
-    handleSignup, 
     handleLogout: handleSignout, 
     createUser, 
     deleteUser,
-    fetchAllUsers // Expose the correct fetchAllUsers
+    fetchAllUsers
   };
 }
 

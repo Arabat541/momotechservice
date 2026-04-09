@@ -3,9 +3,16 @@ import prisma from '../lib/prisma';
 import { withId, withIds } from '../lib/transform';
 import { AuthRequest } from '../middlewares/auth';
 
-// Get all shops the current user has access to
+// Get shops: patron sees ALL shops, employees see only their assigned shops
 export const getMyShops = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    if (req.user?.role === 'patron') {
+      // Patron (admin) sees all shops
+      const shops = await prisma.shop.findMany({ orderBy: { createdAt: 'asc' } });
+      res.json(withIds(shops));
+      return;
+    }
+    // Employee sees only assigned shops
     const user = await prisma.user.findUnique({
       where: { id: req.user?.id },
       include: { shops: true },
