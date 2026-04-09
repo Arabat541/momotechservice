@@ -1,7 +1,0 @@
-{
-  "devDependencies": {
-    "@types/cors": "^2.8.19",
-    "@types/json2csv": "^5.0.7",
-    "typescript": "^5.8.3"
-  }
-}
