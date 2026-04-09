@@ -4,12 +4,12 @@ namespace App\Models;
 
 class Shop extends BaseModel
 {
-    protected $table = 'Shop';
+    protected $table = 'shops';
     protected $fillable = ['id', 'nom', 'adresse', 'telephone', 'createdBy'];
 
     public function users()
     {
-        return $this->belongsToMany(User::class, '_UserShops', 'B', 'A');
+        return $this->belongsToMany(User::class, '_user_shops', 'B', 'A');
     }
 
     public function repairs()

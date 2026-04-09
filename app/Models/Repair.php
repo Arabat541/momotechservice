@@ -4,7 +4,7 @@ namespace App\Models;
 
 class Repair extends BaseModel
 {
-    protected $table = 'Repair';
+    protected $table = 'repairs';
     public $timestamps = false;
 
     protected $fillable = [

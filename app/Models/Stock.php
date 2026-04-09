@@ -4,7 +4,7 @@ namespace App\Models;
 
 class Stock extends BaseModel
 {
-    protected $table = 'Stock';
+    protected $table = 'stocks';
     public $timestamps = false;
 
     protected $fillable = [

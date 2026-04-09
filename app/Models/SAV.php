@@ -5,7 +5,7 @@ namespace App\Models;
 class SAV extends BaseModel
 {
     public $timestamps = false;
-    protected $table = 'SAV';
+    protected $table = 'savs';
 
     protected $fillable = [
         'id', 'shopId', 'numeroSAV', 'repairId', 'numeroReparationOrigine',

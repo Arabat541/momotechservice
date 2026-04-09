@@ -185,9 +185,40 @@
                         </button>
                     </form>
                 </div>
-                <div class="text-sm text-slate-600 mb-3">
-                    <p>Adresse: {{ $shop->adresse ?? '-' }}</p>
-                    <p>Téléphone: {{ $shop->telephone ?? '-' }}</p>
+                {{-- Edit shop form --}}
+                <div x-data="{ editing: false, nom: '{{ addslashes($shop->nom) }}', adresse: '{{ addslashes($shop->adresse) }}', telephone: '{{ addslashes($shop->telephone) }}' }">
+                    <div class="flex items-center gap-2 mb-3">
+                        <button @click="editing = !editing" class="text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-1 rounded">
+                            <i class="fas fa-edit mr-1"></i> <span x-text="editing ? 'Annuler' : 'Modifier'"></span>
+                        </button>
+                    </div>
+                    <form x-show="editing" x-cloak action="{{ route('shops.update', $shop->id) }}" method="POST" class="mb-3 space-y-2 bg-white p-3 rounded border border-blue-200">
+                        @csrf
+                        @method('PUT')
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                            <div>
+                                <label class="text-xs text-slate-500">Nom</label>
+                                <input type="text" name="nom" x-model="nom" class="w-full text-sm border rounded px-2 py-1" required>
+                            </div>
+                            <div>
+                                <label class="text-xs text-slate-500">Adresse</label>
+                                <input type="text" name="adresse" x-model="adresse" class="w-full text-sm border rounded px-2 py-1">
+                            </div>
+                            <div>
+                                <label class="text-xs text-slate-500">Téléphone</label>
+                                <input type="text" name="telephone" x-model="telephone" class="w-full text-sm border rounded px-2 py-1">
+                            </div>
+                        </div>
+                        <button type="submit" class="text-xs bg-green-500 text-white px-3 py-1.5 rounded hover:bg-green-600">
+                            <i class="fas fa-save mr-1"></i> Enregistrer
+                        </button>
+                    </form>
+                    <div x-show="!editing">
+                        <div class="text-sm text-slate-600 mb-3">
+                            <p>Adresse: {{ $shop->adresse ?: '-' }}</p>
+                            <p>Téléphone: {{ $shop->telephone ?: '-' }}</p>
+                        </div>
+                    </div>
                 </div>
 
                 {{-- Users in shop --}}

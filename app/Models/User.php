@@ -6,7 +6,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class User extends Authenticatable
 {
-    protected $table = 'User';
+    protected $table = 'users';
     public $incrementing = false;
     protected $keyType = 'string';
 
@@ -25,6 +25,6 @@ class User extends Authenticatable
 
     public function shops()
     {
-        return $this->belongsToMany(Shop::class, '_UserShops', 'A', 'B');
+        return $this->belongsToMany(Shop::class, '_user_shops', 'A', 'B');
     }
 }

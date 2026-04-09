@@ -4,7 +4,7 @@ namespace App\Models;
 
 class Settings extends BaseModel
 {
-    protected $table = 'Settings';
+    protected $table = 'settings';
     protected $fillable = ['id', 'shopId', 'companyInfo', 'warranty'];
 
     protected $casts = [
