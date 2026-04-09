@@ -14,3 +14,5 @@ Homestead.yaml
 *.jpg
 *.jpeg
 composer.lock
+composer.phar
+hostinger-deploy/
