@@ -1,13 +1,16 @@
 import { Response, NextFunction } from 'express';
 import type { AuthRequest } from '../middlewares/auth';
+import prisma from '../lib/prisma';
 import { Parser as Json2csvParser } from 'json2csv';
 import PDFDocument from 'pdfkit';
 
 // Export users to CSV
 export const exportUsersCSV = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const users = await (await import('../models/User')).default.find().select('-password');
-    const fields = ['_id', 'email', 'nom', 'prenom', 'role'];
+    const users = await prisma.user.findMany({
+      select: { id: true, email: true, nom: true, prenom: true, role: true },
+    });
+    const fields = ['id', 'email', 'nom', 'prenom', 'role'];
     const json2csv = new Json2csvParser({ fields });
     const csv = json2csv.parse(users);
     res.header('Content-Type', 'text/csv');
@@ -22,7 +25,9 @@ export const exportUsersCSV = async (req: AuthRequest, res: Response, next: Next
 // Export users to PDF
 export const exportUsersPDF = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const users = await (await import('../models/User')).default.find().select('-password');
+    const users = await prisma.user.findMany({
+      select: { id: true, email: true, nom: true, prenom: true, role: true },
+    });
     const doc = new PDFDocument();
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=utilisateurs.pdf');

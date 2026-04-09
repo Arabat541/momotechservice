@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt, { JwtPayload } from 'jsonwebtoken';
-import User from '../models/User';
+import prisma from '../lib/prisma';
 
 export interface AuthRequest extends Request {
   user?: { id: string; role: string };
@@ -45,12 +45,15 @@ export const requireShop = async (req: AuthRequest, res: Response, next: NextFun
     return;
   }
   try {
-    const user = await User.findById(req.user.id);
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: { shops: { select: { id: true } } },
+    });
     if (!user) {
       res.status(401).json({ error: 'Utilisateur non trouvé' });
       return;
     }
-    const hasAccess = user.shops.some((s: any) => s.toString() === req.shopId);
+    const hasAccess = user.shops.some((s) => s.id === req.shopId);
     if (!hasAccess) {
       res.status(403).json({ error: 'Accès refusé à cette boutique' });
       return;

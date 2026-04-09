@@ -1,9 +1,7 @@
 import { Response, NextFunction, Request } from 'express';
 import crypto from 'crypto';
-import User from '../models/User';
-import Shop from '../models/Shop';
-import Settings from '../models/Settings';
-import PasswordResetToken from '../models/PasswordResetToken';
+import prisma from '../lib/prisma';
+import { withId, withIds } from '../lib/transform';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { AuthRequest } from '../middlewares/auth';
@@ -11,55 +9,74 @@ import { AuthRequest } from '../middlewares/auth';
 export const register = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     let { email, password, nom, prenom, role } = req.body as { email: string; password: string; nom: string; prenom: string; role: string };
-    // Normalisation de l'email
     email = email.trim().toLowerCase();
     if (password.length < 8) {
       res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères.' });
       return;
     }
-    // Normalisation du rôle (accepte employe ou employé)
     if (role === 'employe') role = 'employé';
     if (!['employé', 'patron'].includes(role)) {
       res.status(400).json({ error: 'Rôle invalide' });
       return;
     }
-    // Vérifier si l'email existe déjà
-    const existingUser = await User.findOne({ email });
+    const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       res.status(400).json({ error: "L'email existe déjà. Veuillez en choisir un autre." });
       return;
     }
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ email, password: hashedPassword, nom, prenom, role, shops: [] });
 
-    // If patron registers (self-signup), create a default shop
-    // If created by another patron (req.user exists), assign to the patron's current shop
     if (req.user) {
       // Created by an authenticated patron — assign to their current shop
       const shopId = req.shopId || req.headers['x-shop-id'] as string;
-      if (shopId) {
-        user.shops = [shopId as any];
-      }
-    } else if (role === 'patron') {
-      // Self-registration as patron — create a default shop
-      const defaultShop = new Shop({
-        nom: `Boutique de ${prenom} ${nom}`,
-        adresse: '',
-        telephone: '',
-        createdBy: user._id,
+      const user = await prisma.user.create({
+        data: {
+          email, password: hashedPassword, nom, prenom, role,
+          ...(shopId ? { shops: { connect: { id: shopId } } } : {}),
+        },
+        include: { shops: true },
       });
-      await defaultShop.save();
-      user.shops = [defaultShop._id as any];
-      // Create default settings for the shop
-      await Settings.create({ shopId: defaultShop._id });
+      const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: '1d' });
+      const { password: _pw, ...userSafe } = user;
+      res.status(201).json({ message: 'Utilisateur créé', token, user: withId(userSafe as any) });
+    } else if (role === 'patron') {
+      // Self-registration as patron — create a default shop + settings in a transaction
+      const result = await prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: { email, password: hashedPassword, nom, prenom, role },
+        });
+        const defaultShop = await tx.shop.create({
+          data: {
+            nom: `Boutique de ${prenom} ${nom}`,
+            adresse: '',
+            telephone: '',
+            createdBy: user.id,
+            users: { connect: { id: user.id } },
+          },
+        });
+        await tx.settings.create({
+          data: {
+            shopId: defaultShop.id,
+            companyInfo: { nom: '', adresse: '', telephone: '', slogan: '', email: '', siret: '', tva: '', logoUrl: '' },
+            warranty: { duree: '', conditions: '' },
+          },
+        });
+        const fullUser = await tx.user.findUnique({ where: { id: user.id }, include: { shops: true } });
+        return fullUser!;
+      });
+      const token = jwt.sign({ id: result.id, role: result.role }, process.env.JWT_SECRET as string, { expiresIn: '1d' });
+      const { password: _pw, ...userSafe } = result;
+      res.status(201).json({ message: 'Utilisateur créé', token, user: withId(userSafe as any) });
+    } else {
+      // Employee self-registration (no shop)
+      const user = await prisma.user.create({
+        data: { email, password: hashedPassword, nom, prenom, role },
+        include: { shops: true },
+      });
+      const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: '1d' });
+      const { password: _pw, ...userSafe } = user;
+      res.status(201).json({ message: 'Utilisateur créé', token, user: withId(userSafe as any) });
     }
-
-    await user.save();
-    // Générer un token JWT comme pour le login
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: '1d' });
-    // Supprimer le champ password de l'objet utilisateur retourné (TypeScript safe)
-    const { password: _pw, ...userSafe } = user.toObject();
-    res.status(201).json({ message: 'Utilisateur créé', token, user: userSafe });
   } catch (err) {
     const error = err instanceof Error ? err : new Error('Erreur inconnue');
     res.status(400).json({ error: error.message });
@@ -69,9 +86,8 @@ export const register = async (req: AuthRequest, res: Response, next: NextFuncti
 export const login = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     let { email, password } = req.body as { email: string; password: string };
-    // Normalisation de l'email
     email = email.trim().toLowerCase();
-    const user = await User.findOne({ email });
+    const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       res.status(401).json({ error: 'Utilisateur non trouvé' });
       return;
@@ -81,9 +97,9 @@ export const login = async (req: AuthRequest, res: Response, next: NextFunction)
       res.status(401).json({ error: 'Mot de passe incorrect' });
       return;
     }
-    const { password: _pw, ...userSafe } = user.toObject();
-    const token = jwt.sign({ id: userSafe._id, role: userSafe.role }, process.env.JWT_SECRET as string, { expiresIn: '1d' });
-    res.json({ token, user: userSafe });
+    const { password: _pw, ...userSafe } = user;
+    const token = jwt.sign({ id: userSafe.id, role: userSafe.role }, process.env.JWT_SECRET as string, { expiresIn: '1d' });
+    res.json({ token, user: withId(userSafe as any) });
   } catch (err) {
     const error = err instanceof Error ? err : new Error('Erreur inconnue');
     res.status(400).json({ error: error.message });
@@ -92,10 +108,17 @@ export const login = async (req: AuthRequest, res: Response, next: NextFunction)
 
 export const getProfile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // Cast req as AuthRequest to access req.user
     const userId = (req as AuthRequest).user?.id;
-    const user = await User.findById(userId).select('-password').populate('shops');
-    res.json(user);
+    const found = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { shops: true },
+    });
+    if (!found) {
+      res.status(404).json({ error: 'Utilisateur non trouvé' });
+      return;
+    }
+    const { password: _pw, ...user } = found;
+    res.json(withId(user as any));
   } catch (err) {
     const error = err instanceof Error ? err : new Error('Erreur inconnue');
     res.status(400).json({ error: error.message });
@@ -105,14 +128,16 @@ export const getProfile = async (req: Request, res: Response, next: NextFunction
 export const updateProfile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const updates = req.body as Partial<{ nom: string; prenom: string; email: string; password: string }>;
-
     if (updates.password) {
       updates.password = await bcrypt.hash(updates.password, 10);
     }
-
     const userId = (req as AuthRequest).user?.id;
-    const user = await User.findByIdAndUpdate(userId, updates, { new: true }).select('-password');
-    res.json(user);
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: updates,
+    });
+    const { password: _pw, ...user } = updated;
+    res.json(withId(user as any));
   } catch (err) {
     const error = err instanceof Error ? err : new Error('Erreur inconnue');
     res.status(400).json({ error: error.message });
@@ -123,12 +148,10 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
 export const getAllUsers = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const shopId = req.shopId;
-    let filter = {};
-    if (shopId) {
-      filter = { shops: shopId };
-    }
-    const users = await User.find(filter).select('-password');
-    res.json(users);
+    const where = shopId ? { shops: { some: { id: shopId } } } : {};
+    const allUsers = await prisma.user.findMany({ where });
+    const users = allUsers.map(({ password: _pw, ...u }) => u);
+    res.json(withIds(users as any[]));
   } catch (err) {
     const error = err instanceof Error ? err : new Error('Erreur inconnue');
     res.status(400).json({ error: error.message });
@@ -143,18 +166,17 @@ export const deleteUser = async (req: AuthRequest, res: Response, next: NextFunc
       res.status(400).json({ error: 'ID utilisateur manquant' });
       return;
     }
-    // Prevent self-delete
     if (req.user?.id === userId) {
       res.status(403).json({ error: 'Impossible de supprimer votre propre compte.' });
       return;
     }
-    const deleted = await User.findByIdAndDelete(userId);
-    if (!deleted) {
+    await prisma.user.delete({ where: { id: userId } });
+    res.json({ message: 'Utilisateur supprimé' });
+  } catch (err: any) {
+    if (err.code === 'P2025') {
       res.status(404).json({ error: 'Utilisateur non trouvé' });
       return;
     }
-    res.json({ message: 'Utilisateur supprimé' });
-  } catch (err) {
     const error = err instanceof Error ? err : new Error('Erreur inconnue');
     res.status(400).json({ error: error.message });
   }
@@ -173,13 +195,17 @@ export const updateUserRole = async (req: AuthRequest, res: Response, next: Next
       res.status(400).json({ error: 'Rôle invalide' });
       return;
     }
-    const updated = await User.findByIdAndUpdate(userId, { role }, { new: true }).select('-password');
-    if (!updated) {
+    const result = await prisma.user.update({
+      where: { id: userId },
+      data: { role },
+    });
+    const { password: _pw, ...updated } = result;
+    res.json(withId(updated as any));
+  } catch (err: any) {
+    if (err.code === 'P2025') {
       res.status(404).json({ error: 'Utilisateur non trouvé' });
       return;
     }
-    res.json(updated);
-  } catch (err) {
     const error = err instanceof Error ? err : new Error('Erreur inconnue');
     res.status(400).json({ error: error.message });
   }
@@ -192,23 +218,23 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
       res.status(400).json({ error: 'Email requis.' });
       return;
     }
-    const user = await User.findOne({ email: email.trim().toLowerCase() });
+    const user = await prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
     if (!user) {
-      // Return success even if user not found (prevent email enumeration)
       res.json({ message: 'Si cet email existe, un code de réinitialisation a été généré.' });
       return;
     }
     // Delete any existing tokens for this user
-    await PasswordResetToken.deleteMany({ userId: user._id });
+    await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
     // Generate a 6-digit code
     const code = crypto.randomInt(100000, 999999).toString();
     const hashedToken = await bcrypt.hash(code, 10);
-    await PasswordResetToken.create({
-      userId: user._id,
-      token: hashedToken,
-      expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
+    await prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        token: hashedToken,
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+      },
     });
-    // In production, send code via email. For now, log it.
     console.log(`[RESET] Code de réinitialisation pour ${email}: ${code}`);
     res.json({ message: 'Si cet email existe, un code de réinitialisation a été généré.' });
   } catch (err) {
@@ -227,12 +253,12 @@ export const confirmResetPassword = async (req: Request, res: Response): Promise
       res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères.' });
       return;
     }
-    const user = await User.findOne({ email: email.trim().toLowerCase() });
+    const user = await prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
     if (!user) {
       res.status(400).json({ error: 'Code invalide ou expiré.' });
       return;
     }
-    const resetToken = await PasswordResetToken.findOne({ userId: user._id });
+    const resetToken = await prisma.passwordResetToken.findFirst({ where: { userId: user.id } });
     if (!resetToken || resetToken.expiresAt < new Date()) {
       res.status(400).json({ error: 'Code invalide ou expiré.' });
       return;
@@ -242,9 +268,9 @@ export const confirmResetPassword = async (req: Request, res: Response): Promise
       res.status(400).json({ error: 'Code invalide ou expiré.' });
       return;
     }
-    user.password = await bcrypt.hash(password, 10);
-    await user.save();
-    await PasswordResetToken.deleteMany({ userId: user._id });
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await prisma.user.update({ where: { id: user.id }, data: { password: hashedPassword } });
+    await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
     res.json({ message: 'Mot de passe réinitialisé avec succès.' });
   } catch (err) {
     res.status(500).json({ error: 'Erreur lors de la réinitialisation du mot de passe.' });

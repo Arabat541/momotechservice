@@ -1,25 +1,28 @@
 import { Request, Response } from 'express';
-import Shop from '../models/Shop';
-import Settings from '../models/Settings';
-import Repair from '../models/Repair';
+import prisma from '../lib/prisma';
 
 // GET /api/storefront/all — All shops public info
 export const getAllShopsPublic = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const shops = await Shop.find().select('nom adresse telephone').sort({ _id: 1 });
+    const shops = await prisma.shop.findMany({
+      select: { id: true, nom: true, adresse: true, telephone: true },
+      orderBy: { id: 'asc' },
+    });
     const shopsWithSettings = await Promise.all(
       shops.map(async (shop) => {
-        const settings = await Settings.findOne({ shopId: shop._id });
-        const ci = settings?.companyInfo || {};
+        const settings = await prisma.settings.findUnique({ where: { shopId: shop.id } });
+        const ci = (settings?.companyInfo as any) || {};
+        const warranty = (settings?.warranty as any) || {};
         return {
-          _id: shop._id,
+          _id: shop.id,
+          id: shop.id,
           nom: ci.nom || shop.nom,
           adresse: ci.adresse || shop.adresse,
           telephone: ci.telephone || shop.telephone,
           email: ci.email || '',
           slogan: ci.slogan || '',
           logoUrl: ci.logoUrl || '',
-          warranty: settings?.warranty || {},
+          warranty,
         };
       })
     );
@@ -33,13 +36,17 @@ export const getAllShopsPublic = async (_req: Request, res: Response): Promise<v
 // GET /api/storefront/:shopId — Public shop info
 export const getShopPublicInfo = async (req: Request, res: Response): Promise<void> => {
   try {
-    const shop = await Shop.findById(req.params.shopId).select('nom adresse telephone');
+    const shop = await prisma.shop.findUnique({
+      where: { id: req.params.shopId },
+      select: { id: true, nom: true, adresse: true, telephone: true },
+    });
     if (!shop) {
       res.status(404).json({ error: 'Boutique introuvable.' });
       return;
     }
-    const settings = await Settings.findOne({ shopId: shop._id });
-    const companyInfo = settings?.companyInfo || {};
+    const settings = await prisma.settings.findUnique({ where: { shopId: shop.id } });
+    const companyInfo = (settings?.companyInfo as any) || {};
+    const warranty = (settings?.warranty as any) || {};
 
     res.json({
       nom: companyInfo.nom || shop.nom,
@@ -48,7 +55,7 @@ export const getShopPublicInfo = async (req: Request, res: Response): Promise<vo
       email: companyInfo.email || '',
       slogan: companyInfo.slogan || '',
       logoUrl: companyInfo.logoUrl || '',
-      warranty: settings?.warranty || {},
+      warranty,
     });
   } catch (err) {
     res.status(500).json({ error: 'Erreur lors de la récupération des informations.' });
@@ -64,7 +71,7 @@ export const trackRepair = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    const repair = await Repair.findOne({ numeroReparation: numero });
+    const repair = await prisma.repair.findUnique({ where: { numeroReparation: numero } });
     if (!repair) {
       res.status(404).json({ error: 'Réparation introuvable. Vérifiez le numéro.' });
       return;

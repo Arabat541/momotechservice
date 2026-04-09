@@ -3,9 +3,9 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 
+import prisma from './lib/prisma';
 import userRoutes from './routes/userRoutes';
 import exportRoutes from './routes/exportRoutes';
 import repairRoutes from './routes/repairRoutes';
@@ -45,11 +45,6 @@ app.use('/api/users/register', authLimiter);
 app.use('/api/users/reset-password', authLimiter);
 app.use('/api/users/confirm-reset-password', authLimiter);
 
-// Connexion MongoDB
-mongoose.connect(process.env.MONGODB_URI as string)
-  .then(() => logger.info('MongoDB connecté'))
-  .catch((err) => logger.error('Erreur MongoDB', { error: String(err) }));
-
 // Routes principales
 app.use('/api/users', userRoutes);
 app.use('/api/export', exportRoutes);
@@ -69,4 +64,14 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   logger.info(`Serveur démarré sur le port ${PORT}`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  await prisma.$disconnect();
+  process.exit(0);
+});
+process.on('SIGINT', async () => {
+  await prisma.$disconnect();
+  process.exit(0);
 });

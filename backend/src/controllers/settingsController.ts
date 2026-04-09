@@ -1,19 +1,25 @@
-import Settings from '../models/Settings';
 import { Request, Response } from 'express';
+import prisma from '../lib/prisma';
+import { withId } from '../lib/transform';
 import { AuthRequest } from '../middlewares/auth';
+
+const defaultCompanyInfo = { nom: '', adresse: '', telephone: '', slogan: '', email: '', siret: '', tva: '', logoUrl: '' };
+const defaultWarranty = { duree: '', conditions: '' };
 
 export const getSettings = async (req: Request, res: Response) => {
   try {
     const shopId = (req as AuthRequest).shopId;
-    const filter = shopId ? { shopId } : {};
-    let settings = await Settings.findOne(filter);
-    if (!settings && shopId) {
-      settings = await Settings.create({ shopId });
-    } else if (!settings) {
+    if (!shopId) {
       res.status(400).json({ error: 'Boutique non sélectionnée (shopId manquant).' });
       return;
     }
-    res.json(settings);
+    let settings = await prisma.settings.findUnique({ where: { shopId } });
+    if (!settings) {
+      settings = await prisma.settings.create({
+        data: { shopId, companyInfo: defaultCompanyInfo, warranty: defaultWarranty },
+      });
+    }
+    res.json(withId(settings));
   } catch (err) {
     res.status(500).json({ error: 'Erreur lors de la récupération des paramètres.' });
   }
@@ -22,17 +28,17 @@ export const getSettings = async (req: Request, res: Response) => {
 export const updateSettings = async (req: Request, res: Response) => {
   try {
     const shopId = (req as AuthRequest).shopId;
-    const { companyInfo, warranty } = req.body;
-    const filter = shopId ? { shopId } : {};
-    let settings = await Settings.findOne(filter);
-    if (!settings) {
-      settings = await Settings.create({ shopId, companyInfo, warranty });
-    } else {
-      settings.companyInfo = companyInfo;
-      settings.warranty = warranty;
-      await settings.save();
+    if (!shopId) {
+      res.status(400).json({ error: 'Boutique non sélectionnée (shopId manquant).' });
+      return;
     }
-    res.json(settings);
+    const { companyInfo, warranty } = req.body;
+    const settings = await prisma.settings.upsert({
+      where: { shopId },
+      update: { companyInfo, warranty },
+      create: { shopId, companyInfo: companyInfo || defaultCompanyInfo, warranty: warranty || defaultWarranty },
+    });
+    res.json(withId(settings));
   } catch (err) {
     res.status(500).json({ error: 'Erreur lors de la mise à jour des paramètres.' });
   }
