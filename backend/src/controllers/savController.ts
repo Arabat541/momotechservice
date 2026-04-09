@@ -99,6 +99,8 @@ export const createSAV = async (req: Request, res: Response): Promise<void> => {
       }
     }
 
+    if (!savData.decision) savData.decision = '';
+    if (!savData.notes) savData.notes = '';
     const sav = await prisma.sAV.create({ data: savData });
     res.status(201).json(withId(sav));
   } catch (err) {

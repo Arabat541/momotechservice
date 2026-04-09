@@ -98,10 +98,10 @@ model SAV {
   sous_garantie           Boolean   @default(false)
   date_fin_garantie       DateTime?
   statut                  String    @default("En attente")
-  decision                String    @default("") @db.Text
+  decision                String    @db.Text
   date_creation           DateTime  @default(now())
   date_resolution         DateTime?
-  notes                   String    @default("") @db.Text
+  notes                   String    @db.Text
   userId                  String
 
   @@index([shopId, date_creation(sort: Desc)])
