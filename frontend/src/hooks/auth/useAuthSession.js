@@ -1,37 +1,46 @@
-import { useEffect } from 'react';
-import { toast } from '@/components/ui/use-toast';
+import { useEffect, useRef } from 'react';
 import { getProfile } from '@/lib/api';
 
 export function useAuthSession(fetchUserRoleAndSetCurrentUser, setLoadingAuth, setCurrentUser) {
-  useEffect(() => {
-    setLoadingAuth(true); 
-    const checkSession = async () => {
-        const token = localStorage.getItem('token');
-        if (!token) {
-            setCurrentUser(null);
-            setLoadingAuth(false);
-            return;
-        }
-        try {
-            const userProfileData = await getProfile(token);
-            if (!userProfileData || userProfileData.error) {
-                setCurrentUser(null);
-            } else {
-                await fetchUserRoleAndSetCurrentUser(userProfileData);
-            }
-        } catch (err) {
-            setCurrentUser(null);
-        } finally {
-            setLoadingAuth(false);
-        }
-    };
-    let isMounted = true;
-    if (isMounted) {
-        checkSession();
-    }
+  // Use refs so the effect only runs once on mount
+  const fnRef = useRef(fetchUserRoleAndSetCurrentUser);
+  fnRef.current = fetchUserRoleAndSetCurrentUser;
+  const setLoadingRef = useRef(setLoadingAuth);
+  setLoadingRef.current = setLoadingAuth;
+  const setUserRef = useRef(setCurrentUser);
+  setUserRef.current = setCurrentUser;
 
-    return () => {
-      isMounted = false;
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingRef.current(true);
+
+    const checkSession = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        if (!cancelled) {
+          setUserRef.current(null);
+          setLoadingRef.current(false);
+        }
+        return;
+      }
+      try {
+        const userProfileData = await getProfile(token);
+        if (cancelled) return;
+        if (!userProfileData || userProfileData.error) {
+          setUserRef.current(null);
+        } else {
+          await fnRef.current(userProfileData);
+        }
+      } catch {
+        if (!cancelled) setUserRef.current(null);
+      } finally {
+        if (!cancelled) setLoadingRef.current(false);
+      }
     };
-  }, [fetchUserRoleAndSetCurrentUser, setLoadingAuth, setCurrentUser]); 
+
+    checkSession();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on mount
 }
