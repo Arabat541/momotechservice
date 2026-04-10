@@ -232,7 +232,7 @@
                               onsubmit="return confirm('Retirer {{ addslashes($shopUser->email) }} de cette boutique ?')">
                             @csrf
                             @method('DELETE')
-                            <input type="hidden" name="userId" value="{{ $shopUser->id }}">
+                            <input type="hidden" name="user_id" value="{{ $shopUser->id }}">
                             <button type="submit" class="text-xs text-red-500 hover:text-red-700">
                                 <i class="fas fa-user-minus"></i>
                             </button>
@@ -244,7 +244,7 @@
                     {{-- Add user to shop --}}
                     <form action="{{ route('shops.addUser', $shop->id) }}" method="POST" class="flex items-center gap-2 mt-2">
                         @csrf
-                        <select name="userId" class="flex-1 text-xs border rounded px-2 py-1">
+                        <select name="user_id" class="flex-1 text-xs border rounded px-2 py-1">
                             <option value="">Ajouter un utilisateur...</option>
                             @foreach($users->where('role', '!=', 'patron') as $availableUser)
                                 @if(!$shop->users->contains('id', $availableUser->id))
