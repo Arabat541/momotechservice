@@ -32,14 +32,16 @@
 
             <div>
                 <label class="text-xs font-medium text-gray-600">Appareil</label>
-                <input type="text" name="appareil_marque_modele" id="appareilValue" list="modelesListe" required
-                       placeholder="Taper ou choisir un modèle" autocomplete="off"
-                       class="w-full text-sm py-1.5 border-gray-300 rounded-md px-3 border focus:ring-blue-500">
-                <datalist id="modelesListe">
+                <select id="appareilSelect" onchange="handleAppareilChange(this)"
+                        class="w-full text-sm py-1.5 border-gray-300 rounded-md px-3 border focus:ring-blue-500">
+                    <option value="">-- Modèles iPhone --</option>
                     @foreach(['iPhone 16e','iPhone 16','iPhone 16 Plus','iPhone 16 Pro','iPhone 16 Pro Max','iPhone 15','iPhone 15 Plus','iPhone 15 Pro','iPhone 15 Pro Max','iPhone 14','iPhone 14 Plus','iPhone 14 Pro','iPhone 14 ProMax','iPhone 13','iPhone 13 Mini','iPhone 13 Pro','iPhone 13 Pro Max','iPhone 12 classique','iPhone 12 Mini','iPhone 12 Pro','iPhone 12 Pro Max','iPhone 11 classique','iPhone 11 Pro','iPhone 11 Pro Max','iPhone X classique','iPhone XR','iPhone XS','iPhone XS Max','iPhone SE','iPhone SE 2020','iPhone SE 2022','iPhone 8','iPhone 8 Plus','iPhone 7','iPhone 7 Plus','iPhone 6'] as $model)
-                        <option value="{{ $model }}">
+                        <option value="{{ $model }}">{{ $model }}</option>
                     @endforeach
-                </datalist>
+                </select>
+                <input type="text" name="appareil_marque_modele" id="appareilValue" required
+                       placeholder="Ou saisir directement la marque et modèle"
+                       class="w-full text-sm py-1.5 border-gray-300 rounded-md px-3 border focus:ring-blue-500 mt-1.5">
             </div>
 
             <div>
@@ -172,7 +174,11 @@
     const stocksData = @json($stocks);
     let panneCount = 1;
 
-
+    function handleAppareilChange(select) {
+        if (select.value) {
+            document.getElementById('appareilValue').value = select.value;
+        }
+    }
 
     function addPanne() {
         if (panneCount >= 4) return;
