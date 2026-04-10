@@ -32,6 +32,20 @@ class UserController extends Controller
         return back()->with('success', 'Profil mis à jour.');
     }
 
+    public function resetPassword(Request $request, string $id)
+    {
+        $request->validate(['password' => 'required|min:8']);
+
+        $target = User::findOrFail($id);
+        if ($target->role === 'patron') {
+            return back()->with('error', 'Impossible de réinitialiser le mot de passe d\'un patron.');
+        }
+
+        $target->update(['password' => bcrypt($request->password)]);
+
+        return back()->with('success', "Mot de passe de {$target->email} réinitialisé.");
+    }
+
     public function destroy(Request $request, string $id)
     {
         $authUser = $request->attributes->get('user');

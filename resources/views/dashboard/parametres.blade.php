@@ -97,7 +97,7 @@
         @else
         <div class="space-y-3">
             @foreach($users as $u)
-            <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative">
                 <div class="flex items-center">
                     <i class="fas {{ $u->role === 'patron' ? 'fa-shield-halved text-amber-500' : 'fa-user text-blue-500' }} text-xl mr-3"></i>
                     <div>
@@ -107,14 +107,29 @@
                     </div>
                 </div>
                 @if($user->id !== $u->id && $u->role !== 'patron')
-                <form action="{{ route('users.destroy', $u->id) }}" method="POST"
-                      onsubmit="return confirm('Supprimer le compte de {{ addslashes($u->email) }} ?')">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="text-red-500 hover:bg-red-100 hover:text-red-600 px-3 py-1.5 rounded text-sm">
-                        <i class="fas fa-trash mr-1"></i> Supprimer
+                <div class="flex items-center gap-2" x-data="{ showReset: false }">
+                    <button @click="showReset = !showReset" class="text-blue-500 hover:bg-blue-100 hover:text-blue-600 px-3 py-1.5 rounded text-sm">
+                        <i class="fas fa-key mr-1"></i> <span class="hidden sm:inline">Mot de passe</span>
                     </button>
-                </form>
+                    <form action="{{ route('users.destroy', $u->id) }}" method="POST"
+                          onsubmit="return confirm('Supprimer le compte de {{ addslashes($u->email) }} ?')">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="text-red-500 hover:bg-red-100 hover:text-red-600 px-3 py-1.5 rounded text-sm">
+                            <i class="fas fa-trash mr-1"></i> <span class="hidden sm:inline">Supprimer</span>
+                        </button>
+                    </form>
+                    <form x-show="showReset" x-cloak action="{{ route('users.resetPassword', $u->id) }}" method="POST" class="absolute right-0 top-full mt-1 bg-white shadow-lg border rounded-lg p-3 z-10 w-64">
+                        @csrf
+                        @method('PUT')
+                        <label class="text-xs text-slate-600 block mb-1">Nouveau mot de passe</label>
+                        <input type="password" name="password" required minlength="8" placeholder="Min. 8 caractères" class="w-full text-sm border rounded px-2 py-1 mb-2">
+                        <div class="flex gap-2">
+                            <button type="submit" class="text-xs bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Réinitialiser</button>
+                            <button type="button" @click="showReset = false" class="text-xs text-slate-500 hover:text-slate-700">Annuler</button>
+                        </div>
+                    </form>
+                </div>
                 @endif
             </div>
             @endforeach

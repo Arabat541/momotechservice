@@ -91,6 +91,7 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
         Route::get('/parametres', [SettingsController::class, 'index'])->name('parametres');
         Route::post('/parametres', [SettingsController::class, 'update'])->name('parametres.update');
         Route::post('/utilisateurs', [AuthController::class, 'register'])->name('users.register');
+        Route::put('/utilisateurs/{id}/reset-password', [UserController::class, 'resetPassword'])->name('users.resetPassword');
         Route::delete('/utilisateurs/{id}', [UserController::class, 'destroy'])->name('users.destroy');
         Route::get('/utilisateurs/export-csv', [UserController::class, 'exportCsv'])->name('users.export.csv');
     });
