@@ -297,20 +297,20 @@
     // Barcode
     function initBarcode() {
         if (typeof JsBarcode !== 'undefined') {
-            JsBarcode('#barcodePreview', '{{ $numero }}', { format: 'CODE128', width: 1.2, height: 30, displayValue: true, fontSize: 10, font: 'Courier New', margin: 2, textMargin: 1 });
+            JsBarcode('#barcodePreview', '{{ $numero }}', { format: 'CODE128', width: 2, height: 50, displayValue: true, fontSize: 14, font: 'Courier New', margin: 5, textMargin: 2 });
         }
     }
 
     function printTicket() {
         const content = document.getElementById('receiptPreview').innerHTML;
         const css = `
-            @page { size: 58mm auto; margin: 0; }
+            @page { size: 80mm auto; margin: 0; }
             * { margin:0; padding:0; box-sizing:border-box; }
-            body { font-family:'Courier New',monospace; font-size:11px; line-height:1.3; width:48mm; max-width:48mm; padding:2mm; color:#000; }
+            body { font-family:'Courier New',monospace; font-size:13px; line-height:1.4; width:72mm; max-width:72mm; padding:3mm 4mm; color:#000; }
             .text-center,.center { text-align:center; }
-            .text-xs,.small { font-size:9px; }
-            .text-sm { font-size:11px; }
-            .text-base,.text-lg,.total-row { font-size:13px; }
+            .text-xs,.small { font-size:11px; }
+            .text-sm { font-size:13px; }
+            .text-base,.text-lg,.total-row { font-size:16px; }
             .font-bold,.font-semibold,.bold { font-weight:bold; }
             .uppercase { text-transform:uppercase; }
             .italic { font-style:italic; }
@@ -320,15 +320,15 @@
             .border-t { border-top:1px solid #000; }
             .border-b { border-bottom:1px solid #000; }
             .border-dashed { border-style:dashed; }
-            .mb-0\\.5,.mb-1 { margin-bottom:1px; }
-            .mb-2 { margin-bottom:3px; }
-            .mt-1 { margin-top:2px; }
-            .py-1,.pt-1 { padding-top:2px; padding-bottom:2px; }
+            .mb-0\\.5,.mb-1 { margin-bottom:2px; }
+            .mb-2 { margin-bottom:4px; }
+            .mt-1 { margin-top:3px; }
+            .py-1,.pt-1 { padding-top:3px; padding-bottom:3px; }
             .hidden { display:none; }
-            svg { width:100%; max-width:44mm; height:auto; }
+            svg { width:100%; max-width:64mm; height:auto; }
             p { margin:0; }
         `;
-        const w = window.open('', '_blank', 'width=320,height=600');
+        const w = window.open('', '_blank', 'width=420,height=600');
         w.document.write('<html><head><title>Ticket</title><style>'+css+'</style></head><body>'+content+'</body></html>');
         w.document.close();
         w.onload = function() { setTimeout(function(){ w.print(); }, 200); };
@@ -337,8 +337,8 @@
     function printBarcode() {
         const svg = document.getElementById('barcodePreview');
         if (!svg) return;
-        const css = '@page{size:58mm auto;margin:0}body{margin:0;padding:4mm;text-align:center;font-family:monospace}svg{width:100%;max-width:50mm;height:auto}';
-        const w = window.open('', '_blank', 'width=320,height=200');
+        const css = '@page{size:80mm auto;margin:0}body{margin:0;padding:5mm;text-align:center;font-family:monospace}svg{width:100%;max-width:70mm;height:auto}';
+        const w = window.open('', '_blank', 'width=420,height=200');
         w.document.write('<html><head><title>Code barre</title><style>'+css+'</style></head><body>'+svg.outerHTML+'</body></html>');
         w.document.close();
         w.onload = function() { setTimeout(function(){ w.print(); }, 200); };
