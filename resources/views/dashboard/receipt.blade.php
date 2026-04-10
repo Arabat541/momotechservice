@@ -1,6 +1,54 @@
-@extends('layouts.base')
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Reçu {{ $repair->numeroReparation }}</title>
+<style>
+    @page {
+        size: 58mm auto;
+        margin: 0;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: 'Courier New', 'Lucida Console', monospace;
+        font-size: 11px;
+        line-height: 1.3;
+        width: 48mm;
+        max-width: 48mm;
+        padding: 2mm;
+        color: #000;
+        background: #fff;
+    }
+    .center { text-align: center; }
+    .bold { font-weight: bold; }
+    .separator { border-top: 1px dashed #000; margin: 3px 0; }
+    .separator-double { border-top: 2px solid #000; margin: 3px 0; }
+    .row { display: flex; justify-content: space-between; }
+    .header { margin-bottom: 4px; }
+    .header h1 { font-size: 13px; font-weight: bold; text-transform: uppercase; margin-bottom: 1px; }
+    .header p { font-size: 9px; line-height: 1.2; }
+    .section { margin: 3px 0; }
+    .label { font-weight: bold; }
+    .total-row { font-size: 13px; font-weight: bold; }
+    .small { font-size: 9px; }
+    .barcode-wrap { text-align: center; margin: 4px 0; }
+    .barcode-wrap svg { width: 100%; max-width: 44mm; height: auto; }
+    .footer { font-size: 9px; text-align: center; margin-top: 4px; }
+    .cut-line { border-top: 1px dashed #000; margin-top: 6px; }
 
-@section('body')
+    @media screen {
+        body {
+            width: 320px;
+            max-width: 320px;
+            margin: 20px auto;
+            padding: 10px;
+            border: 1px solid #ccc;
+            box-shadow: 0 2px 8px rgba(0,0,0,.15);
+        }
+    }
+</style>
+</head>
+<body>
 @php
     $company = $settings?->companyInfo ?? [];
     $warranty = $settings?->warranty ?? [];
@@ -9,100 +57,121 @@
     $isRdv = $repair->type_reparation === 'rdv';
 @endphp
 
-<div class="flex justify-center p-4 print:p-0">
-    <div class="bg-white text-gray-800 text-sm w-[302px] p-3 shadow-lg border border-gray-300 print:shadow-none print:border-0">
-        {{-- Header --}}
-        <div class="text-center mb-2">
-            <h2 class="text-lg font-bold uppercase">{{ $company['nom'] ?? 'MOMO TECH SERVICE' }}</h2>
-            <p class="text-xs">{{ $company['adresse'] ?? '' }}</p>
-            <p class="text-xs">Tél: {{ $company['telephone'] ?? '' }}</p>
-            <p class="text-xs italic">{{ $company['slogan'] ?? '' }}</p>
-        </div>
+{{-- Header --}}
+<div class="header center">
+    <h1>{{ $company['nom'] ?? 'MOMO TECH SERVICE' }}</h1>
+    @if(!empty($company['adresse']))<p>{{ $company['adresse'] }}</p>@endif
+    @if(!empty($company['telephone']))<p>Tél: {{ $company['telephone'] }}</p>@endif
+    @if(!empty($company['slogan']))<p>{{ $company['slogan'] }}</p>@endif
+</div>
 
-        {{-- Repair info --}}
-        <div class="mb-2">
-            <div class="flex justify-between">
-                <span class="font-semibold">N° Réparation:</span>
-                <span>{{ $repair->numeroReparation }}</span>
-            </div>
-            <div class="flex justify-between">
-                <span class="font-semibold">Date création:</span>
-                <span>{{ $repair->date_creation ? $repair->date_creation->format('d/m/Y') : 'N/A' }}</span>
-            </div>
-            @if($isRdv && $repair->date_rendez_vous)
-            <div class="flex justify-between">
-                <span class="font-semibold">Date RDV:</span>
-                <span>{{ $repair->date_rendez_vous->format('d/m/Y') }}</span>
-            </div>
-            @endif
-        </div>
+<div class="separator-double"></div>
 
-        {{-- Client --}}
-        <div class="mb-2 border-t border-b border-dashed border-gray-400 py-1">
-            <p><span class="font-semibold">Client:</span> {{ $repair->client_nom }}</p>
-            <p><span class="font-semibold">Téléphone:</span> {{ $repair->client_telephone }}</p>
-            <p><span class="font-semibold">Appareil:</span> {{ $repair->appareil_marque_modele }}</p>
-        </div>
+{{-- Repair info --}}
+<div class="section">
+    <div class="row"><span class="label">N°:</span><span>{{ $repair->numeroReparation }}</span></div>
+    <div class="row"><span class="label">Date:</span><span>{{ $repair->date_creation ? $repair->date_creation->format('d/m/Y') : 'N/A' }}</span></div>
+    @if($isRdv && $repair->date_rendez_vous)
+    <div class="row"><span class="label">RDV:</span><span>{{ $repair->date_rendez_vous->format('d/m/Y') }}</span></div>
+    @endif
+</div>
 
-        {{-- Pannes --}}
-        @if(count($pannes) > 0)
-        <div class="mb-2">
-            <p class="font-semibold underline mb-0.5">Pannes / Services:</p>
-            @foreach($pannes as $panne)
-                @if(!empty($panne['description']) && ($panne['montant'] ?? 0) > 0)
-                <div class="flex justify-between text-xs">
-                    <span>- {{ $panne['description'] }}</span>
-                    <span>{{ number_format($panne['montant'], 0, ',', ' ') }} cfa</span>
-                </div>
-                @endif
-            @endforeach
+<div class="separator"></div>
+
+{{-- Client --}}
+<div class="section">
+    <div><span class="label">Client:</span> {{ $repair->client_nom }}</div>
+    <div><span class="label">Tél:</span> {{ $repair->client_telephone }}</div>
+    <div><span class="label">Appareil:</span> {{ $repair->appareil_marque_modele }}</div>
+</div>
+
+<div class="separator"></div>
+
+{{-- Pannes --}}
+@if(count($pannes) > 0)
+<div class="section">
+    <div class="bold" style="text-decoration:underline;margin-bottom:1px">Pannes / Services:</div>
+    @foreach($pannes as $panne)
+        @if(!empty($panne['description']) && ($panne['montant'] ?? 0) > 0)
+        <div class="row small">
+            <span>- {{ $panne['description'] }}</span>
+            <span>{{ number_format($panne['montant'], 0, ',', ' ') }} cfa</span>
         </div>
         @endif
+    @endforeach
+</div>
+@endif
 
-        {{-- Pièces --}}
-        @if(count($pieces) > 0)
-        <div class="mb-2">
-            <p class="font-semibold underline mb-0.5">Pièces de rechange:</p>
-            @foreach($pieces as $piece)
-                @if(!empty($piece['nom']) && ($piece['quantiteUtilisee'] ?? 0) > 0)
-                <div class="flex justify-between text-xs">
-                    <span>- {{ $piece['nom'] }} (x{{ $piece['quantiteUtilisee'] }})</span>
-                </div>
-                @endif
-            @endforeach
-        </div>
+{{-- Pièces --}}
+@if(count($pieces) > 0)
+<div class="section">
+    <div class="bold" style="text-decoration:underline;margin-bottom:1px">Pièces:</div>
+    @foreach($pieces as $piece)
+        @if(!empty($piece['nom']) && ($piece['quantiteUtilisee'] ?? 0) > 0)
+        <div class="small">- {{ $piece['nom'] }} (x{{ $piece['quantiteUtilisee'] }})</div>
         @endif
+    @endforeach
+</div>
+@endif
 
-        {{-- Totals --}}
-        <div class="border-t border-gray-400 pt-1 mb-2">
-            <div class="flex justify-between font-bold text-base">
-                <span>TOTAL:</span>
-                <span>{{ number_format($repair->total_reparation, 0, ',', ' ') }} cfa</span>
-            </div>
-            <div class="flex justify-between text-xs">
-                <span>Payé:</span>
-                <span>{{ number_format($repair->montant_paye, 0, ',', ' ') }} cfa</span>
-            </div>
-            <div class="flex justify-between text-xs font-semibold">
-                <span>Reste à payer:</span>
-                <span>{{ number_format($repair->reste_a_payer, 0, ',', ' ') }} cfa</span>
-            </div>
-        </div>
+<div class="separator-double"></div>
 
-        {{-- Barcode area --}}
-        <div class="text-center mb-2 py-2 border border-dashed border-gray-300">
-            <span class="text-xs font-mono tracking-widest">{{ $repair->numeroReparation }}</span>
-        </div>
-
-        {{-- Footer --}}
-        <div class="text-xs text-center border-t border-dashed border-gray-400 pt-1">
-            <p class="font-semibold">Merci pour votre confiance!</p>
-            <p>{{ $warranty['conditions'] ?? '' }} (Durée: {{ $warranty['duree'] ?? '7' }} jours)</p>
-            <p class="font-bold mt-1">Statut: {{ $repair->statut_reparation }} | Paiement: {{ $repair->etat_paiement }}</p>
-        </div>
+{{-- Totals --}}
+<div class="section">
+    <div class="row total-row">
+        <span>TOTAL:</span>
+        <span>{{ number_format($repair->total_reparation, 0, ',', ' ') }} cfa</span>
+    </div>
+    <div class="row small">
+        <span>Payé:</span>
+        <span>{{ number_format($repair->montant_paye, 0, ',', ' ') }} cfa</span>
+    </div>
+    <div class="row small bold">
+        <span>Reste à payer:</span>
+        <span>{{ number_format($repair->reste_a_payer, 0, ',', ' ') }} cfa</span>
     </div>
 </div>
 
-{{-- Auto print --}}
-<script>window.onload = function() { window.print(); }</script>
-@endsection
+<div class="separator"></div>
+
+{{-- Barcode --}}
+<div class="barcode-wrap">
+    <svg id="barcode"></svg>
+</div>
+
+<div class="separator"></div>
+
+{{-- Footer --}}
+<div class="footer">
+    <p class="bold">Merci pour votre confiance!</p>
+    @if(!empty($warranty['conditions']))
+    <p>{{ $warranty['conditions'] }} (Durée: {{ $warranty['duree'] ?? '7' }} jours)</p>
+    @endif
+    <p class="bold" style="margin-top:2px">Statut: {{ $repair->statut_reparation }} | Paiement: {{ $repair->etat_paiement }}</p>
+</div>
+
+<div class="cut-line"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        JsBarcode('#barcode', '{{ $repair->numeroReparation }}', {
+            format: 'CODE128',
+            width: 1.2,
+            height: 30,
+            displayValue: true,
+            fontSize: 10,
+            font: 'Courier New',
+            margin: 2,
+            textMargin: 1
+        });
+    } catch(e) {
+        document.getElementById('barcode').outerHTML =
+            '<span style="font-family:monospace;letter-spacing:2px">{{ $repair->numeroReparation }}</span>';
+    }
+    setTimeout(function() { window.print(); }, 400);
+});
+</script>
+</body>
+</html>

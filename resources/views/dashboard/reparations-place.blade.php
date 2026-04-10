@@ -309,25 +309,51 @@
     // Barcode
     function initBarcode() {
         if (typeof JsBarcode !== 'undefined') {
-            JsBarcode('#barcodePreview', '{{ $numero }}', { format: 'CODE128', width: 1.5, height: 40, displayValue: true, fontSize: 12, margin: 0 });
+            JsBarcode('#barcodePreview', '{{ $numero }}', { format: 'CODE128', width: 1.2, height: 30, displayValue: true, fontSize: 10, font: 'Courier New', margin: 2, textMargin: 1 });
         }
     }
 
     function printTicket() {
         const content = document.getElementById('receiptPreview').innerHTML;
+        const css = `
+            @page { size: 58mm auto; margin: 0; }
+            * { margin:0; padding:0; box-sizing:border-box; }
+            body { font-family:'Courier New',monospace; font-size:11px; line-height:1.3; width:48mm; max-width:48mm; padding:2mm; color:#000; }
+            .text-center,.center { text-align:center; }
+            .text-xs,.small { font-size:9px; }
+            .text-sm { font-size:11px; }
+            .text-base,.text-lg,.total-row { font-size:13px; }
+            .font-bold,.font-semibold,.bold { font-weight:bold; }
+            .uppercase { text-transform:uppercase; }
+            .italic { font-style:italic; }
+            .underline { text-decoration:underline; }
+            .flex { display:flex; }
+            .justify-between { justify-content:space-between; }
+            .border-t { border-top:1px solid #000; }
+            .border-b { border-bottom:1px solid #000; }
+            .border-dashed { border-style:dashed; }
+            .mb-0\\.5,.mb-1 { margin-bottom:1px; }
+            .mb-2 { margin-bottom:3px; }
+            .mt-1 { margin-top:2px; }
+            .py-1,.pt-1 { padding-top:2px; padding-bottom:2px; }
+            .hidden { display:none; }
+            svg { width:100%; max-width:44mm; height:auto; }
+            p { margin:0; }
+        `;
         const w = window.open('', '_blank', 'width=320,height=600');
-        w.document.write('<html><head><title>Ticket</title><link href="https://cdn.jsdelivr.net/npm/tailwindcss@2/dist/tailwind.min.css" rel="stylesheet"><style>@media print{body{margin:0;padding:0}}</style></head><body class="p-2 text-sm" style="width:302px">'+content+'</body></html>');
+        w.document.write('<html><head><title>Ticket</title><style>'+css+'</style></head><body>'+content+'</body></html>');
         w.document.close();
-        w.onload = function() { w.print(); };
+        w.onload = function() { setTimeout(function(){ w.print(); }, 200); };
     }
 
     function printBarcode() {
         const svg = document.getElementById('barcodePreview');
         if (!svg) return;
+        const css = '@page{size:58mm auto;margin:0}body{margin:0;padding:4mm;text-align:center;font-family:monospace}svg{width:100%;max-width:50mm;height:auto}';
         const w = window.open('', '_blank', 'width=320,height=200');
-        w.document.write('<html><head><title>Code barre</title><style>@media print{body{margin:0;padding:0;text-align:center}}</style></head><body style="text-align:center;padding:20px">'+svg.outerHTML+'</body></html>');
+        w.document.write('<html><head><title>Code barre</title><style>'+css+'</style></head><body>'+svg.outerHTML+'</body></html>');
         w.document.close();
-        w.onload = function() { w.print(); };
+        w.onload = function() { setTimeout(function(){ w.print(); }, 200); };
     }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js" onload="initBarcode()"></script>
