@@ -349,8 +349,8 @@
     function printBarcode() {
         const svg = document.getElementById('barcodePreview');
         if (!svg) return;
-        const css = '@page{size:80mm auto;margin:0}body{margin:0;padding:5mm;text-align:center;font-family:monospace}svg{width:100%;max-width:70mm;height:auto}';
-        const w = window.open('', '_blank', 'width=420,height=200');
+        const css = '@page{size:58mm auto;margin:0}body{margin:0;padding:3mm;text-align:center;font-family:monospace}svg{width:100%;max-width:50mm;height:auto}';
+        const w = window.open('', '_blank', 'width=320,height=200');
         w.document.write('<html><head><title>Code barre</title><style>'+css+'</style></head><body>'+svg.outerHTML+'</body></html>');
         w.document.close();
         w.onload = function() { setTimeout(function(){ w.print(); }, 200); };
