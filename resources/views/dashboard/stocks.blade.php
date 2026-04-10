@@ -32,7 +32,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-blue-100">Articles en stock</p>
-                    <p class="text-3xl font-bold">{{ $stocks->count() }}</p>
+                    <p class="text-3xl font-bold">{{ $statsArticles }}</p>
                 </div>
                 <i class="fas fa-boxes-stacked text-4xl text-blue-200"></i>
             </div>
@@ -41,7 +41,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-green-100">Valeur totale</p>
-                    <p class="text-3xl font-bold">{{ number_format($stocks->sum(fn($s) => $s->quantite * $s->prixVente), 0, ',', ' ') }} cfa</p>
+                    <p class="text-3xl font-bold">{{ number_format($statsValeur, 0, ',', ' ') }} cfa</p>
                 </div>
                 <i class="fas fa-credit-card text-4xl text-green-200"></i>
             </div>
@@ -50,7 +50,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-orange-100">Stock faible</p>
-                    <p class="text-3xl font-bold">{{ $stocks->where('quantite', '<', 10)->count() }}</p>
+                    <p class="text-3xl font-bold">{{ $statsStockFaible }}</p>
                 </div>
                 <i class="fas fa-triangle-exclamation text-4xl text-orange-200"></i>
             </div>
@@ -59,7 +59,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-purple-100">Bénéfice net total attendu</p>
-                    <p class="text-3xl font-bold">{{ number_format($stocks->sum(fn($s) => ($s->prixVente - $s->prixAchat) * $s->quantite), 0, ',', ' ') }} cfa</p>
+                    <p class="text-3xl font-bold">{{ number_format($statsBenefice, 0, ',', ' ') }} cfa</p>
                 </div>
                 <i class="fas fa-chart-line text-4xl text-purple-200"></i>
             </div>

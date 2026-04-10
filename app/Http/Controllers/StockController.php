@@ -19,7 +19,14 @@ class StockController extends Controller
 
         $stocks = $query->paginate(20)->withQueryString();
 
-        return view('dashboard.stocks', compact('stocks'));
+        // Stats sur TOUS les articles (pas seulement la page courante)
+        $allStocks = Stock::where('shopId', $shopId);
+        $statsArticles = $allStocks->count();
+        $statsValeur = (clone $allStocks)->get()->sum(fn($s) => $s->quantite * $s->prixVente);
+        $statsStockFaible = (clone $allStocks)->where('quantite', '<', 10)->count();
+        $statsBenefice = (clone $allStocks)->get()->sum(fn($s) => ($s->prixVente - $s->prixAchat) * $s->quantite);
+
+        return view('dashboard.stocks', compact('stocks', 'statsArticles', 'statsValeur', 'statsStockFaible', 'statsBenefice'));
     }
 
     public function store(Request $request)
