@@ -62,7 +62,11 @@ class ShopController extends Controller
             'telephone' => 'nullable|string',
         ]);
 
-        $shop->update($request->only('nom', 'adresse', 'telephone'));
+        $shop->update([
+            'nom' => $request->nom,
+            'adresse' => $request->input('adresse', '') ?? '',
+            'telephone' => $request->input('telephone', '') ?? '',
+        ]);
 
         return back()->with('success', 'Boutique mise à jour.');
     }
