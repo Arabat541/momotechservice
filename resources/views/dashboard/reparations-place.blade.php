@@ -33,17 +33,14 @@
 
             <div>
                 <label class="text-xs font-medium text-gray-600">Appareil (Marque et Modèle)</label>
-                <select name="appareil_select" id="appareilSelect" onchange="handleAppareilChange(this)"
-                        class="w-full text-sm py-1.5 border-gray-300 rounded-md px-3 border focus:ring-blue-500">
-                    <option value="">Sélectionner un modèle</option>
+                <input type="text" name="appareil_marque_modele" id="appareilValue" list="modelesListe" required
+                       placeholder="Taper ou choisir un modèle" autocomplete="off"
+                       class="w-full text-sm py-1.5 border-gray-300 rounded-md px-3 border focus:ring-blue-500">
+                <datalist id="modelesListe">
                     @foreach(['iPhone 16e','iPhone 16','iPhone 16 Plus','iPhone 16 Pro','iPhone 16 Pro Max','iPhone 15','iPhone 15 Plus','iPhone 15 Pro','iPhone 15 Pro Max','iPhone 14','iPhone 14 Plus','iPhone 14 Pro','iPhone 14 ProMax','iPhone 13','iPhone 13 Mini','iPhone 13 Pro','iPhone 13 Pro Max','iPhone 12 classique','iPhone 12 Mini','iPhone 12 Pro','iPhone 12 Pro Max','iPhone 11 classique','iPhone 11 Pro','iPhone 11 Pro Max','iPhone X classique','iPhone XR','iPhone XS','iPhone XS Max','iPhone SE','iPhone SE 2020','iPhone SE 2022','iPhone 8','iPhone 8 Plus','iPhone 7','iPhone 7 Plus','iPhone 6'] as $model)
-                        <option value="{{ $model }}">{{ $model }}</option>
+                        <option value="{{ $model }}">
                     @endforeach
-                    <option value="autre">Autre...</option>
-                </select>
-                <input type="hidden" name="appareil_marque_modele" id="appareilValue">
-                <input type="text" id="appareilAutre" placeholder="Saisir un autre modèle"
-                       class="w-full text-sm py-1.5 border-gray-300 rounded-md mt-2 px-3 border hidden">
+                </datalist>
             </div>
 
             {{-- Pannes / Services --}}
@@ -164,18 +161,7 @@
     const stocksData = @json($stocks);
     let panneCount = 1;
 
-    function handleAppareilChange(select) {
-        const autreInput = document.getElementById('appareilAutre');
-        const hiddenInput = document.getElementById('appareilValue');
-        if (select.value === 'autre') {
-            autreInput.classList.remove('hidden');
-            autreInput.oninput = () => { hiddenInput.value = autreInput.value; };
-            hiddenInput.value = autreInput.value;
-        } else {
-            autreInput.classList.add('hidden');
-            hiddenInput.value = select.value;
-        }
-    }
+
 
     function addPanne() {
         if (panneCount >= 4) { alert('Maximum 4 services'); return; }
@@ -287,11 +273,7 @@
         document.querySelectorAll('input[name="client_nom"], input[name="client_telephone"], input[name="montant_paye"]').forEach(el => {
             el.addEventListener('input', updatePreview);
         });
-        document.getElementById('appareilSelect').addEventListener('change', function() {
-            setTimeout(updatePreview, 50);
-        });
-        const appareilAutre = document.getElementById('appareilAutre');
-        appareilAutre.addEventListener('input', updatePreview);
+        document.getElementById('appareilValue').addEventListener('input', updatePreview);
 
         // Observe pannes/pieces container changes
         const observer = new MutationObserver(() => { setTimeout(updatePreview, 50); });
@@ -302,9 +284,6 @@
         document.getElementById('repairForm').addEventListener('input', updatePreview);
         document.getElementById('repairForm').addEventListener('change', updatePreview);
     });
-
-    // Init appareil hidden field
-    document.getElementById('appareilSelect').dispatchEvent(new Event('change'));
 
     // Barcode
     function initBarcode() {
