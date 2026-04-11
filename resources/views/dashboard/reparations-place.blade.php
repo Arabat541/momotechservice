@@ -105,6 +105,7 @@
         <div class="w-full md:w-2/5 p-2 bg-white flex flex-col items-center justify-start">
             <div class="bg-white text-gray-800 text-sm w-[302px] p-3 shadow-lg border border-gray-300 mt-4" id="receiptPreview">
                 <div class="text-center mb-2">
+                    <img src="/images/logo-receipt.png" alt="MTS" class="w-14 h-14 mx-auto mb-1">
                     <h2 class="text-lg font-bold uppercase">{{ $settings->companyInfo['nom'] ?? 'MOMO TECH SERVICE' }}</h2>
                     <p class="text-xs">{{ $settings->companyInfo['adresse'] ?? '' }}</p>
                     <p class="text-xs">Tél: {{ $settings->companyInfo['telephone'] ?? '' }}</p>
@@ -338,6 +339,7 @@
             .py-1,.pt-1 { padding-top:3px; padding-bottom:3px; }
             .hidden { display:none; }
             svg { width:100%; max-width:64mm; height:auto; }
+            img { display:block; margin:0 auto 2px; width:50px; height:50px; }
             p { margin:0; }
         `;
         const w = window.open('', '_blank', 'width=420,height=600');

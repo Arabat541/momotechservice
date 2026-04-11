@@ -59,6 +59,7 @@
 
 {{-- Header --}}
 <div class="header center">
+    <img src="/images/logo-receipt.png" alt="MTS" style="width:50px;height:50px;margin:0 auto 4px;display:block;">
     <h1>{{ $company['nom'] ?? 'MOMO TECH SERVICE' }}</h1>
     @if(!empty($company['adresse']))<p>{{ $company['adresse'] }}</p>@endif
     @if(!empty($company['telephone']))<p>Tél: {{ $company['telephone'] }}</p>@endif

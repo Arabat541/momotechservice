@@ -27,7 +27,11 @@
         <div>
             {{-- Header --}}
             <div class="p-4 flex items-center h-20" :class="sidebarOpen ? 'justify-between' : 'justify-center'">
-                <h1 x-show="sidebarOpen" class="text-xl font-bold text-white truncate">MOMO TECH</h1>
+                <div x-show="sidebarOpen" class="flex items-center gap-2">
+                    <img src="/images/logo-app.png" alt="MTS" class="w-10 h-10 rounded-full">
+                    <h1 class="text-xl font-bold text-white truncate">MOMO TECH</h1>
+                </div>
+                <img x-show="!sidebarOpen" src="/images/logo-app.png" alt="MTS" class="w-10 h-10 rounded-full">
                 <button @click="sidebarOpen = !sidebarOpen" class="text-white hover:bg-white/10 p-2 rounded-lg">
                     <i class="fas text-lg" :class="sidebarOpen ? 'fa-xmark' : 'fa-bars'"></i>
                 </button>
