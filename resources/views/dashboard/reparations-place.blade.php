@@ -158,6 +158,20 @@
     </div>
 </div>
 
+{{-- Modal popup after save --}}
+<div id="successModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full mx-4 max-h-[90vh] overflow-y-auto relative">
+        <button onclick="closeModal()" class="absolute top-2 right-3 text-gray-400 hover:text-gray-700 text-2xl">&times;</button>
+        <div class="p-4">
+            <div id="modalReceiptContent"></div>
+            <div class="flex gap-2 justify-center mt-4 pb-2">
+                <button onclick="printTicket()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs rounded-md font-semibold"><i class="fas fa-print mr-1"></i> Imprimer ticket</button>
+                <button onclick="printBarcode()" class="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white text-xs rounded-md font-semibold"><i class="fas fa-barcode mr-1"></i> Imprimer code barre</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script>
     const stocksData = @json($stocks);
@@ -340,6 +354,42 @@
         w.document.write('<html><head><title>Code barre</title><style>'+css+'</style></head><body>'+svg.outerHTML+'</body></html>');
         w.document.close();
         w.onload = function() { setTimeout(function(){ w.print(); }, 200); };
+    }
+
+    // AJAX form submit + popup
+    document.getElementById('repairForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const form = e.target;
+        const btn = form.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.textContent = 'Enregistrement...';
+
+        fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('modalReceiptContent').innerHTML = document.getElementById('receiptPreview').innerHTML;
+                document.getElementById('successModal').classList.remove('hidden');
+            } else {
+                alert('Erreur lors de l\'enregistrement');
+                btn.disabled = false;
+                btn.textContent = 'Enregistrer';
+            }
+        })
+        .catch(() => {
+            alert('Erreur réseau');
+            btn.disabled = false;
+            btn.textContent = 'Enregistrer';
+        });
+    });
+
+    function closeModal() {
+        document.getElementById('successModal').classList.add('hidden');
+        window.location.href = '{{ route("reparations.place") }}';
     }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js" onload="initBarcode()"></script>

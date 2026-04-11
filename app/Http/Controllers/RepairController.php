@@ -115,6 +115,11 @@ class RepairController extends Controller
         ]);
 
         $route = $request->type_reparation === 'rdv' ? 'reparations.rdv' : 'reparations.place';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => true, 'numero' => $repair->numeroReparation]);
+        }
+
         return redirect()->route($route)->with('success', "Réparation {$repair->numeroReparation} enregistrée.");
     }
 
