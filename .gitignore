@@ -13,6 +13,7 @@ Homestead.yaml
 *.png
 *.jpg
 *.jpeg
+!public/images/*
 composer.lock
 composer.phar
 hostinger-deploy/
