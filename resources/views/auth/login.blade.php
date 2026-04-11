@@ -6,7 +6,7 @@
 <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
     <div class="w-full max-w-md glass-effect shadow-2xl rounded-xl p-8" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);">
         <div class="text-center mb-8">
-            <i class="fas fa-mobile-screen-button text-5xl text-purple-400 mb-4"></i>
+            <img src="/images/logo-app.png" alt="MTS" class="w-20 h-20 mx-auto mb-4 rounded-full shadow-lg">
             <h1 class="text-3xl font-bold text-white">MOMO TECH SERVICE</h1>
             <p class="text-purple-300 mt-1">Connectez-vous à votre compte</p>
         </div>

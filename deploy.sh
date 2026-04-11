@@ -25,4 +25,9 @@ echo ">> Sync public assets..."
 cp -f public/.htaccess ../public_html/.htaccess 2>/dev/null || true
 # Ne pas écraser index.php de public_html (version Hostinger)
 
+# 5. Sync images et autres assets
+echo ">> Sync images..."
+mkdir -p ../public_html/images
+cp -rf public/images/* ../public_html/images/ 2>/dev/null || true
+
 echo "=== Déploiement terminé ! ==="
