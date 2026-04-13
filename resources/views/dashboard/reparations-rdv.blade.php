@@ -9,7 +9,7 @@
     </div>
 
     <div class="flex flex-col md:flex-row">
-        <form action="{{ route('reparations.store') }}" method="POST" class="w-full md:w-3/5 p-4 space-y-3 md:border-r border-gray-200">
+        <form action="{{ route('reparations.store') }}" method="POST" class="w-full md:w-3/5 p-4 space-y-3 md:border-r border-gray-200" id="repairForm">
             @csrf
             <input type="hidden" name="type_reparation" value="rdv">
 
@@ -340,7 +340,7 @@
         const w = window.open('', '_blank', 'width=420,height=600');
         w.document.write('<html><head><title>Ticket</title><style>'+css+'</style></head><body>'+content+'</body></html>');
         w.document.close();
-        w.onload = function() { setTimeout(function(){ w.print(); }, 200); };
+        w.onload = function() { setTimeout(function(){ w.print(); w.close(); }, 200); };
     }
 
     function printBarcode() {
@@ -350,11 +350,11 @@
         const w = window.open('', '_blank', 'width=320,height=200');
         w.document.write('<html><head><title>Code barre</title><style>'+css+'</style></head><body>'+svg.outerHTML+'</body></html>');
         w.document.close();
-        w.onload = function() { setTimeout(function(){ w.print(); }, 200); };
+        w.onload = function() { setTimeout(function(){ w.print(); w.close(); }, 200); };
     }
 
     // AJAX form submit + popup
-    document.querySelector('form').addEventListener('submit', function(e) {
+    document.getElementById('repairForm').addEventListener('submit', function(e) {
         e.preventDefault();
         const form = e.target;
         const btn = form.querySelector('button[type="submit"]');
@@ -386,7 +386,7 @@
 
     function closeModal() {
         document.getElementById('successModal').classList.add('hidden');
-        window.location.href = '{{ route("reparations.rdv") }}';
+        window.location.href = '{{ route("reparations.liste") }}';
     }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js" onload="initBarcode()"></script>

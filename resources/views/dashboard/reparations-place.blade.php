@@ -345,7 +345,7 @@
         const w = window.open('', '_blank', 'width=420,height=600');
         w.document.write('<html><head><title>Ticket</title><style>'+css+'</style></head><body>'+content+'</body></html>');
         w.document.close();
-        w.onload = function() { setTimeout(function(){ w.print(); }, 200); };
+        w.onload = function() { setTimeout(function(){ w.print(); w.close(); }, 200); };
     }
 
     function printBarcode() {
@@ -355,7 +355,7 @@
         const w = window.open('', '_blank', 'width=320,height=200');
         w.document.write('<html><head><title>Code barre</title><style>'+css+'</style></head><body>'+svg.outerHTML+'</body></html>');
         w.document.close();
-        w.onload = function() { setTimeout(function(){ w.print(); }, 200); };
+        w.onload = function() { setTimeout(function(){ w.print(); w.close(); }, 200); };
     }
 
     // AJAX form submit + popup
@@ -391,7 +391,7 @@
 
     function closeModal() {
         document.getElementById('successModal').classList.add('hidden');
-        window.location.href = '{{ route("reparations.place") }}';
+        window.location.href = '{{ route("reparations.liste") }}';
     }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js" onload="initBarcode()"></script>
