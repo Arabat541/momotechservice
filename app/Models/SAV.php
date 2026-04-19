@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Scopes\ShopScope;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class SAV extends BaseModel
 {
@@ -30,6 +31,31 @@ class SAV extends BaseModel
         'date_fin_garantie'=> 'datetime',
         'date_resolution'  => 'datetime',
     ];
+
+    protected function clientNom(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $this->unserializeIfSerialized($value),
+        );
+    }
+
+    protected function clientTelephone(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $this->unserializeIfSerialized($value),
+        );
+    }
+
+    private function unserializeIfSerialized(mixed $value): string
+    {
+        if (is_string($value) && str_starts_with($value, 's:')) {
+            $unserialized = @unserialize($value);
+            if ($unserialized !== false) {
+                return (string) $unserialized;
+            }
+        }
+        return (string) ($value ?? '');
+    }
 
     public function shop()
     {
