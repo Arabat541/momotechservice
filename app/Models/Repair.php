@@ -60,11 +60,13 @@ class Repair extends BaseModel
     private function decryptAndClean(mixed $raw): string
     {
         if (is_null($raw)) return '';
+        // Tenter le déchiffrement (encryptString = sans sérialisation, utilisé par le cast 'encrypted')
         try {
-            $value = decrypt($raw);
+            $value = \Illuminate\Support\Facades\Crypt::decryptString($raw);
         } catch (\Throwable $e) {
             $value = (string) $raw;
         }
+        // Nettoyer l'ancien format sérialisé PHP (s:N:"valeur";)
         if (is_string($value) && str_starts_with($value, 's:')) {
             $unserialized = @unserialize($value);
             if ($unserialized !== false) return (string) $unserialized;

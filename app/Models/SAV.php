@@ -48,7 +48,7 @@ class SAV extends BaseModel
     {
         if (is_null($raw)) return '';
         try {
-            $value = decrypt($raw);
+            $value = \Illuminate\Support\Facades\Crypt::decryptString($raw);
         } catch (\Throwable $e) {
             $value = (string) $raw;
         }
