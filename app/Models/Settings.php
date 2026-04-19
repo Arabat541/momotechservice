@@ -5,11 +5,12 @@ namespace App\Models;
 class Settings extends BaseModel
 {
     protected $table = 'settings';
-    protected $fillable = ['id', 'shopId', 'companyInfo', 'warranty'];
+    protected $fillable = ['id', 'shopId', 'companyInfo', 'warranty', 'sms_config'];
 
     protected $casts = [
         'companyInfo' => 'array',
-        'warranty' => 'array',
+        'warranty'    => 'array',
+        'sms_config'  => 'array',
     ];
 
     public function shop()

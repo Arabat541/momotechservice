@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('password');
             $table->string('nom');
             $table->string('prenom');
-            $table->string('role')->default('employé');
+            $table->string('role')->default('technicien');
             $table->timestamps();
         });
 

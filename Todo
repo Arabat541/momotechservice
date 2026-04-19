@@ -1,0 +1,491 @@
+# AUDIT MOMO TECH SERVICE — Plan d'action
+# Légende : [x] = fait | [ ] = à faire
+
+═══════════════════════════════════════════════════════════
+ PHASE 1 — QUICK WINS ✅ COMPLÈTE
+═══════════════════════════════════════════════════════════
+
+[x] .env — APP_DEBUG=false
+[x] .env — SESSION_SECURE_COOKIE=true
+[x] .env — SESSION_LIFETIME 60 min, JWT_TTL 60 min
+[x] .env — APP_KEY régénéré, config MAIL ajoutée, SANCTUM_EXPIRATION=60
+[ ] .env — Rotation DB_PASSWORD (Arabat54@ — à faire manuellement)
+[ ] .env — Rotation JWT_SECRET (Arabat54a — à faire manuellement)
+[x] AuthController — session()->regenerate(true), rehash $2b$ au login
+[x] AuthController — Email reset via PasswordResetMail, code retiré du flash/log
+[x] routes — throttle:5,1 sur auth web + API
+
+═══════════════════════════════════════════════════════════
+ PHASE 2 — AMÉLIORATIONS STRUCTURELLES ✅ COMPLÈTE
+═══════════════════════════════════════════════════════════
+
+[x] Validation complète : RepairController, SAVController, ArticleController,
+      StockController, UserController, StorefrontController, SettingsController
+[x] GlobalScope ShopScope sur tous les modèles multi-tenant
+[x] Migration FK manquantes (userId, createdBy)
+[x] API séparée routes/api.php
+[x] Audit trail (AuditMiddleware + AuditLog + migration)
+[x] RGPD — anonymisation client via DataPrivacyController
+[x] Cache settings (Cache::remember 5 min + Cache::forget à la sauvegarde)
+[x] firebase/php-jwt → laravel/sanctum ^4.3 (tokens API)
+
+[ ] AuthController — Supprimer workaround $2b$ après migration complète des comptes
+
+═══════════════════════════════════════════════════════════
+ PHASE 3 — OPTIMISATIONS LONGUES ✅ COMPLÈTE
+═══════════════════════════════════════════════════════════
+
+[x] Service layer — RepairService, StockService, SaleService
+      Controllers réduits : RepairController -40 lignes, StockController -20 lignes
+[x] Sanctum — AuthController::apiLogin + apiLogout, JwtAuth middleware reécrit
+[x] Chiffrement PII — encrypted cast sur client_nom + client_telephone (Repair + SAV)
+      + commande app:encrypt-legacy-pii pour migrer les données existantes
+[x] Tests — 14/14 ✔ (AuthTest + RepairTest — toujours verts après toutes les modifs)
+
+═══════════════════════════════════════════════════════════
+ PHASE 4 — LOGIQUE MÉTIER (RÔLES + FACTURATION) ✅ COMPLÈTE
+═══════════════════════════════════════════════════════════
+
+[x] Migrations — clients, cash_sessions, invoices, credit_transactions
+[x] Migrations — alter stocks (categorie + prixGros), alter Sale (client_id,
+      cash_session_id, mode_paiement, montant_paye, reste_credit, statut)
+[x] Migrations — alter repairs (client_id, cash_session_id, notes_technicien)
+[x] Modèles — Client, CashSession, Invoice, CreditTransaction (+ ShopScope)
+[x] Modèles — Stock, Sale, Repair mis à jour (relations + nouveaux champs)
+[x] Services — InvoiceService (facture auto à la réception + paiement final)
+[x] Services — CashSessionService (ouverture/fermeture + calcul écart)
+[x] Services — CreditService (enregistrerDette + enregistrerRemboursement)
+[x] Services — SaleService reécrit (crédit pièces détachées, prix gros revendeur)
+[x] Controllers — ClientController, CashSessionController,
+      InvoiceController, CreditController
+[x] RepairController — store : création réparation + client auto + facture auto
+      si caisse ouverte (rôle caissière)
+[x] RepairController — updateDiagnostic : statut/pannes/pièces/notes seulement
+      (rôle technicien — aucun accès finances)
+[x] ArticleController — vente avec client_id, mode_paiement crédit/comptant,
+      montant_paye, cashSessionId
+[x] AuthController — création compte avec rôle (technicien, caissière)
+[x] Routes — /clients, /caisse, /factures, /credits, /reparations/:id/diagnostic
+      Caisse protégée role:caissiere,patron
+[x] Tests — BusinessLogicTest (12 tests) : caisse, clients, réparation+facture,
+      diagnostic technicien, vente crédit, remboursement — 26/26 ✔
+
+═══════════════════════════════════════════════════════════
+ PHASE 5 — MODULES MÉTIER AVANCÉS ✅ COMPLÈTE
+═══════════════════════════════════════════════════════════
+# Ordre recommandé d'implémentation
+
+ ── Priorité haute ─────────────────────────────────────
+
+[x] Fournisseurs
+      Modèle Supplier (nom, contact, téléphone, email, délai_livraison,
+      conditions_paiement, shopId). CRUD patron.
+      Lier Reapprovisionnement → supplier_id.
+
+[x] Factures fournisseurs
+      Tables : purchase_invoices, purchase_invoice_lines.
+      Liée à un fournisseur + un ou plusieurs réappros.
+      Statuts : en_attente | partiellement_payée | soldée.
+      PurchaseInvoiceService + PurchaseInvoiceController.
+      Routes /factures-fournisseurs (patron only).
+
+[x] Rapport de caisse (Z-report)
+      CashSessionController::zReport — récapitulatif ventes comptant,
+      acomptes, factures soldées, écart ouverture/fermeture.
+      Route GET /caisse/{id}/z-report.
+
+[x] Alertes stock critique
+      Champ seuil_alerte sur stocks. Stock::isEnAlerte().
+      Tests : 35/35 ✔
+
+ ── Priorité moyenne ───────────────────────────────────
+
+[x] Inventaires
+      Tables : inventory_sessions + inventory_lines.
+      InventoryService : ouvrir (snapshot stock), saisirLigne, cloturer
+      (avec ou sans ajustement stocks). InventoryController + routes.
+      Tests : 8/8 ✔
+
+[x] Commandes fournisseurs (bons de commande)
+      Tables : purchase_orders + purchase_order_lines.
+      PurchaseOrderService : creer, envoyer, recevoirPartiel (incrémente
+      stock), annuler. PurchaseOrderController + routes (patron only).
+      Tests : 43/43 ✔
+
+[x] Tableau de bord analytique
+      AnalyticsController : CA réparations/ventes, évolution 12 mois,
+      top 5 pannes, top 5 articles, taux soldées, stocks en alerte,
+      encours crédit revendeurs, charges fournisseurs dues.
+      Route GET /analytique (tous rôles).
+
+ ── Priorité basse ─────────────────────────────────────
+
+[x] Dashboard revendeur
+      ClientController::dashboard — historique achats, évolution CA 6 mois,
+      top articles, solde crédit, transactions. Redirige si particulier.
+
+[x] Planning technicien
+      Migration assigned_to sur repairs. PlanningController : vue par
+      technicien, assignation/désassignation (caissière + patron).
+      Route POST /planning/{id}/assigner.
+
+[x] Étiquettes QR code
+      Package simplesoftwareio/simple-qrcode installé.
+      QrLabelController : QR SVG → lien suivi client. Vue imprimable
+      unitaire + lot (max 50). Routes /reparations/{id}/etiquette.
+
+[x] Garanties pièces vendues
+      Table warranties + Warranty model + WarrantyService.
+      Création uniquement sur pièces_detachees. Statuts : active |
+      expiree | utilisee. Routes /garanties + impression certificat.
+
+[x] Notifications SMS client
+      SmsService : Twilio + Orange SMS API. Hook dans
+      RepairController::updateDiagnostic → SMS automatique quand
+      statut passe à "Terminé". Config via SettingsController::updateSms.
+      Tests : 52/52 ✔
+
+═══════════════════════════════════════════════════════════
+ PHASE 6 — VUES BLADE ✅ COMPLÈTE
+═══════════════════════════════════════════════════════════
+
+[x] clients/ — index, create, edit, show, dashboard
+      Liste + filtres type, formulaires création/édition, détail avec
+      historique réparations + transactions crédit, remboursement inline.
+      Dashboard revendeur : KPIs, graphe CA 6 mois, top articles, crédit.
+
+[x] cash-sessions/ — index, show, z-report
+      Liste sessions avec statut ouverte/fermée, ouverture caisse inline.
+      Détail : ventes + factures liées, formulaire fermeture.
+      Rapport Z imprimable : récap comptant/crédit/acomptes/factures + écart.
+
+[x] invoices/ — index, show, print
+      Liste avec filtre statut, formulaire paiement inline.
+      Impression facture avec détail pannes + totaux + statut estampillé.
+
+[x] credit/index
+      Historique transactions crédit avec filtre par revendeur.
+
+[x] suppliers/ — index, create, edit, show
+      CRUD complet. Détail : factures fournisseurs liées + réappros.
+
+[x] purchase-invoices/ — index, create, show, print
+      Liste avec KPIs total dû / en retard, badges retard.
+      Création dynamique (Alpine.js) avec lignes + calcul total auto.
+      Formulaire paiement partiel. Impression bon de réception.
+
+[x] purchase-orders/ — index, create, show, print
+      Liste avec filtres statut + badge retard.
+      Création dynamique : pré-remplissage prix depuis stock, alertes visibles.
+      Détail : formulaire réception partielle par ligne, actions envoyer/annuler.
+      Impression bon de commande avec signatures.
+
+[x] inventory/ — index, show, rapport
+      Liste sessions. Saisie inline par article avec barre de progression.
+      Clôture avec option ajustement stock automatique.
+      Rapport imprimable avec tableau écarts + récap conformes/pertes/surplus.
+
+[x] analytics/index
+      KPIs CA réparations/ventes, taux soldées, crédit encours.
+      Graphe barres CA 12 mois. Top 5 pannes + top 5 articles (barres).
+      Stocks en alerte. Charges fournisseurs dues. Dernière session caisse.
+
+[x] planning/index
+      Vue hebdomadaire par technicien (structure $planning['reparations']).
+      Section réparations non assignées avec sélecteur technicien.
+      Formulaire réassignation/désassignation inline. Filtre semaine + technicien.
+
+[x] warranties/ — index, show, print
+      Liste avec filtre statut + calcul expiration en temps réel.
+      Modal création depuis index. Formulaire utilisation avec notes.
+      Certificat imprimable stylisé (bordure, durée, statut estampillé, signatures).
+
+[x] qr-labels/ — repair, batch
+      Étiquette unitaire : QR SVG + infos réparation + en-tête boutique.
+      Lot (max 50) : grille 3 colonnes imprimable, CSS @media print intégré.
+
+[x] Tests — 52/52 ✔ (toutes les vues corrigées pour correspondre
+      aux variables exactes des controllers)
+
+═══════════════════════════════════════════════════════════
+ PHASE 7 — TRANSFERT INTRA-BOUTIQUE ✅ COMPLÈTE
+═══════════════════════════════════════════════════════════
+
+[x] Migration — stock_transfers + stock_transfer_lines
+      stock_transfers : id, numero (TRF-YYYY-XXXX), shop_from_id, shop_to_id,
+      created_by, validated_by_sender, validated_by_receiver, statut, notes,
+      validated_sender_at, validated_receiver_at.
+      stock_transfer_lines : stock_transfer_id, stock_id, quantite.
+
+[x] Modèles — StockTransfer + StockTransferLine
+      StockTransfer::impliqueBoutique(shopId) pour le contrôle d'accès.
+      Pas de ShopScope (implique 2 boutiques) — filtrage manuel dans le controller.
+
+[x] StockTransferService
+      creer() : validation stock suffisant avant création (statut en_attente_envoi).
+      validerEnvoi() : débit stock source → statut en_attente_reception.
+      validerReception() : crédit stock dest (find-or-create par nom) → completee.
+      annuler() : restaure le stock source si déjà en en_attente_reception.
+
+[x] StockTransferController
+      index : patron voit tout, caissière voit uniquement ses boutiques.
+      create/store : patron only.
+      validerEnvoi : caissière/patron boutique source uniquement.
+      validerReception : caissière/patron boutique destination uniquement.
+      annuler : patron only.
+
+[x] Routes — /transferts (create avant {id} pour éviter conflit)
+      GET  /transferts                       — liste
+      GET  /transferts/create                — formulaire (patron)
+      POST /transferts                       — création (patron)
+      GET  /transferts/{id}                  — détail
+      POST /transferts/{id}/valider-envoi    — (caissière source + patron)
+      POST /transferts/{id}/valider-reception — (caissière dest + patron)
+      POST /transferts/{id}/annuler          — (patron)
+
+[x] Vues Blade — transfers/index, create, show
+      Formulaire création dynamique (Alpine) : sélecteur boutique source filtre
+      les articles disponibles, max quantité = stock disponible.
+      Vue détail : barre de progression 3 étapes, encadrés boutiques colorés,
+      boutons d'action contextuels selon rôle + boutique courante.
+
+[x] Tests — StockTransferTest : 13/13 ✔
+      Création OK + échec stock insuffisant + accès caissière refusé.
+      Validation envoi : source OK, dest refusée (403).
+      Validation réception : dest OK, source refusée (403).
+      Stock dest find-or-create (incrément si existant).
+      Annulation avant/après envoi (restauration stock).
+      Blocage annulation transfert complété.
+      Numérotation séquentielle TRF-YYYY-XXXX.
+      Tests globaux : 65/65 ✔
+
+═══════════════════════════════════════════════════════════
+ PHASE 8 — FEATURES MÉTIER COMPLÉMENTAIRES ✅ COMPLÈTE
+═══════════════════════════════════════════════════════════
+
+[x] Relances automatiques réparations non récupérées
+      Migration : relance_count + derniere_relance + date_terminee sur repairs.
+      Command app:envoyer-relances schedulé daily 09h00.
+      SmsService::envoyerRelance — messages J+7/J+14.
+      RelanceController : liste + relance manuelle.
+      Routes GET /relances, POST /relances/{id}/relancer (caissière + patron).
+
+[x] Photos réparation
+      Migration repair_photos (repair_id, chemin, legende, type avant|apres).
+      RepairPhotoController : upload public/uploads/repairs/, max 5 × 5 Mo.
+      Section photos dans reparation-detail (grille + upload Alpine + suppression hover).
+      Routes POST /reparations/{id}/photos, DELETE /photos/{id}.
+
+[x] Catalogue pannes par modèle d'appareil
+      Migrations device_models + panne_templates.
+      Modèles DeviceModel (ShopScope) + PanneTemplate.
+      PanneTemplateController : CRUD patron (accordion Alpine.js).
+      API GET /catalogue-pannes/modeles/{id}/pannes (JSON pour formulaire réparation).
+      Routes /catalogue-pannes (patron only).
+
+[x] Appareils non récupérés
+      Migration : mis_en_vente + date_limite_recuperation sur repairs.
+      AbandonController : liste + date limite inline + mise en vente (crée stock auto).
+      Routes /abandons (patron only).
+
+[x] Rapport de marge
+      MarginController : CA vs coût pièces, marge brute + taux, export CSV.
+      Vue KPI + tableau trié par marge. Filtre période.
+      Route GET /rapport-marge (patron only).
+
+[x] Exports manquants
+      ExportController : CSV factures-fournisseurs, crédits, inventaires, transferts.
+      Routes GET /export/{module} (patron only).
+
+[x] Compétences technicien
+      Migration technician_skills (user_id, marque, type_appareil).
+      TechnicianSkillController : CRUD patron (tags avec suppression inline).
+      User::skills() + skills/index.blade.php.
+      Routes /competences (patron only).
+
+[x] Remboursement / avoir client
+      CreditService::enregistrerAvoir — type 'avoir', décrémente solde_credit.
+      RefundController : annule facture + avoir auto si client lié.
+      Bouton "Annuler / Avoir" sur invoices/show.blade.php (patron, Alpine dropdown).
+      Route POST /factures/{id}/rembourser (patron only).
+
+[x] API publique revendeur
+      ApiClientController : /api/v1/client/repairs, /invoices, /credits (Sanctum).
+      Migration : user_id nullable sur clients (FK users).
+      Routes client lier/délier (patron only).
+      api.php mis à jour avec auth:sanctum.
+
+[x] 2FA patron
+      Package pragmarx/google2fa-laravel ^3.0 installé.
+      Migration : google2fa_secret + two_factor_enabled sur users.
+      TwoFactorController : activate (QR SVG), confirm, disable, verify.
+      AuthController::login — redirect /2fa si two_factor_enabled.
+      Vues two-factor/show, activate, verify.
+      Routes /2fa (public verify) + /2fa/gestion (patron only).
+
+═══════════════════════════════════════════════════════════
+ PHASE 9 — CORRECTIONS & DURCISSEMENT MÉTIER ✅ COMPLÈTE
+═══════════════════════════════════════════════════════════
+
+[x] Patron jamais assigné à une boutique
+      ShopController::store — pas d'attach pivot si role === 'patron'.
+      ShopController::addUser — rejet 400 si target user est patron.
+      ShopMiddleware (déjà correct) — bypass membership check pour patron.
+      parametres.blade.php (déjà correct) — dropdown exclut les patrons.
+
+[x] Suppression du rôle "employé"
+      AuthController::register — validation in:technicien,caissiere, défaut technicien.
+      AuthController::register — message de succès générique "Utilisateur créé".
+      DashboardController — défaut session role → 'technicien'.
+      layouts/dashboard.blade.php — défaut session role → 'technicien'.
+      parametres.blade.php — select rôle Technicien / Caissière (formulaire création).
+      Migration create_all_tables — colonne role default 'technicien'.
+
+[x] Vues Blade stub → contenu réel (suite phase 6 — vues restantes)
+      purchase-orders/ — index, create, show, print ✔
+      Toutes les vues des phases 6-8 confirmées avec contenu réel (85-143 lignes chacune).
+
+═══════════════════════════════════════════════════════════
+ PHASE 10 — CORRECTIONS RUNTIME (patron sans boutique) ✅ COMPLÈTE
+═══════════════════════════════════════════════════════════
+
+[x] SettingsController::index — guard if ($shopId) avant Settings::firstOrCreate
+      Évite SQLSTATE 1048 (shopId cannot be null) quand patron n'a aucune boutique.
+
+[x] Services — signature ?string $shopId (nullable) + guard early-return
+      InventoryService::ouvrir — throw RuntimeException si shopId null.
+      CashSessionService::ouvrir + sessionOuverte — nullable, return null si absent.
+      RepairService::create + buildPieces — nullable, throw si null dans create().
+      PurchaseOrderService::creer — nullable, throw si null.
+      PurchaseInvoiceService::creer — nullable, throw si null.
+
+[x] Controllers — guard early-return sur toutes les méthodes POST critique
+      RepairController::store, ArticleController::vendre, StockController::store,
+      SAVController::store, ClientController::store, SupplierController::store.
+      Pattern uniforme : if (!$shopId) return back()->with('error', '…').
+
+[x] AnalyticsController — correction bugs données
+      topPannes : countBy() + reshape → [['panne' => ..., 'total' => ...]]
+        pour correspondre à $panne['panne'] et $panne['total'] dans la vue.
+      topArticles : aliases SQL total_qte/total_ca → quantite/total
+        pour correspondre à $article['quantite'] et $article['total'] dans la vue.
+
+[x] analytics/index.blade.php — filtre période
+      Valeurs select corrigées : 30/90/180/365 → mois/trimestre/annee
+      pour correspondre au match() du controller.
+
+[x] Caches purgés : php artisan view:clear + config:clear + cache:clear
+
+[x] Analytique réservée au patron
+      Route /analytique protégée par middleware role:patron.
+      Lien sidebar — ajout 'roles' => ['patron'] pour masquer aux techniciens/caissières.
+
+[x] Inventaires réservés au patron
+      Routes /inventaires/* : middleware role:caissiere,patron → role:patron.
+      Lien sidebar — 'roles' => ['patron','caissiere'] → ['patron'].
+
+[x] Storefront — footer contact depuis Settings
+      StorefrontController : $contactPrincipal = première boutique avec infos renseignées.
+      Footer : Téléphone, WhatsApp (lien wa.me), Adresse, Email, Facebook, Instagram.
+      Chaque champ affiché uniquement s'il est renseigné dans les paramètres.
+      SettingsController::update — 4 nouveaux champs : email, whatsapp, facebook, instagram.
+      parametres.blade.php — 4 nouveaux inputs + hidden dans le form garantie.
+
+[x] Storefront — refonte style boutique en ligne (inspiré egregore-business.org)
+      Hero fond sombre, header blanc sticky, onglets catégories avec compteurs.
+      Section "Nos catégories" (cartes icônes colorées) + "Derniers arrivages".
+      Grille produits : badge catégorie coloré, icône selon type, badge "Plus que X"
+      si stock ≤ 3, bouton appel si 1 boutique, icône store si plusieurs boutiques.
+      Footer 4 colonnes : brand, navigation, catégories, contact.
+      Partial _product_card réutilisé arrivages + catalogue.
+      Filtre boutique ?boutique=id prévu (route storefront).
+      StorefrontController::index — stocks toutes boutiques groupés par nom (strtolower),
+      chaque produit unique affiche : prix min/max, stock total, liste des boutiques
+      disponibles avec quantité et prix unitaire si différent.
+      Filtres : recherche texte + filtre catégorie.
+      Vue : grille 4 colonnes responsive, badge stock faible (≤3 orange),
+      bouton "Appeler" si produit dans 1 seule boutique avec téléphone.
+      trackRepairSearch — ajout withoutGlobalScopes() pour chercher toutes boutiques.
+
+[x] Ouverture de caisse réservée à la caissière
+      Route POST /caisse/ouvrir — middleware role:caissiere (séparée du groupe caissiere+patron).
+      Vue cash-sessions/index — formulaire d'ouverture masqué pour le patron ;
+      message "En attente d'ouverture par la caissière" affiché à la place.
+
+[x] Ouverture de caisse obligatoire pour tous (caissière + patron)
+      ArticleController::vendre — bloque si aucune session ouverte (tous rôles).
+      RepairController::store — bloque si aucune session ouverte (tous rôles).
+      Personne ne peut enregistrer vente ou réparation sans caisse ouverte.
+
+[x] Caissière/technicien rattaché à une seule boutique
+      ShopController::addUser — rejet si l'utilisateur est déjà dans une autre boutique,
+      avec message indiquant la boutique actuelle et invitant à le retirer d'abord.
+
+[x] Tableau de bord caissière/technicien — boutique courante uniquement
+      DashboardController : non-patron utilise session('current_shop_id') au lieu
+      de $user->shops (toutes ses boutiques). $shopIds = [current_shop_id] seulement.
+      Le patron continue de voir toutes les boutiques + stats consolidées.
+
+═══════════════════════════════════════════════════════════
+ PHASE 11 — CORRECTIONS VISUELLES STOREFRONT ✅ COMPLÈTE
+═══════════════════════════════════════════════════════════
+
+[x] Logos PNG recréés dans public/images/ (logo-app.png + logo-receipt.png)
+      Suppression des SVG temporaires générés lors du dépannage.
+      Toutes les références blade remises sur .png.
+
+[x] Storefront — header : logo + "MOMO TECH SERVICE" sur une seule ligne
+      Nom en majuscules, "SERVICE" en bleu, visible dès sm breakpoint.
+
+[x] Storefront — footer : logo avec fond blanc arrondi + nom sur une seule ligne
+      Remplacement du filtre brightness-0 invert (causait carré blanc sur PNG
+      à fond blanc) par img + bg-white/rounded-full + texte MOMO TECH SERVICE.
+
+═══════════════════════════════════════════════════════════
+ PHASE 12 — UX STOCKS ✅ COMPLÈTE
+═══════════════════════════════════════════════════════════
+
+[x] Recherche article dans gestion des stocks
+      Bouton de soumission visible (plus besoin d'appuyer sur Entrée).
+      Filtre par catégorie : Téléphones / Accessoires / Pièces détachées.
+      Filtre stock en alerte : articles dont quantite ≤ seuil_alerte.
+      Tri alphabétique par défaut (orderBy nom).
+      Bouton réinitialiser affiché dès qu'un filtre est actif.
+      StockController::index — filtres categorie + alerte ajoutés.
+
+═══════════════════════════════════════════════════════════
+ PHASE 13 — PRÉPARATION DÉPLOIEMENT ✅ COMPLÈTE
+═══════════════════════════════════════════════════════════
+
+[x] Tests — 65/65 ✔ après corrections
+      RepairTest : caisse ouverte requise avant création réparation.
+      BusinessLogicTest : test "sans caisse" → vérifie blocage (règle métier).
+      BusinessLogicTest vente crédit : CashSession ouverte ajoutée.
+      InventoryTest (×4) : loginAs caissière → patron (route role:patron).
+
+[x] Bug corrigé — credit/index.blade.php:62
+      $tx->client->nom_boutique → optional($tx->client)->nom_boutique.
+
+[x] Recherche stocks — bouton visible + filtre catégorie + filtre alerte
+      StockController::index : filtres categorie + alerte + orderBy nom.
+      Vue stocks.blade.php : select catégorie, select alerte, bouton submit.
+
+[x] .env.example mis à jour
+      Toutes les clés de .env présentes, valeurs sensibles vidées.
+      SESSION_SECURE_COOKIE=true pour la production.
+      Deux configs SMTP documentées en commentaires :
+        - Hostinger (smtp.hostinger.com:587)
+        - Gmail (smtp.gmail.com:587 + mot de passe d'application requis)
+
+═══════════════════════════════════════════════════════════
+ RESTE (hors scope automatisable)
+═══════════════════════════════════════════════════════════
+
+[ ] Rotation DB_PASSWORD + JWT_SECRET manuellement sur le serveur
+[ ] Paramétrer SMTP réel (MAIL_HOST, MAIL_USERNAME, MAIL_PASSWORD dans .env)
+[ ] Exécuter : php artisan app:encrypt-legacy-pii (chiffrer les données existantes)
+[ ] Exécuter : php artisan migrate --force (déployer les nouvelles migrations en prod)
+[ ] Exécuter : php artisan storage:link
+[ ] Configurer CRON pour relances : * * * * * php artisan schedule:run
+[ ] Nommage — Normaliser colonnes camelCase → snake_case (décision d'équipe requise)
+[ ] Scinder migration monolithique (cosmétique, basse priorité)

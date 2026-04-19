@@ -6,15 +6,28 @@
 <div class="space-y-6" x-data="stocksPage()">
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
         <h3 class="text-xl font-semibold text-gray-800">Gestion des stocks</h3>
-        <div class="flex items-center gap-3">
-            <form action="{{ route('stocks.index') }}" method="GET" class="flex items-center">
+        <div class="flex items-center gap-3 flex-wrap">
+            <form action="{{ route('stocks.index') }}" method="GET" class="flex items-center gap-2 flex-wrap">
                 <div class="relative">
                     <input type="text" name="search" value="{{ request('search') }}" placeholder="Rechercher un article..."
                            class="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-56">
                     <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
                 </div>
-                @if(request('search'))
-                <a href="{{ route('stocks.index') }}" class="ml-2 text-gray-500 hover:text-red-500 text-sm" title="Effacer">
+                <select name="categorie" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+                    <option value="">Toutes catégories</option>
+                    <option value="telephone" {{ request('categorie') === 'telephone' ? 'selected' : '' }}>Téléphones</option>
+                    <option value="accessoire" {{ request('categorie') === 'accessoire' ? 'selected' : '' }}>Accessoires</option>
+                    <option value="piece_detachee" {{ request('categorie') === 'piece_detachee' ? 'selected' : '' }}>Pièces détachées</option>
+                </select>
+                <select name="alerte" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+                    <option value="">Tout le stock</option>
+                    <option value="1" {{ request('alerte') === '1' ? 'selected' : '' }}>⚠ Stock en alerte</option>
+                </select>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm">
+                    <i class="fas fa-search"></i>
+                </button>
+                @if(request('search') || request('categorie') || request('alerte'))
+                <a href="{{ route('stocks.index') }}" class="text-gray-500 hover:text-red-500 text-sm border border-gray-300 px-3 py-2 rounded-lg" title="Réinitialiser">
                     <i class="fas fa-times"></i>
                 </a>
                 @endif

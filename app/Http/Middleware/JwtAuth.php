@@ -4,49 +4,56 @@ namespace App\Http\Middleware;
 
 use App\Models\User;
 use Closure;
-use Firebase\JWT\JWT;
-use Firebase\JWT\Key;
 use Illuminate\Http\Request;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class JwtAuth
 {
     public function handle(Request $request, Closure $next)
     {
-        // Check session first (Blade auth via session)
+        // Auth web — session
         if ($request->session()->has('user_id')) {
             $user = User::find($request->session()->get('user_id'));
             if ($user) {
-                $request->attributes->set('user', $user);
-                $request->attributes->set('userId', $user->id);
-                $request->attributes->set('userRole', $user->role);
+                $this->setUserOnRequest($request, $user);
                 return $next($request);
             }
         }
 
-        // Fallback to JWT token in header (API compatibility)
-        $token = $request->bearerToken();
-        if (!$token) {
-            if ($request->expectsJson()) {
-                return response()->json(['error' => 'Token manquant'], 401);
-            }
-            return redirect()->route('login');
+        // Auth API — Sanctum Bearer token
+        $bearerToken = $request->bearerToken();
+        if (!$bearerToken) {
+            return $this->unauthorized($request);
         }
 
-        try {
-            $decoded = JWT::decode($token, new Key(config('jwt.secret'), config('jwt.algo')));
-            $user = User::find($decoded->id);
-            if (!$user) {
-                return response()->json(['error' => 'Utilisateur introuvable'], 401);
-            }
-            $request->attributes->set('user', $user);
-            $request->attributes->set('userId', $user->id);
-            $request->attributes->set('userRole', $user->role);
-            return $next($request);
-        } catch (\Exception $e) {
-            if ($request->expectsJson()) {
-                return response()->json(['error' => 'Token invalide'], 401);
-            }
-            return redirect()->route('login');
+        $accessToken = PersonalAccessToken::findToken($bearerToken);
+        if (!$accessToken || ($accessToken->expires_at && $accessToken->expires_at->isPast())) {
+            return $this->unauthorized($request);
         }
+
+        $user = $accessToken->tokenable;
+        if (!$user instanceof User) {
+            return $this->unauthorized($request);
+        }
+
+        $accessToken->forceFill(['last_used_at' => now()])->save();
+        $this->setUserOnRequest($request, $user);
+
+        return $next($request);
+    }
+
+    private function setUserOnRequest(Request $request, User $user): void
+    {
+        $request->attributes->set('user', $user);
+        $request->attributes->set('userId', $user->id);
+        $request->attributes->set('userRole', $user->role);
+    }
+
+    private function unauthorized(Request $request)
+    {
+        if ($request->expectsJson()) {
+            return response()->json(['error' => 'Non authentifié'], 401);
+        }
+        return redirect()->route('login');
     }
 }

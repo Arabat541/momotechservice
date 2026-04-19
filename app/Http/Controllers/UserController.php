@@ -12,14 +12,15 @@ class UserController extends Controller
         $user = $request->attributes->get('user');
 
         $request->validate([
-            'nom' => 'sometimes|string',
-            'prenom' => 'sometimes|string',
-            'email' => 'sometimes|email|unique:users,email,' . $user->id,
+            'nom' => 'sometimes|string|max:100',
+            'prenom' => 'sometimes|string|max:100',
+            'email' => 'sometimes|email|max:255|unique:users,email,' . $user->id,
+            'password' => 'sometimes|nullable|string|min:8|max:255',
         ]);
 
         $user->update($request->only('nom', 'prenom', 'email'));
 
-        if ($request->filled('password') && strlen($request->password) >= 8) {
+        if ($request->filled('password')) {
             $user->update(['password' => bcrypt($request->password)]);
         }
 
@@ -34,7 +35,7 @@ class UserController extends Controller
 
     public function resetPassword(Request $request, string $id)
     {
-        $request->validate(['password' => 'required|min:8']);
+        $request->validate(['password' => 'required|min:8|max:255']);
 
         $target = User::findOrFail($id);
         if ($target->role === 'patron') {

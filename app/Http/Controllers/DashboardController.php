@@ -15,18 +15,20 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
-        $role = session('user_role', 'employé');
+        $role = session('user_role', 'technicien');
         $user = User::find(session('user_id'));
         $today = Carbon::today();
 
-        // Get all shops the user has access to
         if ($role === 'patron') {
-            $shops = Shop::all();
+            $shops   = Shop::all();
+            $shopIds = $shops->pluck('id')->toArray();
         } else {
-            $shops = $user ? $user->shops : collect();
+            // Caissière / technicien : uniquement la boutique courante
+            $currentShopId = session('current_shop_id');
+            $shop          = $currentShopId ? Shop::find($currentShopId) : null;
+            $shops         = $shop ? collect([$shop]) : collect();
+            $shopIds       = $shop ? [$shop->id] : [];
         }
-
-        $shopIds = $shops->pluck('id')->toArray();
 
         // --- Stats globales (toutes boutiques) ---
         $totalRepairs = Repair::whereIn('shopId', $shopIds)->count();

@@ -22,6 +22,17 @@
         </div>
     </div>
 
+    @if(session('success'))
+    <div class="bg-green-50 border border-green-200 text-green-800 rounded-lg px-4 py-3 text-sm">
+        <i class="fas fa-check-circle mr-2"></i>{{ session('success') }}
+    </div>
+    @endif
+    @if(session('error'))
+    <div class="bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-3 text-sm">
+        <i class="fas fa-exclamation-circle mr-2"></i>{{ session('error') }}
+    </div>
+    @endif
+
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {{-- Left: Edit form --}}
         <form action="{{ route('reparations.update', $repair->id) }}" method="POST" class="space-y-4">
@@ -158,6 +169,87 @@
             </div>
             @endif
         </div>
+    </div>
+
+    {{-- Photos réparation --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4" x-data="{ showForm: false }">
+        <div class="flex items-center justify-between">
+            <h3 class="font-semibold text-gray-700">
+                <i class="fas fa-camera text-gray-400 mr-2"></i>
+                Photos ({{ $repair->photos->count() }}/5)
+            </h3>
+            @if($repair->photos->count() < 5)
+            <button type="button" @click="showForm = !showForm"
+                class="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1">
+                <i class="fas fa-plus"></i> Ajouter une photo
+            </button>
+            @endif
+        </div>
+
+        {{-- Upload form --}}
+        <div x-show="showForm" x-transition class="bg-gray-50 rounded-lg p-4 space-y-3">
+            <form method="POST" action="{{ route('repair-photos.store', $repair->id) }}" enctype="multipart/form-data"
+                class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                @csrf
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Photo <span class="text-red-500">*</span></label>
+                    <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" required
+                        class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2">
+                    <p class="text-xs text-gray-400 mt-0.5">JPG, PNG ou WebP — max 5 Mo</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Type <span class="text-red-500">*</span></label>
+                    <select name="type" required
+                        class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2">
+                        <option value="avant">Avant réparation</option>
+                        <option value="apres">Après réparation</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Légende</label>
+                    <div class="flex gap-2">
+                        <input type="text" name="legende" placeholder="Optionnel…" maxlength="150"
+                            class="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2">
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">
+                            <i class="fas fa-upload"></i>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        {{-- Photos grid --}}
+        @if($repair->photos->count() > 0)
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+            @foreach($repair->photos as $photo)
+            <div class="relative group">
+                <a href="{{ asset('uploads/repairs/' . $photo->chemin) }}" target="_blank">
+                    <img src="{{ asset('uploads/repairs/' . $photo->chemin) }}"
+                        alt="{{ $photo->legende ?? $photo->type }}"
+                        class="w-full h-28 object-cover rounded-lg border border-gray-200 hover:opacity-90 transition-opacity">
+                </a>
+                <span class="absolute top-1.5 left-1.5 text-xs font-semibold px-1.5 py-0.5 rounded
+                    {{ $photo->type === 'avant' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700' }}">
+                    {{ $photo->type === 'avant' ? 'Avant' : 'Après' }}
+                </span>
+                <form method="POST" action="{{ route('repair-photos.destroy', $photo->id) }}"
+                    class="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" onclick="return confirm('Supprimer cette photo ?')"
+                        class="bg-red-500 hover:bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </form>
+                @if($photo->legende)
+                <p class="text-xs text-gray-500 mt-1 truncate">{{ $photo->legende }}</p>
+                @endif
+            </div>
+            @endforeach
+        </div>
+        @else
+        <p class="text-sm text-gray-400 italic">Aucune photo pour cette réparation.</p>
+        @endif
     </div>
 </div>
 @endsection

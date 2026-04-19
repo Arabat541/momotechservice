@@ -3,20 +3,68 @@
 @section('body')
 @php
     $user = session('user_id') ? \App\Models\User::find(session('user_id')) : null;
-    $role = session('user_role', 'employé');
+    $role = session('user_role', 'technicien');
     $currentShopId = session('current_shop_id');
     $shops = $role === 'patron' ? \App\Models\Shop::all() : ($user ? $user->shops : collect());
     $currentShop = $currentShopId ? \App\Models\Shop::find($currentShopId) : null;
 
-    $menuItems = [
-        ['label' => 'Tableau de bord', 'icon' => 'fa-chart-line', 'route' => 'dashboard'],
-        ['label' => 'Réparation sur place', 'icon' => 'fa-mobile-screen', 'route' => 'reparations.place'],
-        ['label' => 'Réparation sur rdv', 'icon' => 'fa-calendar', 'route' => 'reparations.rdv'],
-        ['label' => 'Vente de Pièce détachée', 'icon' => 'fa-box', 'route' => 'article'],
-        ['label' => 'Liste-réparation', 'icon' => 'fa-list', 'route' => 'reparations.liste'],
-        ['label' => 'SAV', 'icon' => 'fa-shield-halved', 'route' => 'sav.index'],
-        ['label' => 'Gestion des stocks', 'icon' => 'fa-boxes-stacked', 'route' => 'stocks.index', 'patron' => true],
-        ['label' => 'Paramètres', 'icon' => 'fa-gear', 'route' => 'parametres', 'patron' => true],
+    $menuSections = [
+        [
+            'title' => null,
+            'items' => [
+                ['label' => 'Tableau de bord',        'icon' => 'fa-chart-line',      'route' => 'dashboard'],
+                ['label' => 'Analytique',             'icon' => 'fa-chart-bar',       'route' => 'analytics.index',  'roles' => ['patron']],
+            ],
+        ],
+        [
+            'title' => 'Réparations',
+            'items' => [
+                ['label' => 'Nouvelle réparation',    'icon' => 'fa-mobile-screen',   'route' => 'reparations.place'],
+                ['label' => 'Réparation sur RDV',     'icon' => 'fa-calendar',        'route' => 'reparations.rdv'],
+                ['label' => 'Liste réparations',      'icon' => 'fa-list',            'route' => 'reparations.liste'],
+                ['label' => 'Planning techniciens',   'icon' => 'fa-calendar-week',   'route' => 'planning.index'],
+                ['label' => 'Catalogue pannes',       'icon' => 'fa-book-medical',    'route' => 'panne-templates.index', 'roles' => ['patron']],
+                ['label' => 'Relances',               'icon' => 'fa-bell',            'route' => 'relances.index',       'roles' => ['patron','caissiere']],
+                ['label' => 'Appareils abandonnés',   'icon' => 'fa-clock-rotate-left','route' => 'abandons.index',      'roles' => ['patron']],
+            ],
+        ],
+        [
+            'title' => 'Ventes & Clients',
+            'items' => [
+                ['label' => 'Vente pièce détachée',   'icon' => 'fa-box',             'route' => 'article'],
+                ['label' => 'Clients',                'icon' => 'fa-users',           'route' => 'clients.index'],
+                ['label' => 'SAV',                    'icon' => 'fa-shield-halved',   'route' => 'sav.index'],
+                ['label' => 'Garanties',              'icon' => 'fa-certificate',     'route' => 'warranties.index'],
+                ['label' => 'Crédit revendeurs',      'icon' => 'fa-credit-card',     'route' => 'credit.index'],
+            ],
+        ],
+        [
+            'title' => 'Caisse & Factures',
+            'items' => [
+                ['label' => 'Caisse',                 'icon' => 'fa-cash-register',   'route' => 'caisse.index',         'roles' => ['patron','caissiere']],
+                ['label' => 'Factures clients',       'icon' => 'fa-file-invoice',    'route' => 'invoices.index'],
+                ['label' => 'Rapport de marge',       'icon' => 'fa-percent',         'route' => 'margin.index',         'roles' => ['patron']],
+            ],
+        ],
+        [
+            'title' => 'Stock & Fournisseurs',
+            'items' => [
+                ['label' => 'Gestion des stocks',     'icon' => 'fa-boxes-stacked',   'route' => 'stocks.index',         'roles' => ['patron']],
+                ['label' => 'Transferts',             'icon' => 'fa-exchange-alt',    'route' => 'transfers.index'],
+                ['label' => 'Inventaires',            'icon' => 'fa-clipboard-list',  'route' => 'inventory.index',      'roles' => ['patron']],
+                ['label' => 'Fournisseurs',           'icon' => 'fa-truck',           'route' => 'suppliers.index',      'roles' => ['patron']],
+                ['label' => 'Factures fourn.',        'icon' => 'fa-file-invoice-dollar','route' => 'purchase-invoices.index','roles' => ['patron']],
+                ['label' => 'Bons de commande',       'icon' => 'fa-clipboard',       'route' => 'purchase-orders.index','roles' => ['patron']],
+            ],
+        ],
+        [
+            'title' => 'Administration',
+            'items' => [
+                ['label' => 'Compétences tech.',      'icon' => 'fa-user-cog',        'route' => 'skills.index',         'roles' => ['patron']],
+                ['label' => 'Paramètres',             'icon' => 'fa-gear',            'route' => 'parametres',           'roles' => ['patron']],
+                ['label' => 'Double auth. (2FA)',     'icon' => 'fa-shield-alt',      'route' => 'two-factor.show',      'roles' => ['patron']],
+            ],
+        ],
     ];
 @endphp
 
@@ -58,19 +106,33 @@
             </div>
 
             {{-- Navigation --}}
-            <nav class="space-y-1" :class="sidebarOpen ? 'px-4' : 'px-2'">
-                @foreach($menuItems as $item)
-                    @if(!empty($item['patron']) && $role !== 'patron')
-                        @continue
+            <nav class="space-y-0.5 overflow-y-auto max-h-[calc(100vh-200px)]" :class="sidebarOpen ? 'px-3' : 'px-2'">
+                @foreach($menuSections as $section)
+                    @php
+                        $visibleItems = array_filter($section['items'], function($item) use ($role) {
+                            if (empty($item['roles'])) return true;
+                            return in_array($role, $item['roles']);
+                        });
+                    @endphp
+                    @if(empty($visibleItems)) @continue @endif
+
+                    @if($section['title'])
+                    <div x-show="sidebarOpen" class="pt-3 pb-1 px-1">
+                        <span class="text-xs font-semibold text-blue-300 uppercase tracking-widest">{{ $section['title'] }}</span>
+                    </div>
+                    <div x-show="!sidebarOpen" class="border-t border-white/10 my-1"></div>
                     @endif
+
+                    @foreach($visibleItems as $item)
                     <a href="{{ route($item['route']) }}"
                        class="w-full flex items-center space-x-3 rounded-lg transition-all duration-200
                               {{ request()->routeIs($item['route']) ? 'bg-white/20 text-white shadow-md' : 'text-blue-100 hover:bg-white/10 hover:text-white' }}"
-                       :class="sidebarOpen ? 'px-4 py-3' : 'p-3 justify-center'"
+                       :class="sidebarOpen ? 'px-3 py-2' : 'p-3 justify-center'"
                        title="{{ $item['label'] }}">
-                        <i class="fas {{ $item['icon'] }}" :class="sidebarOpen ? 'text-lg' : 'text-xl'"></i>
+                        <i class="fas {{ $item['icon'] }} flex-shrink-0" :class="sidebarOpen ? 'text-base w-5 text-center' : 'text-xl'"></i>
                         <span x-show="sidebarOpen" class="font-medium text-sm whitespace-nowrap">{{ $item['label'] }}</span>
                     </a>
+                    @endforeach
                 @endforeach
             </nav>
         </div>

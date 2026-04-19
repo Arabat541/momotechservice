@@ -35,6 +35,29 @@
                     <input type="text" name="telephone" value="{{ $settings->companyInfo['telephone'] ?? '' }}"
                            class="w-full px-4 py-2 border-slate-300 rounded-lg border focus:ring-2 focus:ring-blue-500">
                 </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">WhatsApp</label>
+                    <input type="text" name="whatsapp" value="{{ $settings->companyInfo['whatsapp'] ?? '' }}"
+                           placeholder="+225 07 00 00 00 00"
+                           class="w-full px-4 py-2 border-slate-300 rounded-lg border focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Email</label>
+                    <input type="email" name="email" value="{{ $settings->companyInfo['email'] ?? '' }}"
+                           class="w-full px-4 py-2 border-slate-300 rounded-lg border focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Page Facebook (URL)</label>
+                    <input type="url" name="facebook" value="{{ $settings->companyInfo['facebook'] ?? '' }}"
+                           placeholder="https://facebook.com/votrepage"
+                           class="w-full px-4 py-2 border-slate-300 rounded-lg border focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Instagram (URL)</label>
+                    <input type="url" name="instagram" value="{{ $settings->companyInfo['instagram'] ?? '' }}"
+                           placeholder="https://instagram.com/votrecompte"
+                           class="w-full px-4 py-2 border-slate-300 rounded-lg border focus:ring-2 focus:ring-blue-500">
+                </div>
 
                 {{-- Hidden warranty fields to keep values --}}
                 <input type="hidden" name="duree_garantie" value="{{ $settings->warranty['duree'] ?? '7' }}">
@@ -70,6 +93,10 @@
                 <input type="hidden" name="slogan" value="{{ $settings->companyInfo['slogan'] ?? '' }}">
                 <input type="hidden" name="adresse" value="{{ $settings->companyInfo['adresse'] ?? '' }}">
                 <input type="hidden" name="telephone" value="{{ $settings->companyInfo['telephone'] ?? '' }}">
+                <input type="hidden" name="email" value="{{ $settings->companyInfo['email'] ?? '' }}">
+                <input type="hidden" name="whatsapp" value="{{ $settings->companyInfo['whatsapp'] ?? '' }}">
+                <input type="hidden" name="facebook" value="{{ $settings->companyInfo['facebook'] ?? '' }}">
+                <input type="hidden" name="instagram" value="{{ $settings->companyInfo['instagram'] ?? '' }}">
 
                 <button type="submit" class="mt-4 w-full bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white py-2 rounded-lg font-semibold">
                     <i class="fas fa-save mr-2"></i> Enregistrer Paramètres Garantie
@@ -136,11 +163,11 @@
         </div>
         @endif
 
-        {{-- Create employee form --}}
+        {{-- Create user form --}}
         <div class="mt-6 pt-6 border-t border-slate-200">
             <h5 class="text-md font-medium text-slate-600 mb-3 flex items-center">
                 <i class="fas fa-user-plus mr-2 text-green-600"></i>
-                Créer un compte employé
+                Créer un compte utilisateur
             </h5>
             <form action="{{ route('users.register') }}" method="POST" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 @csrf
@@ -160,9 +187,16 @@
                     <label class="block text-sm font-medium text-slate-600 mb-1">Mot de passe</label>
                     <input type="password" name="password" required minlength="8" placeholder="Min. 8 caractères" class="w-full border rounded-lg px-3 py-2">
                 </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Rôle</label>
+                    <select name="role" required class="w-full border rounded-lg px-3 py-2">
+                        <option value="technicien">Technicien</option>
+                        <option value="caissiere">Caissière</option>
+                    </select>
+                </div>
                 <div class="sm:col-span-2">
                     <button type="submit" class="w-full bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white py-2 rounded-lg font-semibold">
-                        <i class="fas fa-user-plus mr-2"></i> Créer l'employé
+                        <i class="fas fa-user-plus mr-2"></i> Créer l'utilisateur
                     </button>
                 </div>
             </form>

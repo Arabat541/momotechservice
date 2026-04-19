@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\PasswordResetMail;
 use App\Models\User;
 use App\Models\PasswordResetToken;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
-use Firebase\JWT\JWT;
 
 class AuthController extends Controller
 {
@@ -26,8 +27,8 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
-            'password' => 'required|min:8',
+            'email' => 'required|email|max:255',
+            'password' => 'required|min:8|max:255',
         ]);
 
         $user = User::where('email', $request->email)->first();
@@ -36,9 +37,10 @@ class AuthController extends Controller
             return back()->withErrors(['email' => 'Email ou mot de passe incorrect.'])->withInput();
         }
 
-        // Handle $2b$ (Node.js bcryptjs) hashes by converting to $2y$ (PHP bcrypt)
+        // Compatibilité hashes $2b$ (Node.js bcryptjs) → rehash en PHP bcrypt au premier login
         $hash = $user->password;
-        if (str_starts_with($hash, '$2b$')) {
+        $isLegacyHash = str_starts_with($hash, '$2b$');
+        if ($isLegacyHash) {
             $hash = '$2y$' . substr($hash, 4);
         }
 
@@ -46,7 +48,18 @@ class AuthController extends Controller
             return back()->withErrors(['email' => 'Email ou mot de passe incorrect.'])->withInput();
         }
 
-        // Store user in session
+        if ($isLegacyHash) {
+            $user->update(['password' => Hash::make($request->password)]);
+        }
+
+        // 2FA: si activé pour ce patron, stocker l'ID en session et rediriger vers vérification
+        if ($user->two_factor_enabled && $user->google2fa_secret) {
+            session()->put('2fa_user_id', $user->id);
+            return redirect()->route('two-factor.verify');
+        }
+
+        session()->regenerate(true);
+
         session([
             'user_id' => $user->id,
             'user_role' => $user->role,
@@ -64,7 +77,7 @@ class AuthController extends Controller
             session(['current_shop_id' => $firstShop->id]);
         }
 
-        return redirect()->route('reparations.place');
+        return redirect()->route('dashboard');
     }
 
     public function logout()
@@ -81,18 +94,19 @@ class AuthController extends Controller
         }
 
         $request->validate([
-            'nom' => 'required|string',
-            'prenom' => 'required|string',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|min:8',
+            'nom'      => 'required|string|max:100',
+            'prenom'   => 'required|string|max:100',
+            'email'    => 'required|email|max:255|unique:users,email',
+            'password' => 'required|min:8|max:255',
+            'role'     => 'nullable|in:technicien,caissiere',
         ]);
 
         $user = User::create([
-            'nom' => $request->nom,
-            'prenom' => $request->prenom,
-            'email' => $request->email,
+            'nom'      => $request->nom,
+            'prenom'   => $request->prenom,
+            'email'    => $request->email,
             'password' => Hash::make($request->password),
-            'role' => 'employé',
+            'role'     => $request->input('role', 'technicien'),
         ]);
 
         // Assign to current shop if available
@@ -101,7 +115,7 @@ class AuthController extends Controller
             $user->shops()->attach($shopId);
         }
 
-        return back()->with('success', 'Employé créé avec succès.');
+        return back()->with('success', 'Utilisateur créé avec succès.');
     }
 
     public function showResetPassword()
@@ -129,10 +143,9 @@ class AuthController extends Controller
             'expiresAt' => now()->addMinutes(15),
         ]);
 
-        // In production, send email. For now, log it.
-        \Log::info("Code de réinitialisation pour {$user->email}: {$code}");
+        Mail::to($user->email)->send(new PasswordResetMail($code, $user->prenom));
 
-        return back()->with('success', "Code envoyé. Vérifiez les logs serveur. Code: {$code}");
+        return back()->with('success', 'Un code de réinitialisation a été envoyé à votre adresse email.');
     }
 
     public function confirmReset(Request $request)
@@ -163,12 +176,11 @@ class AuthController extends Controller
         return redirect()->route('login')->with('success', 'Mot de passe réinitialisé. Connectez-vous.');
     }
 
-    // API login (for mobile/external access)
     public function apiLogin(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
+            'email'    => 'required|email|max:255',
+            'password' => 'required|max:255',
         ]);
 
         $user = User::where('email', $request->email)->first();
@@ -176,24 +188,27 @@ class AuthController extends Controller
             return response()->json(['error' => 'Email ou mot de passe incorrect'], 401);
         }
 
-        $payload = [
-            'id' => $user->id,
-            'role' => $user->role,
-            'iat' => time(),
-            'exp' => time() + (config('jwt.ttl') * 60),
-        ];
+        // Révoquer les anciens tokens de l'appareil si nom fourni
+        $deviceName = $request->input('device_name', 'api');
+        $user->tokens()->where('name', $deviceName)->delete();
 
-        $token = JWT::encode($payload, config('jwt.secret'), config('jwt.algo'));
+        $token = $user->createToken($deviceName, ['*'], now()->addMinutes(config('sanctum.expiration', 60)));
 
         return response()->json([
-            'token' => $token,
-            'user' => [
-                'id' => $user->id,
-                'email' => $user->email,
-                'nom' => $user->nom,
+            'token' => $token->plainTextToken,
+            'user'  => [
+                'id'     => $user->id,
+                'email'  => $user->email,
+                'nom'    => $user->nom,
                 'prenom' => $user->prenom,
-                'role' => $user->role,
+                'role'   => $user->role,
             ],
         ]);
+    }
+
+    public function apiLogout(Request $request)
+    {
+        $request->user()?->currentAccessToken()?->delete();
+        return response()->json(['message' => 'Déconnecté.']);
     }
 }

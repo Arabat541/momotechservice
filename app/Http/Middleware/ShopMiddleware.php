@@ -15,27 +15,48 @@ class ShopMiddleware
             ?? $request->header('X-Shop-Id')
             ?? $request->input('shop_id');
 
-        if (!$shopId) {
-            if ($request->expectsJson()) {
-                return response()->json(['error' => 'Shop ID requis'], 400);
-            }
-            return redirect()->route('dashboard')->with('error', 'Veuillez sélectionner une boutique.');
-        }
-
-        // Patron bypasses shop membership check
+        // Patron : accès à toutes les boutiques
         if ($user->role === 'patron') {
+            // Auto-sélection de la première boutique si aucune en session
+            if (!$shopId) {
+                $first = Shop::first();
+                if ($first) {
+                    $shopId = $first->id;
+                    $request->session()->put('current_shop_id', $shopId);
+                } else {
+                    // Aucune boutique créée — laisser passer pour qu'il puisse en créer une
+                    $request->attributes->set('shopId', null);
+                    return $next($request);
+                }
+            }
+
             $shop = Shop::find($shopId);
             if (!$shop) {
-                if ($request->expectsJson()) {
-                    return response()->json(['error' => 'Boutique introuvable'], 404);
+                // Boutique supprimée — choisir la première disponible
+                $first = Shop::first();
+                if ($first) {
+                    $shopId = $first->id;
+                    $request->session()->put('current_shop_id', $shopId);
+                } else {
+                    $request->attributes->set('shopId', null);
+                    return $next($request);
                 }
-                return redirect()->route('dashboard')->with('error', 'Boutique introuvable.');
             }
+
             $request->attributes->set('shopId', $shopId);
             return $next($request);
         }
 
-        // Check employee has access to this shop
+        // Employé sans boutique en session → déconnexion propre
+        if (!$shopId) {
+            if ($request->expectsJson()) {
+                return response()->json(['error' => 'Shop ID requis'], 400);
+            }
+            $request->session()->flush();
+            return redirect()->route('login')->with('error', 'Aucune boutique assignée. Contactez le patron.');
+        }
+
+        // Vérifier que l'employé appartient à cette boutique
         $hasAccess = $user->shops()->where('shops.id', $shopId)->exists();
         if (!$hasAccess) {
             if ($request->expectsJson()) {

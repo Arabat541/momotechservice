@@ -2,14 +2,26 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Client;
 use App\Models\Repair;
 use App\Models\Settings;
 use App\Models\Stock;
+use App\Services\CashSessionService;
+use App\Services\InvoiceService;
+use App\Services\RepairService;
+use App\Services\SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class RepairController extends Controller
 {
+    public function __construct(
+        private RepairService $repairService,
+        private InvoiceService $invoiceService,
+        private CashSessionService $cashSessionService,
+        private SmsService $smsService,
+    ) {}
+
     public function index(Request $request)
     {
         $shopId = $request->attributes->get('shopId');
@@ -42,91 +54,154 @@ class RepairController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'type_reparation' => 'required|in:place,rdv',
-            'client_nom' => 'required|string',
-            'client_telephone' => 'required|string',
-            'appareil_marque_modele' => 'required|string',
+        if (!$request->attributes->get('shopId')) {
+            return back()->with('error', 'Aucune boutique sélectionnée.');
+        }
+
+        $validated = $request->validate([
+            'type_reparation'        => 'required|in:place,rdv',
+            'client_nom'             => 'required|string|max:150',
+            'client_telephone'       => ['required', 'string', 'max:30', 'regex:/^[\d\+\-\s\(\)]{7,30}$/'],
+            'appareil_marque_modele' => 'required|string|max:200',
+            'panne_description'      => 'nullable|array|max:20',
+            'panne_description.*'    => 'nullable|string|max:255',
+            'panne_montant'          => 'nullable|array|max:20',
+            'panne_montant.*'        => 'nullable|numeric|min:0|max:99999999',
+            'piece_stock_id'         => 'nullable|array|max:20',
+            'piece_stock_id.*'       => 'nullable|exists:stocks,id',
+            'piece_quantite'         => 'nullable|array|max:20',
+            'piece_quantite.*'       => 'nullable|integer|min:1|max:9999',
+            'montant_paye'           => 'nullable|numeric|min:0|max:99999999',
+            'statut_reparation'      => 'nullable|in:En cours,Terminé,Récupéré,En attente de pièces',
+            'date_rendez_vous'       => 'nullable|date',
+            'numeroReparation'       => 'nullable|string|max:30',
         ]);
 
-        $shopId = $request->attributes->get('shopId');
-        $user = $request->attributes->get('user');
+        $shopId  = $request->attributes->get('shopId');
+        $user    = $request->attributes->get('user');
+        $session = $this->cashSessionService->sessionOuverte($shopId);
 
-        // Build pannes_services array
-        $pannes = [];
-        $descriptions = $request->input('panne_description', []);
-        $montants = $request->input('panne_montant', []);
-        foreach ($descriptions as $i => $desc) {
-            if ($desc) {
-                $pannes[] = [
-                    'description' => $desc,
-                    'montant' => floatval($montants[$i] ?? 0),
-                ];
-            }
+        if (!$session) {
+            return back()->with('error', 'La caisse doit être ouverte avant d\'enregistrer une réparation.');
         }
 
-        // Build pieces_rechange array and update stock
-        $pieces = [];
-        $pieceIds = $request->input('piece_stock_id', []);
-        $pieceQtes = $request->input('piece_quantite', []);
-        foreach ($pieceIds as $i => $stockId) {
-            if ($stockId) {
-                $qte = intval($pieceQtes[$i] ?? 1);
-                $stock = Stock::find($stockId);
-                if ($stock && $stock->quantite >= $qte) {
-                    $stock->decrement('quantite', $qte);
-                    $pieces[] = [
-                        'stockId' => $stockId,
-                        'nom' => $stock->nom,
-                        'quantiteUtilisee' => $qte,
-                    ];
-                }
-            }
+        // Retrouver ou créer le client
+        $client = Client::withoutGlobalScopes()
+            ->where('shopId', $shopId)
+            ->where('telephone', $validated['client_telephone'])
+            ->first();
+
+        if (!$client) {
+            $client = Client::create([
+                'shopId'    => $shopId,
+                'nom'       => $validated['client_nom'],
+                'telephone' => $validated['client_telephone'],
+                'type'      => 'particulier',
+            ]);
         }
 
-        $totalPannes = array_sum(array_column($pannes, 'montant'));
-        $totalPieces = 0;
-        foreach ($pieces as $p) {
-            $stock = Stock::find($p['stockId']);
-            $totalPieces += ($stock->prixVente ?? 0) * $p['quantiteUtilisee'];
+        $validated['client_id']       = $client->id;
+        $validated['cash_session_id'] = $session?->id;
+
+        $repair = $this->repairService->create($validated, $shopId, $user->id);
+
+        // Créer la facture immédiatement si une caisse est ouverte
+        if ($session) {
+            $this->invoiceService->creerDepuisReparation(
+                $repair,
+                floatval($validated['montant_paye'] ?? 0),
+                $session->id,
+                $user->id
+            );
         }
-        $total = $totalPannes + $totalPieces;
-        $paye = floatval($request->input('montant_paye', 0));
-        $reste = $total - $paye;
-
-        $repair = Repair::create([
-            'shopId' => $shopId,
-            'numeroReparation' => $request->input('numeroReparation', 'REP-' . strtoupper(Str::random(8))),
-            'type_reparation' => $request->type_reparation,
-            'client_nom' => $request->client_nom,
-            'client_telephone' => $request->client_telephone,
-            'appareil_marque_modele' => $request->appareil_marque_modele,
-            'pannes_services' => $pannes,
-            'pieces_rechange_utilisees' => $pieces,
-            'total_reparation' => $total,
-            'montant_paye' => $paye,
-            'reste_a_payer' => $reste,
-            'statut_reparation' => $request->input('statut_reparation', 'En cours'),
-            'date_creation' => now(),
-            'date_mise_en_reparation' => now(),
-            'date_rendez_vous' => $request->input('date_rendez_vous'),
-            'etat_paiement' => $reste <= 0 ? 'Soldé' : 'Non soldé',
-            'userId' => $user->id,
-        ]);
-
-        $route = $request->type_reparation === 'rdv' ? 'reparations.rdv' : 'reparations.place';
 
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json(['success' => true, 'numero' => $repair->numeroReparation]);
         }
 
+        $route = $request->type_reparation === 'rdv' ? 'reparations.rdv' : 'reparations.place';
         return redirect()->route($route)->with('success', "Réparation {$repair->numeroReparation} enregistrée.");
+    }
+
+    // Réservé au technicien : diagnostic uniquement (pannes, pièces, statut, notes)
+    public function updateDiagnostic(Request $request, string $id)
+    {
+        $shopId = $request->attributes->get('shopId');
+        $repair = Repair::where('id', $id)->where('shopId', $shopId)->firstOrFail();
+
+        $validated = $request->validate([
+            'statut_reparation'        => 'sometimes|in:En diagnostic,En cours,Terminé,En attente de pièces',
+            'panne_description'        => 'nullable|array|max:20',
+            'panne_description.*'      => 'nullable|string|max:255',
+            'panne_montant'            => 'nullable|array|max:20',
+            'panne_montant.*'          => 'nullable|numeric|min:0|max:99999999',
+            'piece_stock_id'           => 'nullable|array|max:20',
+            'piece_stock_id.*'         => 'nullable|exists:stocks,id',
+            'piece_quantite'           => 'nullable|array|max:20',
+            'piece_quantite.*'         => 'nullable|integer|min:1|max:9999',
+            'notes_technicien'         => 'nullable|string|max:1000',
+        ]);
+
+        $data = [];
+
+        if (isset($validated['statut_reparation'])) {
+            $data['statut_reparation'] = $validated['statut_reparation'];
+        }
+
+        if (isset($validated['notes_technicien'])) {
+            $data['notes_technicien'] = $validated['notes_technicien'];
+        }
+
+        if (!empty($validated['panne_description'])) {
+            $pannes = $this->repairService->buildPannes(
+                $validated['panne_description'],
+                $validated['panne_montant'] ?? []
+            );
+            $pieces = $this->repairService->buildPieces(
+                $validated['piece_stock_id'] ?? [],
+                $validated['piece_quantite'] ?? [],
+                $shopId
+            );
+            $totals = $this->repairService->computeTotals($pannes, $pieces, $repair->montant_paye);
+
+            $data['pannes_services']           = $pannes;
+            $data['pieces_rechange_utilisees'] = $pieces;
+            $data['total_reparation']          = $totals['total'];
+            $data['reste_a_payer']             = $totals['reste'];
+            $data['etat_paiement']             = $totals['etat_paiement'];
+
+            // Mettre à jour la facture liée
+            if ($repair->invoice) {
+                $repair->invoice->update([
+                    'montant_final' => $totals['total'],
+                    'reste_a_payer' => max(0, $totals['total'] - $repair->invoice->montant_paye),
+                ]);
+            }
+        }
+
+        $ancienStatut = $repair->statut_reparation;
+        $repair->update($data);
+
+        // Envoyer SMS + marquer date_terminee si la réparation passe à "Terminé"
+        if (
+            isset($data['statut_reparation'])
+            && $data['statut_reparation'] === 'Terminé'
+            && $ancienStatut !== 'Terminé'
+        ) {
+            $repair->update(['date_terminee' => now(), 'relance_count' => 0, 'derniere_relance' => null]);
+            $telephone = $repair->client?->telephone ?? $repair->client_telephone;
+            if ($telephone) {
+                $this->smsService->envoyerNotificationReparation($telephone, $repair->numeroReparation, $repair->shopId);
+            }
+        }
+
+        return back()->with('success', 'Diagnostic mis à jour.');
     }
 
     public function show(Request $request, string $id)
     {
         $shopId = $request->attributes->get('shopId');
-        $repair = Repair::where('id', $id)->where('shopId', $shopId)->firstOrFail();
+        $repair = Repair::with('photos')->where('id', $id)->where('shopId', $shopId)->firstOrFail();
         $stocks = Stock::where('shopId', $shopId)->get();
 
         return view('dashboard.reparation-detail', compact('repair', 'stocks'));
@@ -137,15 +212,23 @@ class RepairController extends Controller
         $shopId = $request->attributes->get('shopId');
         $repair = Repair::where('id', $id)->where('shopId', $shopId)->firstOrFail();
 
-        $data = $request->only([
-            'client_nom', 'client_telephone', 'appareil_marque_modele',
-            'statut_reparation', 'montant_paye', 'date_rendez_vous', 'date_retrait',
+        $validated = $request->validate([
+            'client_nom'           => 'sometimes|string|max:150',
+            'client_telephone'     => ['sometimes', 'string', 'max:30', 'regex:/^[\d\+\-\s\(\)]{7,30}$/'],
+            'appareil_marque_modele' => 'sometimes|string|max:200',
+            'statut_reparation'    => 'sometimes|in:En cours,Terminé,Récupéré,En attente de pièces',
+            'montant_paye'         => 'sometimes|numeric|min:0|max:99999999',
+            'date_rendez_vous'     => 'nullable|date',
+            'date_retrait'         => 'nullable|date',
         ]);
 
+        $data = array_intersect_key($validated, array_flip([
+            'client_nom', 'client_telephone', 'appareil_marque_modele',
+            'statut_reparation', 'montant_paye', 'date_rendez_vous', 'date_retrait',
+        ]));
+
         if (isset($data['montant_paye'])) {
-            $data['montant_paye'] = floatval($data['montant_paye']);
-            $data['reste_a_payer'] = $repair->total_reparation - $data['montant_paye'];
-            $data['etat_paiement'] = $data['reste_a_payer'] <= 0 ? 'Soldé' : 'Non soldé';
+            $data = array_merge($data, $this->repairService->applyPayment($repair, $data['montant_paye']));
         }
 
         if ($request->has('mark_retrieved')) {
@@ -163,24 +246,23 @@ class RepairController extends Controller
     public function destroy(Request $request, string $id)
     {
         $shopId = $request->attributes->get('shopId');
-        $repair = Repair::where('id', $id)->where('shopId', $shopId)->firstOrFail();
-        $repair->delete();
+        Repair::where('id', $id)->where('shopId', $shopId)->firstOrFail()->delete();
 
         return redirect()->route('reparations.liste')->with('success', 'Réparation supprimée.');
     }
 
     public function printReceipt(Request $request, string $id)
     {
-        $shopId = $request->attributes->get('shopId');
-        $repair = Repair::where('id', $id)->where('shopId', $shopId)->firstOrFail();
-        $settings = \App\Models\Settings::where('shopId', $shopId)->first();
+        $shopId  = $request->attributes->get('shopId');
+        $repair  = Repair::where('id', $id)->where('shopId', $shopId)->firstOrFail();
+        $settings = Settings::where('shopId', $shopId)->first();
 
         return view('dashboard.receipt', compact('repair', 'settings'));
     }
 
     public function exportCsv(Request $request)
     {
-        $shopId = $request->attributes->get('shopId');
+        $shopId  = $request->attributes->get('shopId');
         $repairs = Repair::where('shopId', $shopId)->orderBy('date_creation', 'desc')->get();
 
         $headers = ["N° Réparation", "Type", "Client", "Téléphone", "Appareil", "Total", "Payé", "Reste", "Statut", "Date Création", "État Paiement"];
@@ -197,13 +279,13 @@ class RepairController extends Controller
                 $r->montant_paye,
                 $r->reste_a_payer,
                 '"' . $r->statut_reparation . '"',
-                '"' . ($r->date_creation ? $r->date_creation->format('d/m/Y H:i') : '') . '"',
+                '"' . ($r->date_creation?->format('d/m/Y H:i') ?? '') . '"',
                 '"' . $r->etat_paiement . '"',
             ]) . "\n";
         }
 
         return response($csv, 200, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Type'        => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename="reparations.csv"',
         ]);
     }

@@ -42,7 +42,10 @@ class ShopController extends Controller
                 'warranty' => ['duree' => '7', 'conditions' => ''],
             ]);
 
-            $user->shops()->attach($shop->id);
+            // Patron controls all shops without being assigned to any
+            if ($user->role !== 'patron') {
+                $user->shops()->attach($shop->id);
+            }
 
             return $shop;
         });
@@ -98,6 +101,19 @@ class ShopController extends Controller
     public function addUser(Request $request, string $id)
     {
         $request->validate(['user_id' => 'required|exists:users,id']);
+
+        $targetUser = \App\Models\User::findOrFail($request->user_id);
+
+        if ($targetUser->role === 'patron') {
+            return back()->with('error', 'Le patron n\'est pas assigné à une boutique — il contrôle toutes les boutiques.');
+        }
+
+        // Caissière / technicien : une seule boutique autorisée
+        $existingShop = $targetUser->shops()->first();
+        if ($existingShop && $existingShop->id !== $id) {
+            return back()->with('error', "Cet utilisateur est déjà rattaché à la boutique « {$existingShop->nom} ». Retirez-le d'abord avant de le réassigner.");
+        }
+
         $shop = Shop::findOrFail($id);
         $shop->users()->syncWithoutDetaching([$request->user_id]);
 

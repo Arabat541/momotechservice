@@ -22,11 +22,19 @@ class SAVController extends Controller
 
     public function store(Request $request)
     {
+        if (!$request->attributes->get('shopId')) {
+            return back()->with('error', 'Aucune boutique sélectionnée.');
+        }
+
         $request->validate([
-            'client_nom' => 'required|string',
-            'client_telephone' => 'required|string',
-            'appareil_marque_modele' => 'required|string',
-            'description_probleme' => 'required|string',
+            'client_nom' => 'required|string|max:150',
+            'client_telephone' => ['required', 'string', 'max:30', 'regex:/^[\d\+\-\s\(\)]{7,30}$/'],
+            'appareil_marque_modele' => 'required|string|max:200',
+            'description_probleme' => 'required|string|max:2000',
+            'statut' => 'nullable|in:En attente,En cours,Résolu,Refusé',
+            'decision' => 'nullable|string|max:2000',
+            'notes' => 'nullable|string|max:2000',
+            'numeroReparationOrigine' => 'nullable|string|max:30|regex:/^[A-Za-z0-9\-]*$/',
         ]);
 
         $shopId = $request->attributes->get('shopId');
@@ -78,6 +86,13 @@ class SAVController extends Controller
     {
         $shopId = $request->attributes->get('shopId');
         $sav = SAV::where('id', $id)->where('shopId', $shopId)->firstOrFail();
+
+        $request->validate([
+            'statut' => 'sometimes|in:En attente,En cours,Résolu,Refusé',
+            'decision' => 'nullable|string|max:2000',
+            'notes' => 'nullable|string|max:2000',
+            'description_probleme' => 'sometimes|string|max:2000',
+        ]);
 
         $data = $request->only([
             'statut', 'decision', 'notes', 'description_probleme',
