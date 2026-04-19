@@ -17,8 +17,7 @@ class AbandonController extends Controller
         $repairs = Repair::where('shopId', $shopId)
             ->where('statut_reparation', 'Terminé')
             ->whereNull('date_retrait')
-            ->whereNotNull('date_terminee')
-            ->where('date_terminee', '<=', now()->subDays($delai))
+            ->whereRaw('COALESCE(date_terminee, date_creation) <= ?', [now()->subDays($delai)])
             ->orderBy('date_terminee')
             ->get();
 

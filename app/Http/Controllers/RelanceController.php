@@ -17,7 +17,6 @@ class RelanceController extends Controller
         $repairs = Repair::where('shopId', $shopId)
             ->where('statut_reparation', 'Terminé')
             ->whereNull('date_retrait')
-            ->whereNotNull('date_terminee')
             ->orderBy('date_terminee')
             ->get();
 
