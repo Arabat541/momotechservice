@@ -7,8 +7,13 @@
     {{-- Header --}}
     <div class="flex items-center justify-between">
         <div>
+            @if($role === 'patron')
             <h3 class="text-lg font-semibold text-gray-600">Toutes les boutiques ({{ $shops->count() }})</h3>
             <p class="text-sm text-gray-400">Aperçu global de votre activité</p>
+            @else
+            <h3 class="text-lg font-semibold text-gray-600">{{ $shops->first()?->nom ?? 'Ma boutique' }}</h3>
+            <p class="text-sm text-gray-400">Activité de votre boutique</p>
+            @endif
         </div>
         <span class="text-sm text-gray-400">{{ now()->translatedFormat('l d F Y') }}</span>
     </div>
@@ -277,8 +282,8 @@
         </div>
     </div>
 
-    {{-- Tableau comparatif par boutique --}}
-    @if(count($shopStats) > 0)
+    {{-- Tableau comparatif par boutique (patron uniquement) --}}
+    @if($role === 'patron' && count($shopStats) > 0)
     <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
         <div class="p-4 border-b">
             <h3 class="text-sm font-semibold text-gray-700"><i class="fas fa-store text-indigo-500 mr-2"></i>Détails par boutique</h3>
