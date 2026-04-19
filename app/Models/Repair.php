@@ -28,8 +28,6 @@ class Repair extends BaseModel
     ];
 
     protected $casts = [
-        'client_nom'               => 'encrypted',
-        'client_telephone'         => 'encrypted',
         'pannes_services'          => 'array',
         'pieces_rechange_utilisees'=> 'array',
         'total_reparation'         => 'float',
@@ -48,26 +46,30 @@ class Repair extends BaseModel
     protected function clientNom(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => $this->unserializeIfSerialized($value),
+            get: fn ($value) => $this->decryptAndClean($value),
         );
     }
 
     protected function clientTelephone(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => $this->unserializeIfSerialized($value),
+            get: fn ($value) => $this->decryptAndClean($value),
         );
     }
 
-    private function unserializeIfSerialized(mixed $value): string
+    private function decryptAndClean(mixed $raw): string
     {
+        if (is_null($raw)) return '';
+        try {
+            $value = decrypt($raw);
+        } catch (\Throwable $e) {
+            $value = (string) $raw;
+        }
         if (is_string($value) && str_starts_with($value, 's:')) {
             $unserialized = @unserialize($value);
-            if ($unserialized !== false) {
-                return (string) $unserialized;
-            }
+            if ($unserialized !== false) return (string) $unserialized;
         }
-        return (string) ($value ?? '');
+        return (string) $value;
     }
 
     public function shop()
