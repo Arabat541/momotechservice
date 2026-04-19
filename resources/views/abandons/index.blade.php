@@ -46,7 +46,10 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
                 @forelse($repairs as $repair)
-                @php $joursRetard = (int) $repair->date_terminee->diffInDays(now()); @endphp
+                @php
+                    $refDate = $repair->date_terminee ?? $repair->date_creation;
+                    $joursRetard = $refDate ? (int) \Carbon\Carbon::parse($refDate)->diffInDays(now()) : 0;
+                @endphp
                 <tr class="hover:bg-gray-50">
                     <td class="px-6 py-4">
                         <a href="{{ route('reparations.show', $repair->id) }}"

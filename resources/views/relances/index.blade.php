@@ -9,7 +9,7 @@
             <p class="text-gray-500 text-sm mt-1">Réparations terminées non récupérées</p>
         </div>
         <span class="bg-orange-100 text-orange-700 text-sm font-semibold px-3 py-1.5 rounded-full">
-            {{ $repairs->count() }} en attente
+            {{ $repairs->total() }} en attente
         </span>
     </div>
 
@@ -100,6 +100,12 @@
             </tbody>
         </table>
     </div>
+
+    @if($repairs->hasPages())
+    <div class="flex justify-center">
+        {{ $repairs->links() }}
+    </div>
+    @endif
 
     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
         <i class="fas fa-info-circle mr-2"></i>

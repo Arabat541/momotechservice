@@ -18,7 +18,7 @@ class RelanceController extends Controller
             ->where('statut_reparation', 'Terminé')
             ->whereNull('date_retrait')
             ->orderBy('date_terminee')
-            ->get();
+            ->paginate(25);
 
         return view('relances.index', compact('repairs'));
     }
