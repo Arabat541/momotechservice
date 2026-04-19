@@ -19,7 +19,7 @@ class AbandonController extends Controller
             ->whereNull('date_retrait')
             ->whereRaw('COALESCE(date_terminee, date_creation) <= ?', [now()->subDays($delai)])
             ->orderBy('date_terminee')
-            ->get();
+            ->paginate(20);
 
         return view('abandons.index', compact('repairs', 'delai'));
     }
