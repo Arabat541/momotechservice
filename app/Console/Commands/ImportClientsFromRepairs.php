@@ -32,8 +32,8 @@ class ImportClientsFromRepairs extends Command
         // Dédupliquer par (shopId + telephone)
         $byPhone = [];
         foreach ($repairs as $repair) {
-            $tel = $repair->client_telephone; // déchiffré automatiquement par le cast encrypted
-            $nom = $repair->client_nom;
+            $tel = $this->clean($repair->client_telephone);
+            $nom = $this->clean($repair->client_nom);
             if (!$tel || !$repair->shopId) continue;
             $key = $repair->shopId . '|' . $tel;
             if (!isset($byPhone[$key])) {
@@ -102,5 +102,16 @@ class ImportClientsFromRepairs extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    private function clean(mixed $value): string
+    {
+        if (is_string($value) && str_starts_with($value, 's:')) {
+            $unserialized = @unserialize($value);
+            if ($unserialized !== false) {
+                return (string) $unserialized;
+            }
+        }
+        return (string) ($value ?? '');
     }
 }
