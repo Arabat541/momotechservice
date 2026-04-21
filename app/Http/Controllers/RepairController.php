@@ -72,7 +72,7 @@ class RepairController extends Controller
             'piece_quantite'         => 'nullable|array|max:20',
             'piece_quantite.*'       => 'nullable|integer|min:1|max:9999',
             'montant_paye'           => 'nullable|numeric|min:0|max:99999999',
-            'statut_reparation'      => 'nullable|in:En cours,Terminé,Récupéré,En attente de pièces',
+            'statut_reparation'      => 'nullable|in:En attente,En cours,Terminé,Récupéré,En attente de pièces,Annulé',
             'date_rendez_vous'       => 'nullable|date',
             'numeroReparation'       => 'nullable|string|max:30',
         ]);
@@ -216,7 +216,7 @@ class RepairController extends Controller
             'client_nom'           => 'sometimes|string|max:150',
             'client_telephone'     => ['sometimes', 'string', 'max:30', 'regex:/^[\d\+\-\s\(\)]{7,30}$/'],
             'appareil_marque_modele' => 'sometimes|string|max:200',
-            'statut_reparation'    => 'sometimes|in:En cours,Terminé,Récupéré,En attente de pièces',
+            'statut_reparation'    => 'sometimes|in:En attente,En cours,Terminé,Récupéré,En attente de pièces,Annulé',
             'montant_paye'         => 'sometimes|numeric|min:0|max:99999999',
             'date_rendez_vous'     => 'nullable|date',
             'date_retrait'         => 'nullable|date',
