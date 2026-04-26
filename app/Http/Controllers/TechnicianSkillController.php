@@ -11,12 +11,12 @@ class TechnicianSkillController extends Controller
     public function index(Request $request)
     {
         $shopId      = $request->attributes->get('shopId');
-        $techniciens = User::whereHas('shops', fn ($q) => $q->where('shops.id', $shopId))
-            ->where('role', 'technicien')
+        $reparateurs = User::whereHas('shops', fn ($q) => $q->where('shops.id', $shopId))
+            ->where('role', 'reparateur')
             ->with('skills')
             ->get();
 
-        return view('skills.index', compact('techniciens'));
+        return view('skills.index', compact('reparateurs'));
     }
 
     public function store(Request $request)
@@ -32,7 +32,7 @@ class TechnicianSkillController extends Controller
         // Ensure the user belongs to this shop
         User::whereHas('shops', fn ($q) => $q->where('shops.id', $shopId))
             ->where('id', $validated['user_id'])
-            ->where('role', 'technicien')
+            ->where('role', 'reparateur')
             ->firstOrFail();
 
         TechnicianSkill::create($validated);

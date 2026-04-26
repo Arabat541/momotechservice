@@ -37,19 +37,8 @@ class AuthController extends Controller
             return back()->withErrors(['email' => 'Email ou mot de passe incorrect.'])->withInput();
         }
 
-        // Compatibilité hashes $2b$ (Node.js bcryptjs) → rehash en PHP bcrypt au premier login
-        $hash = $user->password;
-        $isLegacyHash = str_starts_with($hash, '$2b$');
-        if ($isLegacyHash) {
-            $hash = '$2y$' . substr($hash, 4);
-        }
-
-        if (!Hash::check($request->password, $hash)) {
+        if (!Hash::check($request->password, $user->password)) {
             return back()->withErrors(['email' => 'Email ou mot de passe incorrect.'])->withInput();
-        }
-
-        if ($isLegacyHash) {
-            $user->update(['password' => Hash::make($request->password)]);
         }
 
         // 2FA: si activé pour ce patron, stocker l'ID en session et rediriger vers vérification
@@ -98,7 +87,7 @@ class AuthController extends Controller
             'prenom'   => 'required|string|max:100',
             'email'    => 'required|email|max:255|unique:users,email',
             'password' => 'required|min:8|max:255',
-            'role'     => 'nullable|in:technicien,caissiere',
+            'role'     => 'nullable|in:reparateur,caissiere',
         ]);
 
         $user = User::create([
@@ -106,7 +95,7 @@ class AuthController extends Controller
             'prenom'   => $request->prenom,
             'email'    => $request->email,
             'password' => Hash::make($request->password),
-            'role'     => $request->input('role', 'technicien'),
+            'role'     => $request->input('role', 'reparateur'),
         ]);
 
         // Assign to current shop if available

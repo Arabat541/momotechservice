@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\EnvoyerSmsJob;
 use App\Models\Client;
 use App\Models\Repair;
 use App\Models\Settings;
@@ -9,7 +10,6 @@ use App\Models\Stock;
 use App\Services\CashSessionService;
 use App\Services\InvoiceService;
 use App\Services\RepairService;
-use App\Services\SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -19,17 +19,35 @@ class RepairController extends Controller
         private RepairService $repairService,
         private InvoiceService $invoiceService,
         private CashSessionService $cashSessionService,
-        private SmsService $smsService,
     ) {}
 
     public function index(Request $request)
     {
-        $shopId = $request->attributes->get('shopId');
-        $repairs = Repair::where('shopId', $shopId)
-            ->orderBy('date_creation', 'desc')
-            ->paginate(20);
+        $shopId  = $request->attributes->get('shopId');
+        $search  = $request->input('search', '');
+        $statut  = $request->input('statut', '');
+        $type    = $request->input('type', '');
 
-        return view('dashboard.reparations-liste', compact('repairs'));
+        $query = Repair::where('shopId', $shopId);
+
+        if ($statut) {
+            $query->where('statut_reparation', $statut);
+        }
+        if ($type) {
+            $query->where('type_reparation', $type);
+        }
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('numeroReparation', 'like', "%{$search}%")
+                  ->orWhere('appareil_marque_modele', 'like', "%{$search}%")
+                  ->orWhere('client_nom', 'like', "%{$search}%")
+                  ->orWhere('client_telephone', 'like', "%{$search}%");
+            });
+        }
+
+        $repairs = $query->orderBy('date_creation', 'desc')->paginate(20)->withQueryString();
+
+        return view('dashboard.reparations-liste', compact('repairs', 'search', 'statut', 'type'));
     }
 
     public function createPlace(Request $request)
@@ -119,7 +137,7 @@ class RepairController extends Controller
             return response()->json(['success' => true, 'numero' => $repair->numeroReparation]);
         }
 
-        $route = $request->type_reparation === 'rdv' ? 'reparations.rdv' : 'reparations.place';
+        $route = $validated['type_reparation'] === 'rdv' ? 'reparations.rdv' : 'reparations.place';
         return redirect()->route($route)->with('success', "Réparation {$repair->numeroReparation} enregistrée.");
     }
 
@@ -157,6 +175,11 @@ class RepairController extends Controller
                 $validated['panne_description'],
                 $validated['panne_montant'] ?? []
             );
+            // Restore previous stock quantities before reprocessing so we don't double-decrement.
+            $this->repairService->restorePiecesStock(
+                $repair->pieces_rechange_utilisees ?? [],
+                $shopId
+            );
             $pieces = $this->repairService->buildPieces(
                 $validated['piece_stock_id'] ?? [],
                 $validated['piece_quantite'] ?? [],
@@ -191,7 +214,7 @@ class RepairController extends Controller
             $repair->update(['date_terminee' => now(), 'relance_count' => 0, 'derniere_relance' => null]);
             $telephone = $repair->client?->telephone ?? $repair->client_telephone;
             if ($telephone) {
-                $this->smsService->envoyerNotificationReparation($telephone, $repair->numeroReparation, $repair->shopId);
+                EnvoyerSmsJob::dispatch('notification', $telephone, $repair->numeroReparation, $repair->shopId);
             }
         }
 

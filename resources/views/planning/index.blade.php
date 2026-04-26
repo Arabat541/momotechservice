@@ -1,13 +1,13 @@
 @extends('layouts.dashboard')
-@section('page-title', 'Planning techniciens')
+@section('page-title', 'Planning réparateurs')
 
 @section('content')
 <div class="space-y-6">
     <div class="flex items-center justify-between flex-wrap gap-3">
-        <h1 class="text-2xl font-bold text-gray-900">Planning techniciens</h1>
+        <h1 class="text-2xl font-bold text-gray-900">Planning réparateurs</h1>
         <form method="GET" class="flex flex-wrap gap-2 items-end">
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Technicien</label>
+                <label class="block text-xs text-gray-500 mb-1">Réparateur</label>
                 <select name="technicien" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
                     <option value="">Tous</option>
                     @foreach($techniciens as $t)
@@ -39,9 +39,7 @@
                     <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Appareil</th>
                     <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Statut</th>
                     <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
-                    @can('role:caissiere,patron')
                     <th class="px-6 py-3"></th>
-                    @endcan
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -74,7 +72,7 @@
     </div>
     @endif
 
-    {{-- Par technicien --}}
+    {{-- Par réparateur --}}
     @if(!empty($planning))
     @foreach($planning as $techEntryId => $data)
     @php

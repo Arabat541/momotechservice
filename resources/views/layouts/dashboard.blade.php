@@ -3,7 +3,7 @@
 @section('body')
 @php
     $user = session('user_id') ? \App\Models\User::find(session('user_id')) : null;
-    $role = session('user_role', 'technicien');
+    $role = session('user_role', 'reparateur');
     $currentShopId = session('current_shop_id');
     $shops = $role === 'patron' ? \App\Models\Shop::all() : ($user ? $user->shops : collect());
     $currentShop = $currentShopId ? \App\Models\Shop::find($currentShopId) : null;
@@ -19,48 +19,48 @@
         [
             'title' => 'Réparations',
             'items' => [
-                ['label' => 'Nouvelle réparation',    'icon' => 'fa-mobile-screen',   'route' => 'reparations.place'],
-                ['label' => 'Réparation sur RDV',     'icon' => 'fa-calendar',        'route' => 'reparations.rdv'],
+                ['label' => 'Nouvelle réparation',    'icon' => 'fa-mobile-screen',   'route' => 'reparations.place',   'roles' => ['caissiere']],
+                ['label' => 'Réparation sur RDV',     'icon' => 'fa-calendar',        'route' => 'reparations.rdv',     'roles' => ['caissiere']],
                 ['label' => 'Liste réparations',      'icon' => 'fa-list',            'route' => 'reparations.liste'],
-                ['label' => 'Planning techniciens',   'icon' => 'fa-calendar-week',   'route' => 'planning.index'],
+                ['label' => 'Planning réparateurs',   'icon' => 'fa-calendar-week',   'route' => 'planning.index'],
                 ['label' => 'Catalogue pannes',       'icon' => 'fa-book-medical',    'route' => 'panne-templates.index', 'roles' => ['patron']],
-                ['label' => 'Relances',               'icon' => 'fa-bell',            'route' => 'relances.index',       'roles' => ['patron','caissiere']],
-                ['label' => 'Appareils abandonnés',   'icon' => 'fa-clock-rotate-left','route' => 'abandons.index',      'roles' => ['patron']],
+                ['label' => 'Relances',               'icon' => 'fa-bell',            'route' => 'relances.index',        'roles' => ['patron','caissiere']],
+                ['label' => 'Appareils abandonnés',   'icon' => 'fa-clock-rotate-left','route' => 'abandons.index',       'roles' => ['patron']],
             ],
         ],
         [
             'title' => 'Ventes & Clients',
             'items' => [
-                ['label' => 'Vente pièce détachée',   'icon' => 'fa-box',             'route' => 'article'],
-                ['label' => 'Clients',                'icon' => 'fa-users',           'route' => 'clients.index'],
-                ['label' => 'SAV',                    'icon' => 'fa-shield-halved',   'route' => 'sav.index'],
+                ['label' => 'Vente pièce détachée',   'icon' => 'fa-box',             'route' => 'article',          'roles' => ['caissiere','patron']],
+                ['label' => 'Clients',                'icon' => 'fa-users',           'route' => 'clients.index',    'roles' => ['caissiere','patron']],
+                ['label' => 'SAV',                    'icon' => 'fa-shield-halved',   'route' => 'sav.index',        'roles' => ['caissiere','patron']],
                 ['label' => 'Garanties',              'icon' => 'fa-certificate',     'route' => 'warranties.index'],
-                ['label' => 'Crédit revendeurs',      'icon' => 'fa-credit-card',     'route' => 'credit.index'],
+                ['label' => 'Crédit revendeurs',      'icon' => 'fa-credit-card',     'route' => 'credit.index',     'roles' => ['caissiere','patron']],
             ],
         ],
         [
             'title' => 'Caisse & Factures',
             'items' => [
-                ['label' => 'Caisse',                 'icon' => 'fa-cash-register',   'route' => 'caisse.index',         'roles' => ['patron','caissiere']],
-                ['label' => 'Factures clients',       'icon' => 'fa-file-invoice',    'route' => 'invoices.index'],
-                ['label' => 'Rapport de marge',       'icon' => 'fa-percent',         'route' => 'margin.index',         'roles' => ['patron']],
+                ['label' => 'Caisse',                 'icon' => 'fa-cash-register',   'route' => 'caisse.index',     'roles' => ['patron','caissiere']],
+                ['label' => 'Factures clients',       'icon' => 'fa-file-invoice',    'route' => 'invoices.index',   'roles' => ['caissiere','patron']],
+                ['label' => 'Rapport de marge',       'icon' => 'fa-percent',         'route' => 'margin.index',     'roles' => ['patron']],
             ],
         ],
         [
             'title' => 'Stock & Fournisseurs',
             'items' => [
-                ['label' => 'Gestion des stocks',     'icon' => 'fa-boxes-stacked',   'route' => 'stocks.index',         'roles' => ['patron']],
-                ['label' => 'Transferts',             'icon' => 'fa-exchange-alt',    'route' => 'transfers.index'],
-                ['label' => 'Inventaires',            'icon' => 'fa-clipboard-list',  'route' => 'inventory.index',      'roles' => ['patron']],
-                ['label' => 'Fournisseurs',           'icon' => 'fa-truck',           'route' => 'suppliers.index',      'roles' => ['patron']],
+                ['label' => 'Gestion des stocks',     'icon' => 'fa-boxes-stacked',   'route' => 'stocks.index',              'roles' => ['patron']],
+                ['label' => 'Transferts',             'icon' => 'fa-exchange-alt',    'route' => 'transfers.index',           'roles' => ['caissiere','patron']],
+                ['label' => 'Inventaires',            'icon' => 'fa-clipboard-list',  'route' => 'inventory.index',           'roles' => ['patron']],
+                ['label' => 'Fournisseurs',           'icon' => 'fa-truck',           'route' => 'suppliers.index',           'roles' => ['patron']],
                 ['label' => 'Factures fourn.',        'icon' => 'fa-file-invoice-dollar','route' => 'purchase-invoices.index','roles' => ['patron']],
-                ['label' => 'Bons de commande',       'icon' => 'fa-clipboard',       'route' => 'purchase-orders.index','roles' => ['patron']],
+                ['label' => 'Bons de commande',       'icon' => 'fa-clipboard',       'route' => 'purchase-orders.index',     'roles' => ['patron']],
             ],
         ],
         [
             'title' => 'Administration',
             'items' => [
-                ['label' => 'Compétences tech.',      'icon' => 'fa-user-cog',        'route' => 'skills.index',         'roles' => ['patron']],
+                ['label' => 'Compétences répar.',     'icon' => 'fa-user-cog',        'route' => 'skills.index',         'roles' => ['patron']],
                 ['label' => 'Paramètres',             'icon' => 'fa-gear',            'route' => 'parametres',           'roles' => ['patron']],
                 ['label' => 'Double auth. (2FA)',     'icon' => 'fa-shield-alt',      'route' => 'two-factor.show',      'roles' => ['patron']],
             ],

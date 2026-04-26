@@ -32,11 +32,19 @@ class StockController extends Controller
 
         $stocks = $query->orderBy('nom')->paginate(20)->withQueryString();
 
-        $allStocks       = Stock::where('shopId', $shopId);
-        $statsArticles   = $allStocks->count();
-        $statsValeur     = (clone $allStocks)->get()->sum(fn($s) => $s->quantite * $s->prixVente);
-        $statsStockFaible = (clone $allStocks)->where('quantite', '<', 10)->count();
-        $statsBenefice   = (clone $allStocks)->get()->sum(fn($s) => ($s->prixVente - $s->prixAchat) * $s->quantite);
+        $statsRaw = Stock::where('shopId', $shopId)
+            ->selectRaw('
+                COUNT(*) as articles,
+                SUM(quantite * prixVente) as valeur,
+                SUM((prixVente - prixAchat) * quantite) as benefice,
+                SUM(quantite < 10) as stock_faible
+            ')
+            ->first();
+
+        $statsArticles    = $statsRaw->articles    ?? 0;
+        $statsValeur      = $statsRaw->valeur       ?? 0;
+        $statsBenefice    = $statsRaw->benefice     ?? 0;
+        $statsStockFaible = $statsRaw->stock_faible ?? 0;
 
         return view('dashboard.stocks', compact('stocks', 'statsArticles', 'statsValeur', 'statsStockFaible', 'statsBenefice'));
     }

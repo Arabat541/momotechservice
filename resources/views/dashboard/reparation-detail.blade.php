@@ -12,10 +12,12 @@
             </span>
         </div>
         <div class="flex items-center gap-2">
+            @if(in_array(session('user_role'), ['caissiere', 'patron']))
             <a href="{{ route('reparations.receipt', $repair->id) }}" target="_blank"
                class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
                 <i class="fas fa-print mr-2"></i> Imprimer Reçu
             </a>
+            @endif
             <a href="{{ route('reparations.liste') }}" class="inline-flex items-center px-4 py-2 border rounded-md hover:bg-gray-50 text-sm">
                 <i class="fas fa-arrow-left mr-2"></i> Retour
             </a>
@@ -34,10 +36,16 @@
     @endif
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {{-- Left: Edit form --}}
+
+        {{-- ── CAISSIÈRE / PATRON : formulaire administratif ── --}}
+        @if(in_array(session('user_role'), ['caissiere', 'patron']))
         <form action="{{ route('reparations.update', $repair->id) }}" method="POST" class="space-y-4">
             @csrf
             @method('PUT')
+
+            <h3 class="font-semibold text-gray-700 border-b pb-2">
+                <i class="fas fa-pen text-gray-400 mr-2"></i>Informations client & paiement
+            </h3>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -62,7 +70,7 @@
                 <div>
                     <label class="text-sm font-medium text-gray-600">Statut</label>
                     <select name="statut_reparation" class="w-full text-sm py-2 border-gray-300 rounded-md px-3 border">
-                        @foreach(['En attente', 'En cours', 'Terminé', 'Annulé'] as $s)
+                        @foreach(['En attente', 'En cours', 'Terminé', 'Récupéré', 'Annulé'] as $s)
                             <option value="{{ $s }}" {{ $repair->statut_reparation === $s ? 'selected' : '' }}>{{ $s }}</option>
                         @endforeach
                     </select>
@@ -89,9 +97,86 @@
                 </button>
             </div>
         </form>
+        @endif
 
-        {{-- Right: Repair details (read-only summary) --}}
-        <div class="bg-gray-50 rounded-lg p-5 space-y-4">
+        {{-- ── RÉPARATEUR / PATRON : formulaire diagnostic technique ── --}}
+        @if(in_array(session('user_role'), ['reparateur', 'patron']))
+        <form action="{{ route('reparations.diagnostic', $repair->id) }}" method="POST" class="space-y-4">
+            @csrf
+            @method('PUT')
+
+            <h3 class="font-semibold text-gray-700 border-b pb-2">
+                <i class="fas fa-wrench text-gray-400 mr-2"></i>Diagnostic technique
+            </h3>
+
+            <div>
+                <label class="text-sm font-medium text-gray-600">Statut technique</label>
+                <select name="statut_reparation" class="w-full text-sm py-2 border-gray-300 rounded-md px-3 border">
+                    @foreach(['En diagnostic', 'En cours', 'Terminé', 'En attente de pièces'] as $s)
+                        <option value="{{ $s }}" {{ $repair->statut_reparation === $s ? 'selected' : '' }}>{{ $s }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label class="text-sm font-medium text-gray-600">Notes réparateur</label>
+                <textarea name="notes_technicien" rows="3" maxlength="1000"
+                          class="w-full text-sm py-2 border-gray-300 rounded-md px-3 border resize-none"
+                          placeholder="Observations techniques…">{{ $repair->notes_technicien }}</textarea>
+            </div>
+
+            {{-- Pannes / Services --}}
+            <div x-data="{ pannes: {{ json_encode(is_array($repair->pannes_services) && count($repair->pannes_services) ? $repair->pannes_services : [['description'=>'','montant'=>0]]) }} }">
+                <label class="text-sm font-medium text-gray-600 block mb-1">Pannes / Services</label>
+                <template x-for="(panne, i) in pannes" :key="i">
+                    <div class="flex gap-2 mb-2">
+                        <input type="text" :name="'panne_description['+i+']'" x-model="panne.description"
+                               placeholder="Description panne"
+                               class="flex-1 text-sm border border-gray-300 rounded-md px-3 py-2">
+                        <input type="number" :name="'panne_montant['+i+']'" x-model="panne.montant"
+                               placeholder="Montant" min="0" step="any"
+                               class="w-28 text-sm border border-gray-300 rounded-md px-3 py-2 no-spinner">
+                        <button type="button" @click="pannes.splice(i,1)"
+                                class="text-red-400 hover:text-red-600 text-lg leading-none">×</button>
+                    </div>
+                </template>
+                <button type="button" @click="pannes.push({description:'',montant:0})"
+                        class="text-xs text-blue-600 hover:text-blue-800">
+                    <i class="fas fa-plus mr-1"></i>Ajouter une panne
+                </button>
+            </div>
+
+            {{-- Pièces de rechange --}}
+            <div>
+                <label class="text-sm font-medium text-gray-600 block mb-1">Pièces de rechange</label>
+                @foreach(range(0, 4) as $i)
+                <div class="flex gap-2 mb-2">
+                    <select name="piece_stock_id[{{ $i }}]" class="flex-1 text-sm border border-gray-300 rounded-md px-3 py-2">
+                        <option value="">— Sélectionner une pièce —</option>
+                        @foreach($stocks as $s)
+                            <option value="{{ $s->id }}"
+                                @if(isset($repair->pieces_rechange_utilisees[$i]) && $repair->pieces_rechange_utilisees[$i]['stockId'] === $s->id) selected @endif>
+                                {{ $s->nom }} ({{ $s->quantite }} dispo)
+                            </option>
+                        @endforeach
+                    </select>
+                    <input type="number" name="piece_quantite[{{ $i }}]" min="1" placeholder="Qté"
+                           value="{{ $repair->pieces_rechange_utilisees[$i]['quantiteUtilisee'] ?? '' }}"
+                           class="w-20 text-sm border border-gray-300 rounded-md px-3 py-2 no-spinner">
+                </div>
+                @endforeach
+            </div>
+
+            <div class="pt-3 border-t">
+                <button type="submit" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-md hover:bg-orange-700">
+                    <i class="fas fa-wrench mr-1"></i> Enregistrer diagnostic
+                </button>
+            </div>
+        </form>
+        @endif
+
+        {{-- ── Résumé (toujours visible) ── --}}
+        <div class="bg-gray-50 rounded-lg p-5 space-y-4 {{ in_array(session('user_role'), ['caissiere', 'patron']) && in_array(session('user_role'), ['reparateur', 'patron']) ? '' : 'lg:col-start-2' }}">
             <h3 class="font-semibold text-gray-700 border-b pb-2">Résumé</h3>
 
             <div class="grid grid-cols-2 gap-3 text-sm">
@@ -123,9 +208,16 @@
                     <p class="font-medium">{{ $repair->date_rendez_vous->format('d/m/Y') }}</p>
                 </div>
                 @endif
+                @if($repair->assignedTo)
+                <div class="col-span-2">
+                    <span class="text-gray-500">Réparateur assigné:</span>
+                    <p class="font-medium">{{ $repair->assignedTo->prenom }} {{ $repair->assignedTo->nom }}</p>
+                </div>
+                @endif
             </div>
 
-            {{-- Récupération --}}
+            {{-- Récupération (caissière uniquement) --}}
+            @if(in_array(session('user_role'), ['caissiere', 'patron']))
             <div class="border-t pt-3">
                 <form action="{{ route('reparations.update', $repair->id) }}" method="POST">
                     @csrf
@@ -143,6 +235,7 @@
                     @endif
                 </form>
             </div>
+            @endif
 
             {{-- Pannes --}}
             @if(is_array($repair->pannes_services) && count($repair->pannes_services) > 0)
@@ -166,6 +259,14 @@
                     <span>{{ $piece['nom'] ?? '' }} (x{{ $piece['quantiteUtilisee'] ?? 0 }})</span>
                 </div>
                 @endforeach
+            </div>
+            @endif
+
+            {{-- Notes réparateur --}}
+            @if($repair->notes_technicien)
+            <div class="border-t pt-3">
+                <h4 class="font-semibold text-gray-600 mb-1">Notes réparateur</h4>
+                <p class="text-sm text-gray-700 whitespace-pre-line">{{ $repair->notes_technicien }}</p>
             </div>
             @endif
         </div>
@@ -223,8 +324,8 @@
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
             @foreach($repair->photos as $photo)
             <div class="relative group">
-                <a href="{{ asset('uploads/repairs/' . $photo->chemin) }}" target="_blank">
-                    <img src="{{ asset('uploads/repairs/' . $photo->chemin) }}"
+                <a href="{{ $photo->url() }}" target="_blank">
+                    <img src="{{ $photo->url() }}"
                         alt="{{ $photo->legende ?? $photo->type }}"
                         class="w-full h-28 object-cover rounded-lg border border-gray-200 hover:opacity-90 transition-opacity">
                 </a>

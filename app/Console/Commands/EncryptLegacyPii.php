@@ -36,8 +36,8 @@ class EncryptLegacyPii extends Command
 
                 if (!$dryRun) {
                     DB::table($table)->where('id', $row->id)->update([
-                        'client_nom'       => $nomDejaCrypte ? $row->client_nom : encrypt($row->client_nom),
-                        'client_telephone' => $telDejaCrypte ? $row->client_telephone : encrypt($row->client_telephone),
+                        'client_nom'       => $nomDejaCrypte ? $row->client_nom : \Illuminate\Support\Facades\Crypt::encryptString($row->client_nom),
+                        'client_telephone' => $telDejaCrypte ? $row->client_telephone : \Illuminate\Support\Facades\Crypt::encryptString($row->client_telephone),
                     ]);
                 }
 

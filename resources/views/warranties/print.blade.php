@@ -83,7 +83,7 @@
         {{-- Signature --}}
         <div class="grid grid-cols-2 gap-8 mt-8 text-xs text-gray-500">
             <div class="text-center">
-                <div class="border-t border-gray-400 pt-2 mt-10">Signature technicien</div>
+                <div class="border-t border-gray-400 pt-2 mt-10">Signature réparateur</div>
             </div>
             <div class="text-center">
                 <div class="border-t border-gray-400 pt-2 mt-10">Cachet & signature</div>

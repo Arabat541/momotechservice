@@ -108,7 +108,7 @@ class ShopController extends Controller
             return back()->with('error', 'Le patron n\'est pas assigné à une boutique — il contrôle toutes les boutiques.');
         }
 
-        // Caissière / technicien : une seule boutique autorisée
+        // Caissière / réparateur : une seule boutique autorisée
         $existingShop = $targetUser->shops()->first();
         if ($existingShop && $existingShop->id !== $id) {
             return back()->with('error', "Cet utilisateur est déjà rattaché à la boutique « {$existingShop->nom} ». Retirez-le d'abord avant de le réassigner.");

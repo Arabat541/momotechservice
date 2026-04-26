@@ -45,11 +45,26 @@ class RepairService
         return $pieces;
     }
 
+    // Restore stock quantities for pieces already used in a repair (call before re-processing pieces on update).
+    public function restorePiecesStock(array $oldPieces, ?string $shopId): void
+    {
+        foreach ($oldPieces as $piece) {
+            $stockId = $piece['stockId'] ?? null;
+            $qte     = intval($piece['quantiteUtilisee'] ?? 0);
+            if (!$stockId || $qte <= 0) continue;
+
+            Stock::withoutGlobalScopes()
+                ->where('id', $stockId)
+                ->where('shopId', $shopId)
+                ->increment('quantite', $qte);
+        }
+    }
+
     public function computeTotals(array $pannes, array $pieces, float $montantPaye): array
     {
         $totalPannes = array_sum(array_column($pannes, 'montant'));
         $totalPieces = array_sum(array_map(
-            fn($p) => ($p['prixVente'] ?? 0) * $p['quantiteUtilisee'],
+            fn($p) => ($p['prixVente'] ?? 0) * ($p['quantiteUtilisee'] ?? 0),
             $pieces
         ));
         $total = $totalPannes + $totalPieces;

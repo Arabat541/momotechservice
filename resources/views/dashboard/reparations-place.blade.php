@@ -305,6 +305,8 @@
         // Listen for input on dynamically added fields
         document.getElementById('repairForm').addEventListener('input', updatePreview);
         document.getElementById('repairForm').addEventListener('change', updatePreview);
+        // Détection autofill tardif
+        setTimeout(updatePreview, 500);
     });
 
     // Barcode
@@ -315,6 +317,7 @@
     }
 
     function printTicket() {
+        updatePreview(); // garantit que les valeurs autofill sont prises en compte
         const content = document.getElementById('receiptPreview').innerHTML;
         const css = `
             @page { size: 80mm auto; margin: 0; }

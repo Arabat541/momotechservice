@@ -69,7 +69,7 @@ class SAVController extends Controller
                 // Check warranty
                 if ($repair->date_retrait) {
                     $settings = Settings::where('shopId', $shopId)->first();
-                    $warrantyDays = intval($settings?->warranty['duree'] ?? 7);
+                    $warrantyDays = intval(data_get($settings?->warranty, 'duree', 7));
                     $warrantyEnd = $repair->date_retrait->copy()->addDays($warrantyDays);
                     $data['sous_garantie'] = now()->lte($warrantyEnd);
                     $data['date_fin_garantie'] = $warrantyEnd;
@@ -137,7 +137,7 @@ class SAVController extends Controller
         $dateFin = null;
         if ($repair->date_retrait) {
             $settings = Settings::where('shopId', $shopId)->first();
-            $warrantyDays = intval($settings?->warranty['duree'] ?? 7);
+            $warrantyDays = intval(data_get($settings?->warranty, 'duree', 7));
             $warrantyEnd = $repair->date_retrait->copy()->addDays($warrantyDays);
             $sousGarantie = now()->lte($warrantyEnd);
             $dateFin = $warrantyEnd->format('d/m/Y');

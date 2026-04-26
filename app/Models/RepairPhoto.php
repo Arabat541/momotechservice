@@ -15,6 +15,6 @@ class RepairPhoto extends Model
 
     public function url(): string
     {
-        return asset('uploads/repairs/' . $this->chemin);
+        return route('repair-photos.serve', $this->id);
     }
 }

@@ -5,9 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\Repair;
 use App\Models\RepairPhoto;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class RepairPhotoController extends Controller
 {
+    private const DISK = 'local';
+    private const DIR  = 'repairs';
+
     public function store(Request $request, string $id)
     {
         $shopId = $request->attributes->get('shopId');
@@ -25,13 +29,8 @@ class RepairPhotoController extends Controller
 
         $file     = $request->file('photo');
         $filename = $repair->id . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-        $dest     = public_path('uploads/repairs');
 
-        if (!is_dir($dest)) {
-            mkdir($dest, 0755, true);
-        }
-
-        $file->move($dest, $filename);
+        Storage::disk(self::DISK)->putFileAs(self::DIR, $file, $filename);
 
         RepairPhoto::create([
             'repair_id' => $repair->id,
@@ -43,18 +42,30 @@ class RepairPhotoController extends Controller
         return back()->with('success', 'Photo ajoutée.');
     }
 
+    public function serve(Request $request, int $photoId)
+    {
+        $shopId = $request->attributes->get('shopId');
+        $photo  = RepairPhoto::findOrFail($photoId);
+
+        Repair::where('id', $photo->repair_id)->where('shopId', $shopId)->firstOrFail();
+
+        $path = self::DIR . '/' . $photo->chemin;
+
+        if (!Storage::disk(self::DISK)->exists($path)) {
+            abort(404);
+        }
+
+        return response()->file(Storage::disk(self::DISK)->path($path));
+    }
+
     public function destroy(Request $request, int $photoId)
     {
         $shopId = $request->attributes->get('shopId');
         $photo  = RepairPhoto::findOrFail($photoId);
 
-        // Ensure the photo belongs to a repair in the current shop
-        $repair = Repair::where('id', $photo->repair_id)->where('shopId', $shopId)->firstOrFail();
+        Repair::where('id', $photo->repair_id)->where('shopId', $shopId)->firstOrFail();
 
-        $path = public_path('uploads/repairs/' . $photo->chemin);
-        if (file_exists($path)) {
-            unlink($path);
-        }
+        Storage::disk(self::DISK)->delete(self::DIR . '/' . $photo->chemin);
 
         $photo->delete();
 

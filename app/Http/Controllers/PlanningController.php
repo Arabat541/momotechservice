@@ -19,7 +19,7 @@ class PlanningController extends Controller
         $fin   = $debut->copy()->endOfWeek();
 
         $techniciens = User::whereHas('shops', fn($q) => $q->where('shops.id', $shopId))
-            ->whereIn('role', ['technicien', 'patron'])
+            ->whereIn('role', ['reparateur', 'patron'])
             ->orderBy('nom')
             ->get();
 

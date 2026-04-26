@@ -190,7 +190,7 @@
                 <div>
                     <label class="block text-sm font-medium text-slate-600 mb-1">Rôle</label>
                     <select name="role" required class="w-full border rounded-lg px-3 py-2">
-                        <option value="technicien">Technicien</option>
+                        <option value="reparateur">Réparateur</option>
                         <option value="caissiere">Caissière</option>
                     </select>
                 </div>

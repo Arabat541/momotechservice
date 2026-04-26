@@ -300,6 +300,9 @@
         const observer = new MutationObserver(() => { setTimeout(updatePreview, 50); });
         observer.observe(document.getElementById('pannesContainer'), { childList: true, subtree: true });
         observer.observe(document.getElementById('piecesContainer'), { childList: true, subtree: true });
+        // Initialisation + détection autofill tardif
+        updatePreview();
+        setTimeout(updatePreview, 500);
     });
 
     // Barcode
@@ -310,6 +313,7 @@
     }
 
     function printTicket() {
+        updatePreview(); // garantit que les valeurs autofill sont prises en compte
         const content = document.getElementById('receiptPreview').innerHTML;
         const css = `
             @page { size: 80mm auto; margin: 0; }

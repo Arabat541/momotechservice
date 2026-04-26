@@ -2,13 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\EnvoyerSmsJob;
 use App\Models\Repair;
-use App\Services\SmsService;
 use Illuminate\Http\Request;
 
 class RelanceController extends Controller
 {
-    public function __construct(private SmsService $smsService) {}
 
     public function index(Request $request)
     {
@@ -38,21 +37,13 @@ class RelanceController extends Controller
             return back()->with('error', 'Aucun numéro de téléphone pour ce client.');
         }
 
-        $sent = $this->smsService->envoyerRelance(
-            $telephone,
-            $repair->numeroReparation,
-            $repair->relance_count,
-            $repair->shopId
-        );
+        EnvoyerSmsJob::dispatch('relance', $telephone, $repair->numeroReparation, $repair->shopId, $repair->relance_count);
 
-        if ($sent) {
-            $repair->update([
-                'relance_count'    => $repair->relance_count + 1,
-                'derniere_relance' => now(),
-            ]);
-            return back()->with('success', "Relance envoyée à {$telephone}.");
-        }
+        $repair->update([
+            'relance_count'    => $repair->relance_count + 1,
+            'derniere_relance' => now(),
+        ]);
 
-        return back()->with('error', 'Envoi SMS échoué. Vérifiez la configuration SMS dans les paramètres.');
+        return back()->with('success', "Relance programmée pour {$telephone}.");
     }
 }

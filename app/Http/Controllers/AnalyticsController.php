@@ -42,26 +42,36 @@ class AnalyticsController extends Controller
             ->whereBetween('created_at', [$debut, $fin])
             ->sum('montant_paye');
 
-        // ── Évolution CA mensuel (12 mois glissants) ────────────────────────
+        // ── Évolution CA mensuel (12 mois glissants) — 2 requêtes groupées ─
+        $startOf12Months = Carbon::now()->subMonths(11)->startOfMonth();
+
+        $repParMois = Repair::withoutGlobalScopes()
+            ->whereIn('shopId', $shopIds)
+            ->where('date_creation', '>=', $startOf12Months)
+            ->selectRaw("DATE_FORMAT(date_creation, '%Y-%m') as mois, SUM(total_reparation) as ca")
+            ->groupBy('mois')
+            ->pluck('ca', 'mois');
+
+        $venteParMois = Sale::withoutGlobalScopes()
+            ->whereIn('shopId', $shopIds)
+            ->where('date', '>=', $startOf12Months)
+            ->selectRaw("DATE_FORMAT(date, '%Y-%m') as mois, SUM(total) as ca")
+            ->groupBy('mois')
+            ->pluck('ca', 'mois');
+
         $caParMois = [];
         for ($i = 11; $i >= 0; $i--) {
             $date = Carbon::now()->subMonths($i);
+            $key  = $date->format('Y-m');
+            $rep  = (float) ($repParMois[$key] ?? 0);
+            $ven  = (float) ($venteParMois[$key] ?? 0);
             $caParMois[] = [
-                'mois'         => $date->format('Y-m'),
-                'mois_label'   => $date->translatedFormat('M Y'),
-                'reparations'  => Repair::withoutGlobalScopes()
-                    ->whereIn('shopId', $shopIds)
-                    ->whereMonth('date_creation', $date->month)
-                    ->whereYear('date_creation', $date->year)
-                    ->sum('total_reparation'),
-                'ventes'       => Sale::withoutGlobalScopes()
-                    ->whereIn('shopId', $shopIds)
-                    ->whereMonth('date', $date->month)
-                    ->whereYear('date', $date->year)
-                    ->sum('total'),
+                'mois'        => $key,
+                'mois_label'  => $date->translatedFormat('M Y'),
+                'reparations' => $rep,
+                'ventes'      => $ven,
+                'total'       => $rep + $ven,
             ];
-            $last = end($caParMois);
-            $caParMois[count($caParMois) - 1]['total'] = $last['reparations'] + $last['ventes'];
         }
 
         // ── Top 5 pannes ────────────────────────────────────────────────────

@@ -1,11 +1,11 @@
 @extends('layouts.dashboard')
-@section('page-title', 'Compétences techniciens')
+@section('page-title', 'Compétences réparateurs')
 
 @section('content')
 <div class="space-y-6">
     <div>
-        <h1 class="text-2xl font-bold text-gray-900">Compétences techniciens</h1>
-        <p class="text-gray-500 text-sm mt-1">Gérez les spécialités de chaque technicien pour optimiser le planning</p>
+        <h1 class="text-2xl font-bold text-gray-900">Compétences réparateurs</h1>
+        <p class="text-gray-500 text-sm mt-1">Gérez les spécialités de chaque réparateur pour optimiser le planning</p>
     </div>
 
     @if(session('success'))
@@ -85,7 +85,7 @@
     @empty
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 px-6 py-12 text-center text-gray-400">
         <i class="fas fa-user-cog text-3xl mb-3 block"></i>
-        Aucun technicien dans cette boutique.
+        Aucun réparateur dans cette boutique.
     </div>
     @endforelse
 </div>

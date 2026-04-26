@@ -75,39 +75,41 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
     // Shop switching
     Route::post('/switch-shop', [ShopController::class, 'switchShop'])->name('shop.switch');
 
-    // Réparations sur place
-    Route::get('/reparations-place', [RepairController::class, 'createPlace'])->name('reparations.place');
+    // Création réparations (caissière uniquement)
+    Route::middleware(['role:caissiere,patron'])->group(function () {
+        Route::get('/reparations-place', [RepairController::class, 'createPlace'])->name('reparations.place');
+        Route::get('/reparations-rdv', [RepairController::class, 'createRdv'])->name('reparations.rdv');
+        Route::post('/reparations', [RepairController::class, 'store'])->name('reparations.store');
+        Route::get('/liste-reparations/export-csv', [RepairController::class, 'exportCsv'])->name('reparations.export.csv');
+        Route::put('/reparations/{id}', [RepairController::class, 'update'])->name('reparations.update');
+        Route::delete('/reparations/{id}', [RepairController::class, 'destroy'])->name('reparations.destroy');
+        Route::get('/reparations/{id}/recu', [RepairController::class, 'printReceipt'])->name('reparations.receipt');
+    });
 
-    // Réparations sur RDV
-    Route::get('/reparations-rdv', [RepairController::class, 'createRdv'])->name('reparations.rdv');
-
-    // Enregistrer réparation (place ou rdv)
-    Route::post('/reparations', [RepairController::class, 'store'])->name('reparations.store');
-
-    // Liste des réparations
+    // Liste + détail (tous les rôles — réparateur doit voir ses réparations)
     Route::get('/liste-reparations', [RepairController::class, 'index'])->name('reparations.liste');
-    Route::get('/liste-reparations/export-csv', [RepairController::class, 'exportCsv'])->name('reparations.export.csv');
-
-    // Détail / Modifier / Supprimer réparation
     Route::get('/reparations/{id}', [RepairController::class, 'show'])->name('reparations.show');
-    Route::put('/reparations/{id}', [RepairController::class, 'update'])->name('reparations.update');
-    Route::delete('/reparations/{id}', [RepairController::class, 'destroy'])->name('reparations.destroy');
-    Route::get('/reparations/{id}/recu', [RepairController::class, 'printReceipt'])->name('reparations.receipt');
 
-    // Diagnostic technicien (technicien + caissiere + patron)
-    Route::put('/reparations/{id}/diagnostic', [RepairController::class, 'updateDiagnostic'])->name('reparations.diagnostic');
+    // Diagnostic technique (réparateur exclusivement)
+    Route::middleware(['role:reparateur,patron'])->group(function () {
+        Route::put('/reparations/{id}/diagnostic', [RepairController::class, 'updateDiagnostic'])->name('reparations.diagnostic');
+    });
 
-    // Vente d'articles
-    Route::get('/article', [ArticleController::class, 'index'])->name('article');
-    Route::post('/article/vendre', [ArticleController::class, 'vendre'])->name('article.vendre');
-    Route::delete('/article/annuler/{id}', [ArticleController::class, 'annuler'])->name('article.annuler');
+    // Vente d'articles (caissière uniquement)
+    Route::middleware(['role:caissiere,patron'])->group(function () {
+        Route::get('/article', [ArticleController::class, 'index'])->name('article');
+        Route::post('/article/vendre', [ArticleController::class, 'vendre'])->name('article.vendre');
+        Route::delete('/article/annuler/{id}', [ArticleController::class, 'annuler'])->name('article.annuler');
+    });
 
-    // SAV
-    Route::get('/sav', [SAVController::class, 'index'])->name('sav.index');
-    Route::get('/sav/lookup-repair', [SAVController::class, 'lookupRepair'])->name('sav.lookup-repair');
-    Route::post('/sav', [SAVController::class, 'store'])->name('sav.store');
-    Route::put('/sav/{id}', [SAVController::class, 'update'])->name('sav.update');
-    Route::delete('/sav/{id}', [SAVController::class, 'destroy'])->name('sav.destroy');
+    // SAV (caissière uniquement)
+    Route::middleware(['role:caissiere,patron'])->group(function () {
+        Route::get('/sav', [SAVController::class, 'index'])->name('sav.index');
+        Route::get('/sav/lookup-repair', [SAVController::class, 'lookupRepair'])->name('sav.lookup-repair');
+        Route::post('/sav', [SAVController::class, 'store'])->name('sav.store');
+        Route::put('/sav/{id}', [SAVController::class, 'update'])->name('sav.update');
+        Route::delete('/sav/{id}', [SAVController::class, 'destroy'])->name('sav.destroy');
+    });
 
     // Stocks (patron only)
     Route::middleware(['role:patron'])->group(function () {
@@ -138,14 +140,16 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
         Route::delete('/boutiques/{id}/utilisateurs', [ShopController::class, 'removeUser'])->name('shops.removeUser');
     });
 
-    // Clients
-    Route::get('/clients', [ClientController::class, 'index'])->name('clients.index');
-    Route::get('/clients/create', [ClientController::class, 'create'])->name('clients.create');
-    Route::post('/clients', [ClientController::class, 'store'])->name('clients.store');
-    Route::get('/clients/{id}', [ClientController::class, 'show'])->name('clients.show');
-    Route::get('/clients/{id}/edit', [ClientController::class, 'edit'])->name('clients.edit');
-    Route::put('/clients/{id}', [ClientController::class, 'update'])->name('clients.update');
-    Route::post('/clients/{id}/remboursement', [ClientController::class, 'remboursement'])->name('clients.remboursement');
+    // Clients (caissière uniquement)
+    Route::middleware(['role:caissiere,patron'])->group(function () {
+        Route::get('/clients', [ClientController::class, 'index'])->name('clients.index');
+        Route::get('/clients/create', [ClientController::class, 'create'])->name('clients.create');
+        Route::post('/clients', [ClientController::class, 'store'])->name('clients.store');
+        Route::get('/clients/{id}', [ClientController::class, 'show'])->name('clients.show');
+        Route::get('/clients/{id}/edit', [ClientController::class, 'edit'])->name('clients.edit');
+        Route::put('/clients/{id}', [ClientController::class, 'update'])->name('clients.update');
+        Route::post('/clients/{id}/remboursement', [ClientController::class, 'remboursement'])->name('clients.remboursement');
+    });
     Route::middleware(['role:patron'])->group(function () {
         Route::post('/clients/{id}/lier-compte', [ClientController::class, 'lierCompte'])->name('clients.lier-compte');
         Route::post('/clients/{id}/delier-compte', [ClientController::class, 'delierCompte'])->name('clients.delier-compte');
@@ -185,15 +189,19 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
         Route::get('/factures-fournisseurs/{id}/imprimer', [PurchaseInvoiceController::class, 'print'])->name('purchase-invoices.print');
     });
 
-    // Factures
-    Route::get('/factures', [InvoiceController::class, 'index'])->name('invoices.index');
-    Route::post('/reparations/{repairId}/facture', [InvoiceController::class, 'creerDepuisReparation'])->name('invoices.create-from-repair');
-    Route::get('/factures/{id}', [InvoiceController::class, 'show'])->name('invoices.show');
-    Route::post('/factures/{id}/paiement', [InvoiceController::class, 'paiementFinal'])->name('invoices.paiement');
-    Route::get('/factures/{id}/imprimer', [InvoiceController::class, 'print'])->name('invoices.print');
+    // Factures (caissière uniquement)
+    Route::middleware(['role:caissiere,patron'])->group(function () {
+        Route::get('/factures', [InvoiceController::class, 'index'])->name('invoices.index');
+        Route::post('/reparations/{repairId}/facture', [InvoiceController::class, 'creerDepuisReparation'])->name('invoices.create-from-repair');
+        Route::get('/factures/{id}', [InvoiceController::class, 'show'])->name('invoices.show');
+        Route::post('/factures/{id}/paiement', [InvoiceController::class, 'paiementFinal'])->name('invoices.paiement');
+        Route::get('/factures/{id}/imprimer', [InvoiceController::class, 'print'])->name('invoices.print');
+    });
 
-    // Crédit revendeurs
-    Route::get('/credits', [CreditController::class, 'index'])->name('credit.index');
+    // Crédit revendeurs (caissière uniquement)
+    Route::middleware(['role:caissiere,patron'])->group(function () {
+        Route::get('/credits', [CreditController::class, 'index'])->name('credit.index');
+    });
 
     // Profile
     Route::put('/profil', [UserController::class, 'updateProfile'])->name('profile.update');
@@ -246,9 +254,11 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
     Route::post('/garanties/{id}/utiliser', [WarrantyController::class, 'utiliser'])->name('warranties.utiliser');
     Route::get('/garanties/{id}/imprimer', [WarrantyController::class, 'print'])->name('warranties.print');
 
-    // Étiquettes QR code
-    Route::get('/reparations/{id}/etiquette', [QrLabelController::class, 'repair'])->name('qr.repair');
-    Route::post('/reparations/etiquettes-lot', [QrLabelController::class, 'repairsBatch'])->name('qr.batch');
+    // Étiquettes QR code (caissière uniquement)
+    Route::middleware(['role:caissiere,patron'])->group(function () {
+        Route::get('/reparations/{id}/etiquette', [QrLabelController::class, 'repair'])->name('qr.repair');
+        Route::post('/reparations/etiquettes-lot', [QrLabelController::class, 'repairsBatch'])->name('qr.batch');
+    });
 
     // Config SMS (patron only)
     Route::middleware(['role:patron'])->group(function () {
@@ -309,21 +319,22 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
         Route::post('/relances/{id}/relancer', [RelanceController::class, 'relancer'])->name('relances.relancer');
     });
 
-    // Photos réparation
+    // Photos réparation (stockées dans storage/app/repairs — accès authentifié uniquement)
     Route::post('/reparations/{id}/photos', [RepairPhotoController::class, 'store'])->name('repair-photos.store');
+    Route::get('/photos/{photoId}', [RepairPhotoController::class, 'serve'])->name('repair-photos.serve');
     Route::delete('/photos/{photoId}', [RepairPhotoController::class, 'destroy'])->name('repair-photos.destroy');
 
-    // Transferts intra-boutique
-    Route::get('/transferts', [StockTransferController::class, 'index'])->name('transfers.index');
+    // Transferts intra-boutique (caissière uniquement)
+    Route::middleware(['role:caissiere,patron'])->group(function () {
+        Route::get('/transferts', [StockTransferController::class, 'index'])->name('transfers.index');
+        Route::get('/transferts/{id}', [StockTransferController::class, 'show'])->name('transfers.show');
+        Route::post('/transferts/{id}/valider-envoi', [StockTransferController::class, 'validerEnvoi'])->name('transfers.valider-envoi');
+        Route::post('/transferts/{id}/valider-reception', [StockTransferController::class, 'validerReception'])->name('transfers.valider-reception');
+    });
     Route::middleware(['role:patron'])->group(function () {
         Route::get('/transferts/create', [StockTransferController::class, 'create'])->name('transfers.create');
         Route::post('/transferts', [StockTransferController::class, 'store'])->name('transfers.store');
         Route::post('/transferts/{id}/annuler', [StockTransferController::class, 'annuler'])->name('transfers.annuler');
-    });
-    Route::get('/transferts/{id}', [StockTransferController::class, 'show'])->name('transfers.show');
-    Route::middleware(['role:caissiere,patron'])->group(function () {
-        Route::post('/transferts/{id}/valider-envoi', [StockTransferController::class, 'validerEnvoi'])->name('transfers.valider-envoi');
-        Route::post('/transferts/{id}/valider-reception', [StockTransferController::class, 'validerReception'])->name('transfers.valider-reception');
     });
 });
 

@@ -3,7 +3,7 @@
 @section('page-title', 'Liste des Réparations')
 
 @section('content')
-<div class="space-y-6 p-4 sm:p-6 bg-white rounded-xl shadow-2xl" x-data="listeReparations()">
+<div class="space-y-6 p-4 sm:p-6 bg-white rounded-xl shadow-2xl">
     <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
         <h1 class="text-2xl font-bold text-gray-800">Liste de Toutes les Réparations</h1>
         <a href="{{ route('reparations.export.csv') }}" class="inline-flex items-center px-4 py-2 text-sm border rounded-md hover:bg-gray-50">
@@ -12,54 +12,53 @@
     </div>
 
     {{-- Filters --}}
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+    <form method="GET" action="{{ route('reparations.liste') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
         <div>
             <label class="text-sm font-medium text-gray-700">Rechercher</label>
             <div class="relative mt-1">
                 <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                <input type="text" x-model="search" placeholder="Client, Appareil, N°..."
+                <input type="text" name="search" value="{{ $search }}" placeholder="Client, Appareil, N°..."
                        class="pl-10 w-full text-sm py-2 border-gray-300 rounded-md border px-3">
             </div>
         </div>
         <div>
             <label class="text-sm font-medium text-gray-700">Type</label>
-            <select x-model="filterType" class="w-full mt-1 text-sm py-2 border-gray-300 rounded-md border px-3">
-                <option value="all">Tous les types</option>
-                <option value="place">Sur Place</option>
-                <option value="rdv">Sur RDV</option>
+            <select name="type" class="w-full mt-1 text-sm py-2 border-gray-300 rounded-md border px-3">
+                <option value="">Tous les types</option>
+                <option value="place" {{ $type === 'place' ? 'selected' : '' }}>Sur Place</option>
+                <option value="rdv"   {{ $type === 'rdv'   ? 'selected' : '' }}>Sur RDV</option>
             </select>
         </div>
         <div>
             <label class="text-sm font-medium text-gray-700">Statut</label>
-            <select x-model="filterStatut" class="w-full mt-1 text-sm py-2 border-gray-300 rounded-md border px-3">
-                <option value="all">Tous les statuts</option>
-                <option value="En attente">En attente</option>
-                <option value="En cours">En cours</option>
-                <option value="Terminé">Terminé</option>
-                <option value="Annulé">Annulé</option>
+            <select name="statut" class="w-full mt-1 text-sm py-2 border-gray-300 rounded-md border px-3">
+                <option value="">Tous les statuts</option>
+                @foreach(['En attente','En cours','Terminé','Annulé'] as $s)
+                    <option value="{{ $s }}" {{ $statut === $s ? 'selected' : '' }}>{{ $s }}</option>
+                @endforeach
             </select>
         </div>
-    </div>
+        <div class="flex items-end gap-2">
+            <button type="submit" class="flex-1 px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                <i class="fas fa-filter mr-1"></i> Filtrer
+            </button>
+            <a href="{{ route('reparations.liste') }}" class="px-3 py-2 text-sm border rounded-md hover:bg-gray-100" title="Réinitialiser">
+                <i class="fas fa-times"></i>
+            </a>
+        </div>
+    </form>
 
     {{-- Table --}}
     <div class="overflow-x-auto bg-white rounded-lg shadow-md">
         <table class="w-full">
             <thead class="bg-gradient-to-r from-slate-100 to-gray-100">
                 <tr>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-200" @click="sort('numeroReparation')">
-                        N° Réparation <span x-text="sortIndicator('numeroReparation')"></span>
-                    </th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">N° Réparation</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-200" @click="sort('client_nom')">
-                        Client <span x-text="sortIndicator('client_nom')"></span>
-                    </th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Appareil</th>
-                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-200" @click="sort('total_reparation')">
-                        Total (fcfa) <span x-text="sortIndicator('total_reparation')"></span>
-                    </th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-200" @click="sort('date_creation')">
-                        Date <span x-text="sortIndicator('date_creation')"></span>
-                    </th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total (fcfa)</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Récupéré ?</th>
                     <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -67,9 +66,7 @@
             </thead>
             <tbody class="divide-y divide-gray-200">
                 @forelse($repairs as $repair)
-                <tr class="hover:bg-gray-50 transition-colors"
-                    x-show="matchFilter('{{ addslashes($repair->type_reparation) }}', '{{ addslashes($repair->statut_reparation) }}', '{{ addslashes($repair->client_nom) }}', '{{ addslashes($repair->appareil_marque_modele) }}', '{{ addslashes($repair->numeroReparation) }}')"
-                    x-cloak>
+                <tr class="hover:bg-gray-50 transition-colors">
                     <td class="px-4 py-3 text-sm font-medium text-blue-600">
                         <a href="{{ route('reparations.show', $repair->id) }}" class="hover:underline">{{ $repair->numeroReparation }}</a>
                     </td>
@@ -131,7 +128,7 @@
                 <tr>
                     <td colspan="9" class="px-4 py-10 text-center text-gray-500">
                         <i class="fas fa-list text-4xl mb-2 block text-gray-300"></i>
-                        Aucune réparation enregistrée.
+                        Aucune réparation trouvée.
                     </td>
                 </tr>
                 @endforelse
@@ -143,39 +140,4 @@
         {{ $repairs->links() }}
     </div>
 </div>
-
-@push('scripts')
-<script>
-function listeReparations() {
-    return {
-        search: '',
-        filterType: 'all',
-        filterStatut: 'all',
-        sortKey: 'date_creation',
-        sortDir: 'desc',
-        sort(key) {
-            if (this.sortKey === key) {
-                this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
-            } else {
-                this.sortKey = key;
-                this.sortDir = 'asc';
-            }
-        },
-        sortIndicator(key) {
-            if (this.sortKey !== key) return '';
-            return this.sortDir === 'asc' ? '▲' : '▼';
-        },
-        matchFilter(type, statut, client, appareil, numero) {
-            if (this.filterType !== 'all' && type !== this.filterType) return false;
-            if (this.filterStatut !== 'all' && statut !== this.filterStatut) return false;
-            if (this.search) {
-                const s = this.search.toLowerCase();
-                if (!client.toLowerCase().includes(s) && !appareil.toLowerCase().includes(s) && !numero.toLowerCase().includes(s)) return false;
-            }
-            return true;
-        }
-    };
-}
-</script>
-@endpush
 @endsection
