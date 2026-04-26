@@ -43,13 +43,25 @@ class CashSessionController extends Controller
 
     public function show(Request $request, string $id)
     {
-        $session = CashSession::with(['sales.stock', 'invoices.repair', 'user'])->findOrFail($id);
+        $session = CashSession::withoutGlobalScopes()
+            ->with(['sales.stock', 'invoices.repair', 'user'])
+            ->findOrFail($id);
+
+        // Vérifier l'accès : patron voit tout, caissière/technicien seulement sa boutique
+        $user   = $request->attributes->get('user');
+        $shopId = $request->attributes->get('shopId');
+        if ($user->role !== 'patron' && $session->shopId !== $shopId) {
+            abort(403, 'Accès refusé à cette session de caisse.');
+        }
+
         return view('cash-sessions.show', compact('session'));
     }
 
     public function zReport(string $id)
     {
-        $session = CashSession::with(['sales.stock', 'invoices.repair.client', 'user'])->findOrFail($id);
+        $session = CashSession::withoutGlobalScopes()
+            ->with(['sales.stock', 'invoices.repair.client', 'user'])
+            ->findOrFail($id);
 
         $ventesComptant    = $session->sales->where('mode_paiement', 'comptant');
         $ventesCredit      = $session->sales->where('mode_paiement', 'credit');
