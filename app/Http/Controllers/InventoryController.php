@@ -20,8 +20,13 @@ class InventoryController extends Controller
 
     public function ouvrir(Request $request)
     {
-        $shopId = $request->attributes->get('shopId');
+        $shopId = $request->attributes->get('shopId')
+            ?? $request->input('shop_id'); // patron passe shop_id dans le formulaire
         $user   = $request->attributes->get('user');
+
+        if (!$shopId) {
+            return back()->with('error', 'Veuillez sélectionner une boutique.');
+        }
 
         $validated = $request->validate([
             'notes' => ['nullable', 'string', 'max:500'],

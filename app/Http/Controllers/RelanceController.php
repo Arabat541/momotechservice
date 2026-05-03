@@ -13,7 +13,7 @@ class RelanceController extends Controller
     {
         $shopId = $request->attributes->get('shopId');
 
-        $repairs = Repair::where('shopId', $shopId)
+        $repairs = Repair::query()
             ->where('statut_reparation', 'Terminé')
             ->whereNull('date_retrait')
             ->orderBy('date_terminee')
@@ -25,7 +25,7 @@ class RelanceController extends Controller
     public function relancer(Request $request, string $id)
     {
         $shopId = $request->attributes->get('shopId');
-        $repair = Repair::where('id', $id)->where('shopId', $shopId)->firstOrFail();
+        $repair = Repair::findOrFail($id);
 
         if ($repair->date_retrait || $repair->statut_reparation !== 'Terminé') {
             return back()->with('error', 'Cette réparation n\'est pas en attente de récupération.');

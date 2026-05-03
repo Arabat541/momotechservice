@@ -3,9 +3,8 @@
 @section('body')
 @php
     $user = session('user_id') ? \App\Models\User::find(session('user_id')) : null;
-    $role = session('user_role', 'reparateur');
+    $role = session('user_role', 'caissiere');
     $currentShopId = session('current_shop_id');
-    $shops = $role === 'patron' ? \App\Models\Shop::all() : ($user ? $user->shops : collect());
     $currentShop = $currentShopId ? \App\Models\Shop::find($currentShopId) : null;
 
     $menuSections = [
@@ -22,8 +21,7 @@
                 ['label' => 'Nouvelle réparation',    'icon' => 'fa-mobile-screen',   'route' => 'reparations.place',   'roles' => ['caissiere']],
                 ['label' => 'Réparation sur RDV',     'icon' => 'fa-calendar',        'route' => 'reparations.rdv',     'roles' => ['caissiere']],
                 ['label' => 'Liste réparations',      'icon' => 'fa-list',            'route' => 'reparations.liste'],
-                ['label' => 'Planning réparateurs',   'icon' => 'fa-calendar-week',   'route' => 'planning.index'],
-                ['label' => 'Catalogue pannes',       'icon' => 'fa-book-medical',    'route' => 'panne-templates.index', 'roles' => ['patron']],
+['label' => 'Catalogue pannes',       'icon' => 'fa-book-medical',    'route' => 'panne-templates.index', 'roles' => ['patron']],
                 ['label' => 'Relances',               'icon' => 'fa-bell',            'route' => 'relances.index',        'roles' => ['patron','caissiere']],
                 ['label' => 'Appareils abandonnés',   'icon' => 'fa-clock-rotate-left','route' => 'abandons.index',       'roles' => ['patron']],
             ],
@@ -31,11 +29,13 @@
         [
             'title' => 'Ventes & Clients',
             'items' => [
-                ['label' => 'Vente pièce détachée',   'icon' => 'fa-box',             'route' => 'article',          'roles' => ['caissiere','patron']],
-                ['label' => 'Clients',                'icon' => 'fa-users',           'route' => 'clients.index',    'roles' => ['caissiere','patron']],
+                ['label' => 'Vente pièce détachée',   'icon' => 'fa-box',             'route' => 'article',           'roles' => ['caissiere','patron']],
+                ['label' => 'Ventes en attente',      'icon' => 'fa-clock',           'route' => 'pending-sales.index','roles' => ['caissiere']],
+                ['label' => 'Clients',                'icon' => 'fa-users',           'route' => 'clients.index',     'roles' => ['caissiere','patron']],
                 ['label' => 'SAV',                    'icon' => 'fa-shield-halved',   'route' => 'sav.index',        'roles' => ['caissiere','patron']],
                 ['label' => 'Garanties',              'icon' => 'fa-certificate',     'route' => 'warranties.index'],
                 ['label' => 'Crédit revendeurs',      'icon' => 'fa-credit-card',     'route' => 'credit.index',     'roles' => ['caissiere','patron']],
+                ['label' => 'Revendeurs',             'icon' => 'fa-users-gear',      'route' => 'credits.revendeurs','roles' => ['caissiere','patron']],
             ],
         ],
         [
@@ -58,10 +58,18 @@
             ],
         ],
         [
+            'title' => 'Rapports',
+            'items' => [
+                ['label' => 'Rapport ventes',         'icon' => 'fa-chart-column',     'route' => 'reports.ventes',      'roles' => ['patron']],
+                ['label' => 'Rapport réparations',    'icon' => 'fa-screwdriver-wrench','route' => 'reports.reparations', 'roles' => ['patron']],
+                ['label' => 'Rapport stock',          'icon' => 'fa-warehouse',        'route' => 'reports.stock',       'roles' => ['patron']],
+                ['label' => 'Rapport financier',      'icon' => 'fa-coins',            'route' => 'reports.financier',   'roles' => ['patron']],
+            ],
+        ],
+        [
             'title' => 'Administration',
             'items' => [
-                ['label' => 'Compétences répar.',     'icon' => 'fa-user-cog',        'route' => 'skills.index',         'roles' => ['patron']],
-                ['label' => 'Paramètres',             'icon' => 'fa-gear',            'route' => 'parametres',           'roles' => ['patron']],
+['label' => 'Paramètres',             'icon' => 'fa-gear',            'route' => 'parametres',           'roles' => ['patron']],
                 ['label' => 'Double auth. (2FA)',     'icon' => 'fa-shield-alt',      'route' => 'two-factor.show',      'roles' => ['patron']],
             ],
         ],
@@ -85,24 +93,16 @@
                 </button>
             </div>
 
-            {{-- Shop Selector --}}
+            {{-- Boutique label --}}
             <div x-show="sidebarOpen" class="px-4 mb-3">
-                <form action="{{ route('shop.switch') }}" method="POST">
-                    @csrf
-                    <select name="shop_id" onchange="this.form.submit()"
-                            class="w-full text-sm bg-white/20 border-blue-400 text-white rounded-lg px-3 py-2 focus:ring-blue-300">
-                        @foreach($shops as $shop)
-                            <option value="{{ $shop->id }}" {{ $currentShopId === $shop->id ? 'selected' : '' }}
-                                    class="text-gray-800">{{ $shop->nom }}</option>
-                        @endforeach
-                    </select>
-                </form>
-                @if($role === 'patron')
-                    <button onclick="document.getElementById('createShopModal').classList.remove('hidden')"
-                            class="mt-2 w-full text-xs text-blue-200 hover:text-white flex items-center justify-center gap-1">
-                        <i class="fas fa-plus"></i> <span x-show="sidebarOpen">Nouvelle boutique</span>
-                    </button>
-                @endif
+                <div class="flex items-center gap-2 bg-white/20 rounded-lg px-3 py-2">
+                    <i class="fas fa-store text-blue-200 text-sm flex-shrink-0"></i>
+                    @if($role === 'patron')
+                        <span class="text-white text-sm font-medium truncate">Toutes les boutiques</span>
+                    @else
+                        <span class="text-white text-sm font-medium truncate">{{ $currentShop?->nom ?? 'Ma boutique' }}</span>
+                    @endif
+                </div>
             </div>
 
             {{-- Navigation --}}
@@ -158,11 +158,201 @@
             {{-- Header bar --}}
             <div class="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <h2 class="text-xl sm:text-2xl font-bold text-gradient">@yield('page-title', 'Tableau de Bord')</h2>
-                <div class="flex items-center space-x-2 bg-white rounded-lg px-3 py-2 shadow border border-gray-200">
-                    <span class="inline-flex w-8 h-8 rounded-full bg-blue-200 text-blue-700 items-center justify-center font-bold text-lg uppercase">
-                        {{ substr(session('user_email', '?'), 0, 1) }}
-                    </span>
-                    <span class="text-sm font-medium text-gray-700">{{ session('user_email') }}</span>
+                <div class="flex items-center gap-3">
+                    {{-- Recherche globale Ctrl+K --}}
+                    <div x-data="globalSearch()" class="relative" @click.outside="open = false">
+                        <div class="relative flex items-center">
+                            <i class="fas fa-magnifying-glass absolute left-3 text-gray-400 text-sm pointer-events-none z-10"></i>
+                            <input
+                                x-ref="searchInput"
+                                x-model="q"
+                                @input="onInput"
+                                @focus="open = q.length >= 2"
+                                @keydown.escape="open = false; $el.blur()"
+                                type="text"
+                                placeholder="Rechercher… (Ctrl+K)"
+                                autocomplete="off"
+                                class="w-64 pl-9 pr-8 py-2 text-sm bg-white border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-400 focus:outline-none placeholder-gray-400"
+                            >
+                            <div x-show="loading" class="absolute right-3 pointer-events-none">
+                                <svg class="animate-spin h-3.5 w-3.5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                                </svg>
+                            </div>
+                            <button x-show="q && !loading" @click="q=''; results=[]; total=0; open=false; $refs.searchInput.focus()"
+                                    class="absolute right-3 text-gray-400 hover:text-gray-600 transition-colors">
+                                <i class="fas fa-times text-xs"></i>
+                            </button>
+                        </div>
+
+                        {{-- Dropdown résultats --}}
+                        <div x-show="open && q.length >= 2"
+                             x-transition:enter="transition ease-out duration-100"
+                             x-transition:enter-start="opacity-0 scale-95"
+                             x-transition:enter-end="opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-75"
+                             x-transition:leave-start="opacity-100 scale-100"
+                             x-transition:leave-end="opacity-0 scale-95"
+                             class="absolute right-0 mt-1 w-96 bg-white rounded-xl shadow-xl border border-gray-200 z-50 max-h-[28rem] overflow-y-auto"
+                             style="display:none;">
+
+                            {{-- Chargement --}}
+                            <div x-show="loading" class="flex items-center gap-2 px-4 py-4 text-sm text-gray-400">
+                                <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                                </svg>
+                                Recherche en cours…
+                            </div>
+
+                            {{-- Aucun résultat --}}
+                            <div x-show="!loading && total === 0" class="px-4 py-8 text-center text-sm text-gray-400">
+                                <i class="fas fa-magnifying-glass text-2xl mb-2 block text-gray-300"></i>
+                                Aucun résultat pour « <span class="font-medium text-gray-600" x-text="q"></span> »
+                            </div>
+
+                            {{-- Résultats groupés --}}
+                            <template x-if="!loading && total > 0">
+                                <div>
+                                    <template x-for="group in grouped" :key="group.type">
+                                        <div>
+                                            {{-- En-tête groupe --}}
+                                            <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide border-b"
+                                                 :class="typeConfig[group.type].cls">
+                                                <i class="fas mr-1.5" :class="typeConfig[group.type].icon"></i>
+                                                <span x-text="typeConfig[group.type].label"></span>
+                                                <span class="ml-1 opacity-60" x-text="'(' + group.items.length + ')'"></span>
+                                            </div>
+                                            {{-- Items --}}
+                                            <template x-for="item in group.items" :key="item.url">
+                                                <a :href="item.url"
+                                                   class="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 cursor-pointer">
+                                                    <div class="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center"
+                                                         :class="typeConfig[item.type].iconBg">
+                                                        <i class="fas text-xs" :class="'fa-' + item.icon + ' ' + typeConfig[item.type].iconColor"></i>
+                                                    </div>
+                                                    <div class="flex-1 min-w-0">
+                                                        <p class="text-sm font-semibold text-gray-800 truncate" x-text="item.label"></p>
+                                                        <p class="text-xs text-gray-400 truncate" x-text="item.sublabel"></p>
+                                                    </div>
+                                                    <i class="fas fa-chevron-right text-gray-300 text-xs flex-shrink-0"></i>
+                                                </a>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    {{-- Pied dropdown --}}
+                                    <div class="px-4 py-2 bg-gray-50 border-t border-gray-100 text-xs text-gray-400 flex justify-between">
+                                        <span x-text="total + ' résultat' + (total > 1 ? 's' : '')"></span>
+                                        <span>↵ pour naviguer · Échap pour fermer</span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    {{-- Cloche notifications --}}
+                    <div x-data="{ bellOpen: false }" class="relative">
+                        <button @click="bellOpen = !bellOpen"
+                                class="relative flex items-center justify-center w-10 h-10 bg-white rounded-lg shadow border border-gray-200 text-gray-600 hover:text-blue-600 hover:border-blue-300 transition-colors">
+                            <i class="fas fa-bell text-base"></i>
+                            @if(($notifCount ?? 0) > 0)
+                            <span class="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 leading-none">
+                                {{ ($notifCount ?? 0) > 9 ? '9+' : ($notifCount ?? 0) }}
+                            </span>
+                            @endif
+                        </button>
+
+                        {{-- Dropdown --}}
+                        <div x-show="bellOpen"
+                             @click.away="bellOpen = false"
+                             x-transition:enter="transition ease-out duration-150"
+                             x-transition:enter-start="opacity-0 scale-95"
+                             x-transition:enter-end="opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-100"
+                             x-transition:leave-start="opacity-100 scale-100"
+                             x-transition:leave-end="opacity-0 scale-95"
+                             class="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden"
+                             style="display:none;">
+                            {{-- Header dropdown --}}
+                            <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+                                <span class="text-sm font-semibold text-gray-700">
+                                    Notifications
+                                    @if(($notifCount ?? 0) > 0)
+                                    <span class="ml-1 px-1.5 py-0.5 bg-red-100 text-red-700 text-xs rounded-full font-bold">{{ $notifCount ?? 0 }}</span>
+                                    @endif
+                                </span>
+                                @if(($notifCount ?? 0) > 0)
+                                <form action="{{ route('notifications.read-all') }}" method="POST">
+                                    @csrf
+                                    <button type="submit" class="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                                        Tout marquer lu
+                                    </button>
+                                </form>
+                                @endif
+                            </div>
+
+                            {{-- Liste --}}
+                            <div class="divide-y divide-gray-100 max-h-80 overflow-y-auto">
+                                @forelse($notifications ?? [] as $notif)
+                                @php
+                                    $borderColor = match($notif->type) {
+                                        'stock_alerte'    => 'border-orange-400',
+                                        'reparation_prete'=> 'border-green-400',
+                                        'credit_depasse'  => 'border-red-400',
+                                        default           => 'border-gray-300',
+                                    };
+                                    $iconClass = match($notif->type) {
+                                        'stock_alerte'    => 'fa-triangle-exclamation text-orange-500',
+                                        'reparation_prete'=> 'fa-check-circle text-green-500',
+                                        'credit_depasse'  => 'fa-credit-card text-red-500',
+                                        default           => 'fa-bell text-gray-400',
+                                    };
+                                    $bgColor = $notif->lu_at ? 'bg-white' : 'bg-blue-50';
+                                @endphp
+                                <div class="flex gap-3 px-4 py-3 {{ $bgColor }} border-l-4 {{ $borderColor }} hover:bg-gray-50 transition-colors">
+                                    <div class="flex-shrink-0 mt-0.5">
+                                        <i class="fas {{ $iconClass }} text-sm"></i>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-semibold text-gray-800 truncate">{{ $notif->titre }}</p>
+                                        <p class="text-xs text-gray-500 mt-0.5 truncate">{{ $notif->message }}</p>
+                                        <p class="text-xs text-gray-400 mt-1">{{ \Carbon\Carbon::parse($notif->created_at)->diffForHumans() }}</p>
+                                    </div>
+                                    @if(!$notif->lu_at)
+                                    <form action="{{ route('notifications.read', $notif->id) }}" method="POST" class="flex-shrink-0">
+                                        @csrf
+                                        <button type="submit" title="Marquer lu" class="text-gray-300 hover:text-blue-500 transition-colors mt-1">
+                                            <i class="fas fa-circle-check text-sm"></i>
+                                        </button>
+                                    </form>
+                                    @endif
+                                </div>
+                                @empty
+                                <div class="px-4 py-8 text-center text-gray-400 text-sm">
+                                    <i class="fas fa-bell-slash text-2xl mb-2 block"></i>
+                                    Aucune nouvelle notification
+                                </div>
+                                @endforelse
+                            </div>
+
+                            {{-- Footer --}}
+                            <div class="px-4 py-3 bg-gray-50 border-t border-gray-200 text-center">
+                                <a href="{{ route('notifications.index') }}"
+                                   class="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                                    Voir toutes les notifications →
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Avatar --}}
+                    <div class="flex items-center space-x-2 bg-white rounded-lg px-3 py-2 shadow border border-gray-200">
+                        <span class="inline-flex w-8 h-8 rounded-full bg-blue-200 text-blue-700 items-center justify-center font-bold text-lg uppercase">
+                            {{ substr(session('user_email', '?'), 0, 1) }}
+                        </span>
+                        <span class="text-sm font-medium text-gray-700">{{ session('user_email') }}</span>
+                    </div>
                 </div>
             </div>
 
@@ -228,5 +418,76 @@
         const flash = document.getElementById('flash-success');
         if (flash) flash.remove();
     }, 5000);
+
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('globalSearch', () => ({
+            q: '',
+            results: [],
+            total: 0,
+            loading: false,
+            open: false,
+            _timer: null,
+
+            typeConfig: {
+                reparation:  { label: 'Réparations',  cls: 'bg-blue-50 text-blue-700 border-blue-100',     icon: 'fa-wrench',        iconBg: 'bg-blue-100',   iconColor: 'text-blue-600'   },
+                client:      { label: 'Clients',       cls: 'bg-purple-50 text-purple-700 border-purple-100',icon: 'fa-user',          iconBg: 'bg-purple-100', iconColor: 'text-purple-600' },
+                stock:       { label: 'Articles',      cls: 'bg-orange-50 text-orange-700 border-orange-100',icon: 'fa-cube',          iconBg: 'bg-orange-100', iconColor: 'text-orange-600' },
+                fournisseur: { label: 'Fournisseurs',  cls: 'bg-gray-100 text-gray-600 border-gray-200',    icon: 'fa-truck',         iconBg: 'bg-gray-100',   iconColor: 'text-gray-500'   },
+                facture:     { label: 'Factures',      cls: 'bg-green-50 text-green-700 border-green-100',  icon: 'fa-file-invoice',  iconBg: 'bg-green-100',  iconColor: 'text-green-600'  },
+            },
+
+            get grouped() {
+                const order = ['reparation', 'client', 'stock', 'fournisseur', 'facture'];
+                const map = {};
+                for (const r of this.results) {
+                    if (!map[r.type]) map[r.type] = [];
+                    map[r.type].push(r);
+                }
+                return order.filter(t => map[t]).map(t => ({ type: t, items: map[t] }));
+            },
+
+            init() {
+                window.addEventListener('keydown', (e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                        e.preventDefault();
+                        this.$refs.searchInput.focus();
+                        if (this.q.length >= 2) this.open = true;
+                    }
+                    if (e.key === 'Escape' && this.open) {
+                        this.open = false;
+                        this.$refs.searchInput.blur();
+                    }
+                });
+            },
+
+            onInput() {
+                clearTimeout(this._timer);
+                if (this.q.length < 2) {
+                    this.results = [];
+                    this.total   = 0;
+                    this.open    = false;
+                    return;
+                }
+                this._timer = setTimeout(() => this.doSearch(), 300);
+            },
+
+            async doSearch() {
+                this.loading = true;
+                this.open    = true;
+                try {
+                    const res  = await fetch('/dashboard/search?q=' + encodeURIComponent(this.q), {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                    });
+                    const data = await res.json();
+                    this.results = data.results || [];
+                    this.total   = data.total   || 0;
+                } catch (err) {
+                    this.results = [];
+                    this.total   = 0;
+                }
+                this.loading = false;
+            },
+        }));
+    });
 </script>
 @endsection

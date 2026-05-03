@@ -188,7 +188,7 @@
         <div class="bg-white rounded-xl shadow-sm border p-4">
             <h3 class="text-sm font-semibold text-gray-700 mb-4"><i class="fas fa-chart-bar text-blue-500 mr-2"></i>Chiffre d'affaires (6 derniers mois)</h3>
             <div class="space-y-2">
-                @php $maxCA = max(max(array_column($caParMois, 'ca')), 1); @endphp
+                @php $caValues = array_column($caParMois, 'ca'); $maxCA = max(count($caValues) ? max($caValues) : 0, 1); @endphp
                 @foreach($caParMois as $mois)
                 <div class="flex items-center gap-3">
                     <span class="text-xs text-gray-500 w-16 text-right">{{ $mois['mois'] }}</span>

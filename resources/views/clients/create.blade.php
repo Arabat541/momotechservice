@@ -12,6 +12,18 @@
         <form method="POST" action="{{ route('clients.store') }}" class="space-y-5">
             @csrf
 
+            @if(!empty($shops))
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Boutique <span class="text-red-500">*</span></label>
+                <select name="shop_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+                    <option value="">Sélectionner une boutique...</option>
+                    @foreach($shops as $shop)
+                        <option value="{{ $shop->id }}" {{ old('shop_id') == $shop->id ? 'selected' : '' }}>{{ $shop->nom }}</option>
+                    @endforeach
+                </select>
+            </div>
+            @endif
+
             <div class="grid grid-cols-2 gap-4">
                 <div class="col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Nom complet <span class="text-red-500">*</span></label>

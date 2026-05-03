@@ -8,6 +8,14 @@
         <h3 class="text-xl font-semibold text-gray-800">Gestion des stocks</h3>
         <div class="flex items-center gap-3 flex-wrap">
             <form action="{{ route('stocks.index') }}" method="GET" class="flex items-center gap-2 flex-wrap">
+                @if(!$shopId && $shops)
+                <select name="boutique" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+                    <option value="">Toutes les boutiques</option>
+                    @foreach($shops as $s)
+                        <option value="{{ $s->id }}" {{ $filtre === $s->id ? 'selected' : '' }}>{{ $s->nom }}</option>
+                    @endforeach
+                </select>
+                @endif
                 <div class="relative">
                     <input type="text" name="search" value="{{ request('search') }}" placeholder="Rechercher un article..."
                            class="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-56">
@@ -93,10 +101,13 @@
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Article</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantité</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prix d'achat</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prix de vente</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Valeur stock</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bénéfice net attendu</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">PA</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Normal</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Revendeur</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Demi-gros</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gros 10+</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Valeur</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bénéfice</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
                 </thead>
@@ -109,10 +120,19 @@
                                 {{ $item->quantite }}
                             </span>
                         </td>
-                        <td class="px-6 py-4 text-sm text-gray-900">{{ number_format($item->prixAchat, 0, ',', ' ') }} cfa</td>
-                        <td class="px-6 py-4 text-sm text-gray-900">{{ number_format($item->prixVente, 0, ',', ' ') }} cfa</td>
-                        <td class="px-6 py-4 text-sm text-gray-900">{{ number_format($item->quantite * $item->prixVente, 0, ',', ' ') }} cfa</td>
-                        <td class="px-6 py-4 text-sm text-gray-900">{{ number_format(($item->prixVente - $item->prixAchat) * $item->quantite, 0, ',', ' ') }} cfa</td>
+                        <td class="px-6 py-4 text-sm text-gray-500">{{ number_format($item->prixAchat, 0, ',', ' ') }}</td>
+                        <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ number_format($item->prixVente, 0, ',', ' ') }}</td>
+                        <td class="px-6 py-4 text-sm {{ $item->prix_revendeur ? 'text-blue-700' : 'text-gray-300' }}">
+                            {{ $item->prix_revendeur ? number_format($item->prix_revendeur, 0, ',', ' ') : '—' }}
+                        </td>
+                        <td class="px-6 py-4 text-sm {{ $item->prix_demi_gros ? 'text-indigo-700' : 'text-gray-300' }}">
+                            {{ $item->prix_demi_gros ? number_format($item->prix_demi_gros, 0, ',', ' ') : '—' }}
+                        </td>
+                        <td class="px-6 py-4 text-sm {{ $item->prixGros ? 'text-purple-700' : 'text-gray-300' }}">
+                            {{ $item->prixGros ? number_format($item->prixGros, 0, ',', ' ') : '—' }}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-700">{{ number_format($item->quantite * $item->prixVente, 0, ',', ' ') }}</td>
+                        <td class="px-6 py-4 text-sm text-gray-700">{{ number_format(($item->prixVente - $item->prixAchat) * $item->quantite, 0, ',', ' ') }}</td>
                         <td class="px-6 py-4 text-sm space-x-2">
                             <button @click="openReappro({{ $item->toJson() }})"
                                     class="text-green-600 hover:text-green-800 p-1" title="Réapprovisionner">
@@ -156,6 +176,17 @@
             </div>
             <form action="{{ route('stocks.store') }}" method="POST" class="p-6 space-y-4">
                 @csrf
+                @if(!$shopId && $shops)
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Boutique <span class="text-red-500">*</span></label>
+                    <select name="shop_id" required class="w-full border rounded-lg px-3 py-2">
+                        <option value="">-- Sélectionner une boutique --</option>
+                        @foreach($shops as $s)
+                            <option value="{{ $s->id }}" {{ $filtre === $s->id ? 'selected' : '' }}>{{ $s->nom }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Nom de l'article</label>
                     <input type="text" name="nom" required class="w-full border rounded-lg px-3 py-2">
@@ -170,9 +201,29 @@
                            oninput="this.form.querySelector('[name=beneficeNetAttendu]').value = (parseFloat(this.form.querySelector('[name=prixVente]').value || 0) - parseFloat(this.value || 0))">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Prix de vente (cfa)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Prix normal — 1-2 pcs (cfa) <span class="text-red-500">*</span></label>
                     <input type="number" name="prixVente" required step="any" class="w-full border rounded-lg px-3 py-2 no-spinner"
                            oninput="this.form.querySelector('[name=beneficeNetAttendu]').value = (parseFloat(this.value || 0) - parseFloat(this.form.querySelector('[name=prixAchat]').value || 0))">
+                </div>
+                <div class="pt-2 border-t border-gray-100">
+                    <p class="text-xs font-semibold text-purple-700 mb-2 uppercase tracking-wide">Prix revendeur (optionnels)</p>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">1-2 pcs</label>
+                            <input type="number" name="prix_revendeur" step="any" placeholder="—"
+                                   class="w-full border border-blue-200 rounded-lg px-2 py-1.5 text-sm no-spinner">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">3-9 pcs</label>
+                            <input type="number" name="prix_demi_gros" step="any" placeholder="—"
+                                   class="w-full border border-indigo-200 rounded-lg px-2 py-1.5 text-sm no-spinner">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">10+ pcs</label>
+                            <input type="number" name="prixGros" step="any" placeholder="—"
+                                   class="w-full border border-purple-200 rounded-lg px-2 py-1.5 text-sm no-spinner">
+                        </div>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Bénéfice net attendu</label>
@@ -294,9 +345,29 @@
                            @input="editItem.beneficeNetAttendu = editItem.prixVente - editItem.prixAchat">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Prix de vente (cfa)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Prix normal — 1-2 pcs (cfa) <span class="text-red-500">*</span></label>
                     <input type="number" name="prixVente" x-model="editItem.prixVente" required step="any" class="w-full border rounded-lg px-3 py-2 no-spinner"
                            @input="editItem.beneficeNetAttendu = editItem.prixVente - editItem.prixAchat">
+                </div>
+                <div class="pt-2 border-t border-gray-100">
+                    <p class="text-xs font-semibold text-purple-700 mb-2 uppercase tracking-wide">Prix revendeur (optionnels)</p>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">1-2 pcs</label>
+                            <input type="number" name="prix_revendeur" x-model="editItem.prix_revendeur" step="any" placeholder="—"
+                                   class="w-full border border-blue-200 rounded-lg px-2 py-1.5 text-sm no-spinner">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">3-9 pcs</label>
+                            <input type="number" name="prix_demi_gros" x-model="editItem.prix_demi_gros" step="any" placeholder="—"
+                                   class="w-full border border-indigo-200 rounded-lg px-2 py-1.5 text-sm no-spinner">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">10+ pcs</label>
+                            <input type="number" name="prixGros" x-model="editItem.prixGros" step="any" placeholder="—"
+                                   class="w-full border border-purple-200 rounded-lg px-2 py-1.5 text-sm no-spinner">
+                        </div>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Bénéfice net attendu</label>

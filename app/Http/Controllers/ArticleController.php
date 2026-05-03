@@ -101,6 +101,7 @@ class ArticleController extends Controller
                 cashSessionId: $session?->id,
                 modePaiement: $modePaiement,
                 montantPaye: isset($validated['montant_paye']) ? floatval($validated['montant_paye']) : null,
+                clientNom: $validated['client'] ?? null,
             );
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());

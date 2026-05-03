@@ -4,6 +4,7 @@
     "description": "MOMO TECH SERVICE - Application de gestion de réparations",
     "require": {
         "php": "^8.1",
+        "barryvdh/laravel-dompdf": "^3.1",
         "firebase/php-jwt": "^7.0",
         "laravel/framework": "^11.0",
         "laravel/sanctum": "^4.3",

@@ -14,7 +14,7 @@ class AbandonController extends Controller
         $shopId  = $request->attributes->get('shopId');
         $delai   = (int) ($request->query('delai', 30));
 
-        $repairs = Repair::where('shopId', $shopId)
+        $repairs = Repair::query()
             ->where('statut_reparation', 'Terminé')
             ->whereNull('date_retrait')
             ->whereRaw('COALESCE(date_terminee, date_creation) <= ?', [now()->subDays($delai)])
@@ -27,7 +27,7 @@ class AbandonController extends Controller
     public function mettreEnVente(Request $request, string $id)
     {
         $shopId  = $request->attributes->get('shopId');
-        $repair  = Repair::where('id', $id)->where('shopId', $shopId)->firstOrFail();
+        $repair  = Repair::findOrFail($id);
         $user    = $request->attributes->get('user');
 
         if ($repair->date_retrait || $repair->statut_reparation !== 'Terminé') {
@@ -40,10 +40,10 @@ class AbandonController extends Controller
             'categorie'    => 'required|in:telephone,accessoire,piece_detachee,autre',
         ]);
 
-        // Créer un article en stock
+        // Créer un article en stock dans la boutique de la réparation
         Stock::create([
             'id'         => Str::random(25),
-            'shopId'     => $shopId,
+            'shopId'     => $repair->shopId,
             'nom'        => $validated['nom_article'],
             'categorie'  => $validated['categorie'],
             'quantite'   => 1,
@@ -59,7 +59,7 @@ class AbandonController extends Controller
     public function setDateLimite(Request $request, string $id)
     {
         $shopId = $request->attributes->get('shopId');
-        $repair = Repair::where('id', $id)->where('shopId', $shopId)->firstOrFail();
+        $repair = Repair::findOrFail($id);
 
         $validated = $request->validate([
             'date_limite_recuperation' => 'required|date|after:today',

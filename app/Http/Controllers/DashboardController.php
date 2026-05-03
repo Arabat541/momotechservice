@@ -16,7 +16,7 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
-        $role  = session('user_role', 'reparateur');
+        $role  = session('user_role', 'caissiere');
         $user  = User::find(session('user_id'));
         $today = Carbon::today();
 

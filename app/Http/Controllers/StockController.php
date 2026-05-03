@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Reapprovisionnement;
+use App\Models\Shop;
 use App\Models\Stock;
 use App\Services\StockService;
 use Illuminate\Http\Request;
@@ -13,8 +14,14 @@ class StockController extends Controller
 
     public function index(Request $request)
     {
-        $shopId = $request->attributes->get('shopId');
-        $query  = Stock::where('shopId', $shopId);
+        $shopId  = $request->attributes->get('shopId');
+        $filtre  = $shopId ?? $request->input('boutique'); // patron peut filtrer par boutique
+        $query   = Stock::query();
+        $shops   = $shopId ? null : Shop::orderBy('nom')->get(); // pour le sélecteur patron
+
+        if ($filtre) {
+            $query->where('shopId', $filtre);
+        }
 
         if ($search = $request->input('search')) {
             $search  = substr($search, 0, 100);
@@ -32,7 +39,8 @@ class StockController extends Controller
 
         $stocks = $query->orderBy('nom')->paginate(20)->withQueryString();
 
-        $statsRaw = Stock::where('shopId', $shopId)
+        $statsRaw = Stock::query()
+            ->when($filtre, fn($q) => $q->where('shopId', $filtre))
             ->selectRaw('
                 COUNT(*) as articles,
                 SUM(quantite * prixVente) as valeur,
@@ -46,22 +54,29 @@ class StockController extends Controller
         $statsBenefice    = $statsRaw->benefice     ?? 0;
         $statsStockFaible = $statsRaw->stock_faible ?? 0;
 
-        return view('dashboard.stocks', compact('stocks', 'statsArticles', 'statsValeur', 'statsStockFaible', 'statsBenefice'));
+        return view('dashboard.stocks', compact(
+            'stocks', 'statsArticles', 'statsValeur', 'statsStockFaible', 'statsBenefice',
+            'shops', 'shopId', 'filtre'
+        ));
     }
 
     public function store(Request $request)
     {
-        $shopId = $request->attributes->get('shopId');
+        $shopId = $request->attributes->get('shopId')
+            ?? $request->input('shop_id'); // patron passe shop_id dans le formulaire
 
         if (!$shopId) {
-            return back()->with('error', 'Aucune boutique sélectionnée.');
+            return back()->with('error', 'Veuillez sélectionner une boutique.');
         }
 
         $validated = $request->validate([
-            'nom'       => 'required|string|max:255',
-            'quantite'  => 'required|integer|min:0|max:9999999',
-            'prixAchat' => 'required|numeric|min:0|max:99999999',
-            'prixVente' => 'required|numeric|min:0|max:99999999',
+            'nom'            => 'required|string|max:255',
+            'quantite'       => 'required|integer|min:0|max:9999999',
+            'prixAchat'      => 'required|numeric|min:0|max:99999999',
+            'prixVente'      => 'required|numeric|min:0|max:99999999',
+            'prix_revendeur' => 'nullable|numeric|min:0|max:99999999',
+            'prix_demi_gros' => 'nullable|numeric|min:0|max:99999999',
+            'prixGros'       => 'nullable|numeric|min:0|max:99999999',
         ]);
 
         Stock::create([
@@ -70,6 +85,9 @@ class StockController extends Controller
             'quantite'           => $validated['quantite'],
             'prixAchat'          => $validated['prixAchat'],
             'prixVente'          => $validated['prixVente'],
+            'prix_revendeur'     => $validated['prix_revendeur'] ?: null,
+            'prix_demi_gros'     => $validated['prix_demi_gros'] ?: null,
+            'prixGros'           => $validated['prixGros'] ?: null,
             'beneficeNetAttendu' => $validated['prixVente'] - $validated['prixAchat'],
         ]);
 
@@ -78,14 +96,16 @@ class StockController extends Controller
 
     public function update(Request $request, string $id)
     {
-        $shopId = $request->attributes->get('shopId');
-        $stock  = Stock::where('id', $id)->where('shopId', $shopId)->firstOrFail();
+        $stock = Stock::findOrFail($id);
 
         $validated = $request->validate([
-            'nom'       => 'required|string|max:255',
-            'quantite'  => 'required|integer|min:0|max:9999999',
-            'prixAchat' => 'required|numeric|min:0|max:99999999',
-            'prixVente' => 'required|numeric|min:0|max:99999999',
+            'nom'            => 'required|string|max:255',
+            'quantite'       => 'required|integer|min:0|max:9999999',
+            'prixAchat'      => 'required|numeric|min:0|max:99999999',
+            'prixVente'      => 'required|numeric|min:0|max:99999999',
+            'prix_revendeur' => 'nullable|numeric|min:0|max:99999999',
+            'prix_demi_gros' => 'nullable|numeric|min:0|max:99999999',
+            'prixGros'       => 'nullable|numeric|min:0|max:99999999',
         ]);
 
         $stock->update([
@@ -93,6 +113,9 @@ class StockController extends Controller
             'quantite'           => $validated['quantite'],
             'prixAchat'          => $validated['prixAchat'],
             'prixVente'          => $validated['prixVente'],
+            'prix_revendeur'     => $validated['prix_revendeur'] ?: null,
+            'prix_demi_gros'     => $validated['prix_demi_gros'] ?: null,
+            'prixGros'           => $validated['prixGros'] ?: null,
             'beneficeNetAttendu' => $validated['prixVente'] - $validated['prixAchat'],
         ]);
 
@@ -101,9 +124,7 @@ class StockController extends Controller
 
     public function destroy(Request $request, string $id)
     {
-        $shopId = $request->attributes->get('shopId');
-        Stock::where('id', $id)->where('shopId', $shopId)->firstOrFail()->delete();
-
+        Stock::findOrFail($id)->delete();
         return back()->with('success', 'Article supprimé.');
     }
 
@@ -116,14 +137,13 @@ class StockController extends Controller
             'note'              => 'nullable|string|max:500',
         ]);
 
-        $shopId = $request->attributes->get('shopId');
-        $stock  = Stock::where('id', $id)->where('shopId', $shopId)->firstOrFail();
+        $stock = Stock::findOrFail($id);
 
         $stock = $this->stockService->reapprovisionner(
             $stock,
             $validated['quantite'],
             $validated['prixAchatUnitaire'],
-            $shopId,
+            $stock->shopId,
             $validated['fournisseur'] ?? null,
             $validated['note'] ?? null,
         );
@@ -134,10 +154,9 @@ class StockController extends Controller
 
     public function historiqueReappro(Request $request, string $id)
     {
-        $shopId    = $request->attributes->get('shopId');
-        $stock     = Stock::where('id', $id)->where('shopId', $shopId)->firstOrFail();
+        $stock     = Stock::findOrFail($id);
         $historique = Reapprovisionnement::where('stockId', $id)
-            ->where('shopId', $shopId)
+            ->where('shopId', $stock->shopId)
             ->orderBy('date', 'desc')
             ->get();
 

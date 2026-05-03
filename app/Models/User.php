@@ -32,11 +32,6 @@ class User extends Authenticatable
         return $this->belongsToMany(Shop::class, '_user_shops', 'A', 'B');
     }
 
-    public function skills()
-    {
-        return $this->hasMany(TechnicianSkill::class, 'user_id');
-    }
-
     public function client()
     {
         return $this->hasOne(Client::class, 'user_id');

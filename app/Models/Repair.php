@@ -23,7 +23,8 @@ class Repair extends BaseModel
         'statut_reparation', 'date_creation', 'date_mise_en_reparation',
         'date_rendez_vous', 'date_retrait', 'etat_paiement', 'userId',
         'client_id', 'cash_session_id', 'notes_technicien', 'assigned_to',
-        'date_terminee', 'relance_count', 'derniere_relance',
+        'date_terminee', 'date_pret_retrait', 'date_irreparable',
+        'relance_count', 'derniere_relance',
         'mis_en_vente', 'date_limite_recuperation',
     ];
 
@@ -38,6 +39,8 @@ class Repair extends BaseModel
         'date_rendez_vous'         => 'datetime',
         'date_retrait'             => 'datetime',
         'date_terminee'             => 'datetime',
+        'date_pret_retrait'         => 'datetime',
+        'date_irreparable'          => 'datetime',
         'derniere_relance'          => 'datetime',
         'date_limite_recuperation'  => 'date',
         'mis_en_vente'              => 'boolean',

@@ -33,7 +33,7 @@
             <label class="text-sm font-medium text-gray-700">Statut</label>
             <select name="statut" class="w-full mt-1 text-sm py-2 border-gray-300 rounded-md border px-3">
                 <option value="">Tous les statuts</option>
-                @foreach(['En attente','En cours','Terminé','Annulé'] as $s)
+                @foreach($allStatuts as $s)
                     <option value="{{ $s }}" {{ $statut === $s ? 'selected' : '' }}>{{ $s }}</option>
                 @endforeach
             </select>
@@ -87,11 +87,8 @@
                             @csrf
                             @method('PUT')
                             <select name="statut_reparation" onchange="this.form.submit()"
-                                    class="text-xs py-1 px-2 rounded-md border
-                                    {{ $repair->statut_reparation === 'Terminé' ? 'bg-green-100 text-green-800 border-green-200' :
-                                       (in_array($repair->statut_reparation, ['En cours', 'En attente']) ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
-                                       'bg-red-100 text-red-800 border-red-200') }}">
-                                @foreach(['En attente', 'En cours', 'Terminé', 'Annulé'] as $s)
+                                    class="text-xs py-1 px-2 rounded-md border {{ $repairSvc->badgeClasses($repair->statut_reparation) }}">
+                                @foreach($allStatuts as $s)
                                     <option value="{{ $s }}" {{ $repair->statut_reparation === $s ? 'selected' : '' }}>{{ $s }}</option>
                                 @endforeach
                             </select>

@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\DB;
 
 class StockService
 {
+    public function __construct(private NotificationService $notificationService) {}
+
     public function calculateCMP(int $ancienneQuantite, float $ancienPrix, int $nouvelleQte, float $nouveauPrix): float
     {
         $total = $ancienneQuantite + $nouvelleQte;
@@ -19,7 +21,7 @@ class StockService
 
     public function reapprovisionner(Stock $stock, int $qte, float $prixUnitaire, string $shopId, ?string $fournisseur, ?string $note): Stock
     {
-        return DB::transaction(function () use ($stock, $qte, $prixUnitaire, $shopId, $fournisseur, $note) {
+        $fresh = DB::transaction(function () use ($stock, $qte, $prixUnitaire, $shopId, $fournisseur, $note) {
             $ancienneQte   = $stock->quantite;
             $ancienPrix    = $stock->prixAchat;
             $nouvelleQte   = $ancienneQte + $qte;
@@ -46,5 +48,9 @@ class StockService
 
             return $stock->fresh();
         });
+
+        $this->notificationService->notifierStockAlerte($fresh);
+
+        return $fresh;
     }
 }

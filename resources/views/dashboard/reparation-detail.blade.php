@@ -7,9 +7,14 @@
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <h1 class="text-xl font-bold text-gray-800">{{ $repair->numeroReparation }}</h1>
-            <span class="px-2 py-0.5 text-xs font-semibold rounded-full {{ $repair->type_reparation === 'place' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700' }}">
-                {{ $repair->type_reparation === 'place' ? 'Sur Place' : 'Sur RDV' }}
-            </span>
+            <div class="flex items-center gap-2 mt-1">
+                <span class="px-2 py-0.5 text-xs font-semibold rounded-full {{ $repair->type_reparation === 'place' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700' }}">
+                    {{ $repair->type_reparation === 'place' ? 'Sur Place' : 'Sur RDV' }}
+                </span>
+                <span class="px-2 py-0.5 text-xs font-semibold rounded-full border {{ $repairSvc->badgeClasses($repair->statut_reparation) }}">
+                    {{ $repair->statut_reparation }}
+                </span>
+            </div>
         </div>
         <div class="flex items-center gap-2">
             @if(in_array(session('user_role'), ['caissiere', 'patron']))
@@ -37,8 +42,8 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {{-- ── CAISSIÈRE / PATRON : formulaire administratif ── --}}
-        @if(in_array(session('user_role'), ['caissiere', 'patron']))
+        {{-- ── CAISSIÈRE uniquement : formulaire administratif ── --}}
+        @if(session('user_role') === 'caissiere')
         <form action="{{ route('reparations.update', $repair->id) }}" method="POST" class="space-y-4">
             @csrf
             @method('PUT')
@@ -70,7 +75,7 @@
                 <div>
                     <label class="text-sm font-medium text-gray-600">Statut</label>
                     <select name="statut_reparation" class="w-full text-sm py-2 border-gray-300 rounded-md px-3 border">
-                        @foreach(['En attente', 'En cours', 'Terminé', 'Récupéré', 'Annulé'] as $s)
+                        @foreach($allStatuts as $s)
                             <option value="{{ $s }}" {{ $repair->statut_reparation === $s ? 'selected' : '' }}>{{ $s }}</option>
                         @endforeach
                     </select>
@@ -99,8 +104,8 @@
         </form>
         @endif
 
-        {{-- ── RÉPARATEUR / PATRON : formulaire diagnostic technique ── --}}
-        @if(in_array(session('user_role'), ['reparateur', 'patron']))
+        {{-- ── CAISSIÈRE : formulaire diagnostic technique ── --}}
+        @if(in_array(session('user_role'), ['caissiere']))
         <form action="{{ route('reparations.diagnostic', $repair->id) }}" method="POST" class="space-y-4">
             @csrf
             @method('PUT')
@@ -112,7 +117,7 @@
             <div>
                 <label class="text-sm font-medium text-gray-600">Statut technique</label>
                 <select name="statut_reparation" class="w-full text-sm py-2 border-gray-300 rounded-md px-3 border">
-                    @foreach(['En diagnostic', 'En cours', 'Terminé', 'En attente de pièces'] as $s)
+                    @foreach($diagStatuts as $s)
                         <option value="{{ $s }}" {{ $repair->statut_reparation === $s ? 'selected' : '' }}>{{ $s }}</option>
                     @endforeach
                 </select>
@@ -176,8 +181,17 @@
         @endif
 
         {{-- ── Résumé (toujours visible) ── --}}
-        <div class="bg-gray-50 rounded-lg p-5 space-y-4 {{ in_array(session('user_role'), ['caissiere', 'patron']) && in_array(session('user_role'), ['reparateur', 'patron']) ? '' : 'lg:col-start-2' }}">
+        <div class="bg-gray-50 rounded-lg p-5 space-y-4 {{ session('user_role') === 'caissiere' ? '' : 'lg:col-start-2' }}">
             <h3 class="font-semibold text-gray-700 border-b pb-2">Résumé</h3>
+
+            {{-- Badge statut --}}
+            <div>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold border
+                             {{ $repairSvc->badgeClasses($repair->statut_reparation) }}">
+                    <i class="fas fa-circle text-[8px]"></i>
+                    {{ $repair->statut_reparation }}
+                </span>
+            </div>
 
             <div class="grid grid-cols-2 gap-3 text-sm">
                 <div>
@@ -196,10 +210,28 @@
                     <span class="text-gray-500">Reste à payer:</span>
                     <p class="font-bold text-lg {{ $repair->reste_a_payer > 0 ? 'text-red-600' : 'text-green-600' }}">{{ number_format($repair->reste_a_payer, 0, ',', ' ') }} cfa</p>
                 </div>
+                @if($repair->date_terminee)
+                <div>
+                    <span class="text-gray-500">Terminée le:</span>
+                    <p class="font-medium text-teal-700">{{ $repair->date_terminee->format('d/m/Y H:i') }}</p>
+                </div>
+                @endif
+                @if($repair->date_pret_retrait)
+                <div>
+                    <span class="text-gray-500">Prêt le:</span>
+                    <p class="font-medium text-green-600">{{ $repair->date_pret_retrait->format('d/m/Y H:i') }}</p>
+                </div>
+                @endif
+                @if($repair->date_irreparable)
+                <div>
+                    <span class="text-gray-500">Irréparable le:</span>
+                    <p class="font-medium text-red-600">{{ $repair->date_irreparable->format('d/m/Y H:i') }}</p>
+                </div>
+                @endif
                 @if($repair->date_retrait)
                 <div>
-                    <span class="text-gray-500">Date retrait:</span>
-                    <p class="font-medium text-green-600">{{ $repair->date_retrait->format('d/m/Y H:i') }}</p>
+                    <span class="text-gray-500">Livré le:</span>
+                    <p class="font-medium text-emerald-700">{{ $repair->date_retrait->format('d/m/Y H:i') }}</p>
                 </div>
                 @endif
                 @if($repair->date_rendez_vous)
@@ -208,16 +240,10 @@
                     <p class="font-medium">{{ $repair->date_rendez_vous->format('d/m/Y') }}</p>
                 </div>
                 @endif
-                @if($repair->assignedTo)
-                <div class="col-span-2">
-                    <span class="text-gray-500">Réparateur assigné:</span>
-                    <p class="font-medium">{{ $repair->assignedTo->prenom }} {{ $repair->assignedTo->nom }}</p>
-                </div>
-                @endif
             </div>
 
-            {{-- Récupération (caissière uniquement) --}}
-            @if(in_array(session('user_role'), ['caissiere', 'patron']))
+            {{-- Action livraison (caissière) --}}
+            @if(in_array(session('user_role'), ['caissiere', 'patron']) && !in_array($repair->statut_reparation, ['Livré', 'Annulé', 'Irréparable']))
             <div class="border-t pt-3">
                 <form action="{{ route('reparations.update', $repair->id) }}" method="POST">
                     @csrf
@@ -225,12 +251,12 @@
                     @if($repair->date_retrait)
                         <input type="hidden" name="unmark_retrieved" value="1">
                         <button type="submit" class="text-sm px-4 py-2 bg-green-100 text-green-700 border border-green-200 rounded-md hover:bg-green-200">
-                            <i class="fas fa-check-circle mr-1"></i> Récupéré — Annuler
+                            <i class="fas fa-check-circle mr-1"></i> Livré — Annuler
                         </button>
                     @else
                         <input type="hidden" name="mark_retrieved" value="1">
                         <button type="submit" class="text-sm px-4 py-2 bg-orange-100 text-orange-700 border border-orange-200 rounded-md hover:bg-orange-200">
-                            <i class="fas fa-hand-holding mr-1"></i> Marquer comme récupéré
+                            <i class="fas fa-handshake mr-1"></i> Marquer comme Livré
                         </button>
                     @endif
                 </form>

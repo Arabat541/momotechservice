@@ -35,17 +35,22 @@ class ClientController extends Controller
         return view('clients.index', compact('clients', 'type', 'search'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
-        return view('clients.create');
+        $shops = $request->attributes->get('shopId') === null
+            ? \App\Models\Shop::orderBy('nom')->get()
+            : null;
+
+        return view('clients.create', compact('shops'));
     }
 
     public function store(Request $request)
     {
-        $shopId = $request->attributes->get('shopId');
+        $shopId = $request->attributes->get('shopId')
+            ?? $request->input('shop_id');
 
         if (!$shopId) {
-            return back()->with('error', 'Aucune boutique sélectionnée.');
+            return back()->with('error', 'Veuillez sélectionner une boutique.');
         }
 
         $validated = $request->validate([
@@ -183,8 +188,7 @@ class ClientController extends Controller
 
     public function lierCompte(Request $request, string $id)
     {
-        $shopId = $request->attributes->get('shopId');
-        $client = Client::where('id', $id)->where('shopId', $shopId)->firstOrFail();
+        $client = Client::findOrFail($id);
 
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
@@ -197,9 +201,7 @@ class ClientController extends Controller
 
     public function delierCompte(Request $request, string $id)
     {
-        $shopId = $request->attributes->get('shopId');
-        $client = Client::where('id', $id)->where('shopId', $shopId)->firstOrFail();
-
+        $client = Client::findOrFail($id);
         $client->update(['user_id' => null]);
 
         return back()->with('success', 'Compte utilisateur délié.');

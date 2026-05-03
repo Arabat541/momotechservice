@@ -42,6 +42,11 @@ class Client extends BaseModel
         return $this->hasMany(CreditTransaction::class, 'client_id');
     }
 
+    public function revendeur()
+    {
+        return $this->hasOne(Revendeur::class, 'client_id');
+    }
+
     public function isRevendeur(): bool
     {
         return $this->type === 'revendeur';

@@ -9,7 +9,10 @@ use Illuminate\Support\Facades\DB;
 
 class SaleService
 {
-    public function __construct(private CreditService $creditService) {}
+    public function __construct(
+        private CreditService $creditService,
+        private NotificationService $notificationService,
+    ) {}
 
     public function vendre(
         Stock $stock,
@@ -20,6 +23,7 @@ class SaleService
         ?string $cashSessionId = null,
         string $modePaiement = 'comptant',
         ?float $montantPaye = null,
+        ?string $clientNom = null,
     ): Sale {
         if ($stock->quantite < $quantite) {
             throw new \RuntimeException("Stock insuffisant. Disponible : {$stock->quantite}");
@@ -29,15 +33,10 @@ class SaleService
             if (!$client || !$client->isRevendeur()) {
                 throw new \RuntimeException('Le paiement à crédit est réservé aux revendeurs.');
             }
-            if (!$stock->isPieceDetachee()) {
-                throw new \RuntimeException('Le crédit s\'applique uniquement aux pièces détachées.');
-            }
         }
 
-        return DB::transaction(function () use ($stock, $quantite, $shopId, $createdBy, $client, $cashSessionId, $modePaiement, $montantPaye) {
-            $prixUnitaire = ($modePaiement === 'credit' && $client?->isRevendeur() && $stock->prixGros !== null)
-                ? $stock->prixGros
-                : $stock->prixVente;
+        return DB::transaction(function () use ($stock, $quantite, $shopId, $createdBy, $client, $cashSessionId, $modePaiement, $montantPaye, $clientNom) {
+            $prixUnitaire = $this->resolvePrice($stock, $quantite, $client);
 
             $total        = $prixUnitaire * $quantite;
             $montantPaye  = $montantPaye ?? ($modePaiement === 'comptant' ? $total : 0);
@@ -48,7 +47,7 @@ class SaleService
             $sale = Sale::create([
                 'nom'             => $stock->nom,
                 'quantite'        => $quantite,
-                'client'          => $client?->nom ?? 'Anonyme',
+                'client'          => $client?->nom ?? $clientNom ?? 'Anonyme',
                 'prixVente'       => $prixUnitaire,
                 'total'           => $total,
                 'stockId'         => $stock->id,
@@ -66,8 +65,27 @@ class SaleService
                 $this->creditService->enregistrerDette($sale, $client, $resteCredit, $createdBy);
             }
 
+            // Vérifie l'alerte stock après décrément (déclencheur principal)
+            $this->notificationService->notifierStockAlerte($stock->fresh());
+
             return $sale;
         });
+    }
+
+    private function resolvePrice(Stock $stock, int $quantite, ?Client $client): float
+    {
+        if ($client?->isRevendeur()) {
+            if ($quantite >= 10 && $stock->prixGros !== null) {
+                return $stock->prixGros;
+            }
+            if ($quantite >= 3 && $stock->prix_demi_gros !== null) {
+                return $stock->prix_demi_gros;
+            }
+            if ($stock->prix_revendeur !== null) {
+                return $stock->prix_revendeur;
+            }
+        }
+        return $stock->prixVente;
     }
 
     public function annuler(Sale $vente): void

@@ -16,7 +16,7 @@ class Stock extends BaseModel
 
     protected $fillable = [
         'id', 'shopId', 'nom', 'categorie', 'quantite', 'seuil_alerte',
-        'prixAchat', 'prixVente', 'prixGros', 'beneficeNetAttendu',
+        'prixAchat', 'prixVente', 'prix_revendeur', 'prix_demi_gros', 'prixGros', 'beneficeNetAttendu',
     ];
 
     protected $casts = [
@@ -24,6 +24,8 @@ class Stock extends BaseModel
         'seuil_alerte'       => 'integer',
         'prixAchat'          => 'float',
         'prixVente'          => 'float',
+        'prix_revendeur'     => 'float',
+        'prix_demi_gros'     => 'float',
         'prixGros'           => 'float',
         'beneficeNetAttendu' => 'float',
     ];

@@ -21,7 +21,6 @@ use App\Http\Controllers\PurchaseInvoiceController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\AnalyticsController;
-use App\Http\Controllers\PlanningController;
 use App\Http\Controllers\WarrantyController;
 use App\Http\Controllers\QrLabelController;
 use App\Http\Controllers\StockTransferController;
@@ -31,9 +30,12 @@ use App\Http\Controllers\PanneTemplateController;
 use App\Http\Controllers\AbandonController;
 use App\Http\Controllers\MarginController;
 use App\Http\Controllers\ExportController;
-use App\Http\Controllers\TechnicianSkillController;
 use App\Http\Controllers\RefundController;
 use App\Http\Controllers\TwoFactorController;
+use App\Http\Controllers\PendingSaleController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\SearchController;
 
 /*
 |--------------------------------------------------------------------------
@@ -72,17 +74,18 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
 
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Shop switching
-    Route::post('/switch-shop', [ShopController::class, 'switchShop'])->name('shop.switch');
-
-    // Création réparations (caissière uniquement)
-    Route::middleware(['role:caissiere,patron'])->group(function () {
+    // Réparations — écriture (caissière uniquement)
+    Route::middleware(['role:caissiere'])->group(function () {
         Route::get('/reparations-place', [RepairController::class, 'createPlace'])->name('reparations.place');
         Route::get('/reparations-rdv', [RepairController::class, 'createRdv'])->name('reparations.rdv');
         Route::post('/reparations', [RepairController::class, 'store'])->name('reparations.store');
-        Route::get('/liste-reparations/export-csv', [RepairController::class, 'exportCsv'])->name('reparations.export.csv');
         Route::put('/reparations/{id}', [RepairController::class, 'update'])->name('reparations.update');
         Route::delete('/reparations/{id}', [RepairController::class, 'destroy'])->name('reparations.destroy');
+    });
+
+    // Réparations — lecture patron (caissière + patron)
+    Route::middleware(['role:caissiere,patron'])->group(function () {
+        Route::get('/liste-reparations/export-csv', [RepairController::class, 'exportCsv'])->name('reparations.export.csv');
         Route::get('/reparations/{id}/recu', [RepairController::class, 'printReceipt'])->name('reparations.receipt');
     });
 
@@ -90,22 +93,40 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
     Route::get('/liste-reparations', [RepairController::class, 'index'])->name('reparations.liste');
     Route::get('/reparations/{id}', [RepairController::class, 'show'])->name('reparations.show');
 
-    // Diagnostic technique (réparateur exclusivement)
-    Route::middleware(['role:reparateur,patron'])->group(function () {
+    // Diagnostic technique (caissière — dicté par le réparateur physique)
+    Route::middleware(['role:caissiere'])->group(function () {
         Route::put('/reparations/{id}/diagnostic', [RepairController::class, 'updateDiagnostic'])->name('reparations.diagnostic');
     });
 
-    // Vente d'articles (caissière uniquement)
+    // Vente d'articles — lecture (caissière + patron)
     Route::middleware(['role:caissiere,patron'])->group(function () {
         Route::get('/article', [ArticleController::class, 'index'])->name('article');
+    });
+
+    // Vente d'articles — écriture (caissière uniquement)
+    Route::middleware(['role:caissiere'])->group(function () {
         Route::post('/article/vendre', [ArticleController::class, 'vendre'])->name('article.vendre');
         Route::delete('/article/annuler/{id}', [ArticleController::class, 'annuler'])->name('article.annuler');
     });
 
-    // SAV (caissière uniquement)
+    // Ventes en attente (caissière uniquement)
+    Route::middleware(['role:caissiere'])->group(function () {
+        Route::get('/ventes-attente', [PendingSaleController::class, 'index'])->name('pending-sales.index');
+        Route::post('/ventes-attente', [PendingSaleController::class, 'store'])->name('pending-sales.store');
+        Route::post('/ventes-attente/{id}/lignes', [PendingSaleController::class, 'addLine'])->name('pending-sales.add-line');
+        Route::delete('/ventes-attente/{saleId}/lignes/{lineId}', [PendingSaleController::class, 'removeLine'])->name('pending-sales.remove-line');
+        Route::post('/ventes-attente/{id}/valider', [PendingSaleController::class, 'valider'])->name('pending-sales.valider');
+        Route::post('/ventes-attente/{id}/annuler', [PendingSaleController::class, 'annuler'])->name('pending-sales.annuler');
+    });
+
+    // SAV — lecture (caissière + patron)
     Route::middleware(['role:caissiere,patron'])->group(function () {
         Route::get('/sav', [SAVController::class, 'index'])->name('sav.index');
         Route::get('/sav/lookup-repair', [SAVController::class, 'lookupRepair'])->name('sav.lookup-repair');
+    });
+
+    // SAV — écriture (caissière uniquement)
+    Route::middleware(['role:caissiere'])->group(function () {
         Route::post('/sav', [SAVController::class, 'store'])->name('sav.store');
         Route::put('/sav/{id}', [SAVController::class, 'update'])->name('sav.update');
         Route::delete('/sav/{id}', [SAVController::class, 'destroy'])->name('sav.destroy');
@@ -140,27 +161,35 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
         Route::delete('/boutiques/{id}/utilisateurs', [ShopController::class, 'removeUser'])->name('shops.removeUser');
     });
 
-    // Clients (caissière uniquement)
+    // Clients — écriture (caissière + patron) — /create défini avant /{id}
     Route::middleware(['role:caissiere,patron'])->group(function () {
-        Route::get('/clients', [ClientController::class, 'index'])->name('clients.index');
         Route::get('/clients/create', [ClientController::class, 'create'])->name('clients.create');
         Route::post('/clients', [ClientController::class, 'store'])->name('clients.store');
-        Route::get('/clients/{id}', [ClientController::class, 'show'])->name('clients.show');
         Route::get('/clients/{id}/edit', [ClientController::class, 'edit'])->name('clients.edit');
         Route::put('/clients/{id}', [ClientController::class, 'update'])->name('clients.update');
         Route::post('/clients/{id}/remboursement', [ClientController::class, 'remboursement'])->name('clients.remboursement');
+    });
+
+    // Clients — lecture (caissière + patron)
+    Route::middleware(['role:caissiere,patron'])->group(function () {
+        Route::get('/clients', [ClientController::class, 'index'])->name('clients.index');
+        Route::get('/clients/{id}', [ClientController::class, 'show'])->name('clients.show');
     });
     Route::middleware(['role:patron'])->group(function () {
         Route::post('/clients/{id}/lier-compte', [ClientController::class, 'lierCompte'])->name('clients.lier-compte');
         Route::post('/clients/{id}/delier-compte', [ClientController::class, 'delierCompte'])->name('clients.delier-compte');
     });
 
-    // Caisse (caissiere + patron)
+    // Caisse — lecture (caissière + patron)
     Route::middleware(['role:caissiere,patron'])->group(function () {
         Route::get('/caisse', [CashSessionController::class, 'index'])->name('caisse.index');
         Route::get('/caisse/{id}', [CashSessionController::class, 'show'])->name('caisse.show');
-        Route::post('/caisse/{id}/fermer', [CashSessionController::class, 'fermer'])->name('caisse.fermer');
         Route::get('/caisse/{id}/z-report', [CashSessionController::class, 'zReport'])->name('caisse.z-report');
+    });
+
+    // Caisse — fermeture (caissière uniquement)
+    Route::middleware(['role:caissiere'])->group(function () {
+        Route::post('/caisse/{id}/fermer', [CashSessionController::class, 'fermer'])->name('caisse.fermer');
     });
 
     // Ouverture de caisse (caissiere uniquement)
@@ -189,18 +218,39 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
         Route::get('/factures-fournisseurs/{id}/imprimer', [PurchaseInvoiceController::class, 'print'])->name('purchase-invoices.print');
     });
 
-    // Factures (caissière uniquement)
+    // Factures — lecture (caissière + patron)
     Route::middleware(['role:caissiere,patron'])->group(function () {
         Route::get('/factures', [InvoiceController::class, 'index'])->name('invoices.index');
-        Route::post('/reparations/{repairId}/facture', [InvoiceController::class, 'creerDepuisReparation'])->name('invoices.create-from-repair');
         Route::get('/factures/{id}', [InvoiceController::class, 'show'])->name('invoices.show');
-        Route::post('/factures/{id}/paiement', [InvoiceController::class, 'paiementFinal'])->name('invoices.paiement');
         Route::get('/factures/{id}/imprimer', [InvoiceController::class, 'print'])->name('invoices.print');
     });
 
-    // Crédit revendeurs (caissière uniquement)
+    // Factures — écriture (caissière uniquement)
+    Route::middleware(['role:caissiere'])->group(function () {
+        Route::post('/reparations/{repairId}/facture', [InvoiceController::class, 'creerDepuisReparation'])->name('invoices.create-from-repair');
+        Route::post('/factures/{id}/paiement', [InvoiceController::class, 'paiementFinal'])->name('invoices.paiement');
+    });
+
+    // Crédit revendeurs
     Route::middleware(['role:caissiere,patron'])->group(function () {
         Route::get('/credits', [CreditController::class, 'index'])->name('credit.index');
+        Route::get('/credits/revendeurs', [CreditController::class, 'revendeurs'])->name('credits.revendeurs');
+        Route::get('/credits/revendeurs/{client}/releve-pdf', [CreditController::class, 'relevePdf'])->name('credits.releve-pdf');
+    });
+
+    // Recherche globale
+    Route::middleware(['role:caissiere,patron'])->group(function () {
+        Route::get('/search', [SearchController::class, 'search'])->name('search.global');
+    });
+
+    // Notifications internes
+    Route::middleware(['role:caissiere,patron'])->group(function () {
+        Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
+        Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+    });
+    Route::middleware(['role:patron'])->group(function () {
+        Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
     });
 
     // Profile
@@ -238,13 +288,9 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
         Route::get('/analytique', [AnalyticsController::class, 'index'])->name('analytics.index');
     });
 
-    // Dashboard revendeur
-    Route::get('/clients/{id}/dashboard', [ClientController::class, 'dashboard'])->name('clients.dashboard');
-
-    // Planning technicien (patron + caissiere)
-    Route::get('/planning', [PlanningController::class, 'index'])->name('planning.index');
+    // Dashboard revendeur (caissière + patron)
     Route::middleware(['role:caissiere,patron'])->group(function () {
-        Route::post('/planning/{repairId}/assigner', [PlanningController::class, 'assigner'])->name('planning.assigner');
+        Route::get('/clients/{id}/dashboard', [ClientController::class, 'dashboard'])->name('clients.dashboard');
     });
 
     // Garanties pièces
@@ -255,7 +301,7 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
     Route::get('/garanties/{id}/imprimer', [WarrantyController::class, 'print'])->name('warranties.print');
 
     // Étiquettes QR code (caissière uniquement)
-    Route::middleware(['role:caissiere,patron'])->group(function () {
+    Route::middleware(['role:caissiere'])->group(function () {
         Route::get('/reparations/{id}/etiquette', [QrLabelController::class, 'repair'])->name('qr.repair');
         Route::post('/reparations/etiquettes-lot', [QrLabelController::class, 'repairsBatch'])->name('qr.batch');
     });
@@ -288,12 +334,7 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
         Route::post('/factures/{id}/rembourser', [RefundController::class, 'rembourser'])->name('invoices.rembourser');
     });
 
-    // Compétences technicien (patron only)
-    Route::middleware(['role:patron'])->group(function () {
-        Route::get('/competences', [TechnicianSkillController::class, 'index'])->name('skills.index');
-        Route::post('/competences', [TechnicianSkillController::class, 'store'])->name('skills.store');
-        Route::delete('/competences/{id}', [TechnicianSkillController::class, 'destroy'])->name('skills.destroy');
-    });
+
 
     // Exports CSV (patron only)
     Route::middleware(['role:patron'])->group(function () {
@@ -306,6 +347,18 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
         Route::get('/rapport-marge', [MarginController::class, 'index'])->name('margin.index');
     });
 
+    // Rapports (patron only)
+    Route::middleware(['role:patron'])->group(function () {
+        Route::get('/rapports/ventes',              [ReportController::class, 'ventes'])->name('reports.ventes');
+        Route::get('/rapports/ventes/pdf',          [ReportController::class, 'ventesPdf'])->name('reports.ventes.pdf');
+        Route::get('/rapports/reparations',         [ReportController::class, 'reparations'])->name('reports.reparations');
+        Route::get('/rapports/reparations/pdf',     [ReportController::class, 'reparationsPdf'])->name('reports.reparations.pdf');
+        Route::get('/rapports/stock',               [ReportController::class, 'stock'])->name('reports.stock');
+        Route::get('/rapports/stock/pdf',           [ReportController::class, 'stockPdf'])->name('reports.stock.pdf');
+        Route::get('/rapports/financier',           [ReportController::class, 'financier'])->name('reports.financier');
+        Route::get('/rapports/financier/pdf',       [ReportController::class, 'financierPdf'])->name('reports.financier.pdf');
+    });
+
     // Appareils non récupérés (patron only)
     Route::middleware(['role:patron'])->group(function () {
         Route::get('/abandons', [AbandonController::class, 'index'])->name('abandons.index');
@@ -313,9 +366,13 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
         Route::post('/abandons/{id}/date-limite', [AbandonController::class, 'setDateLimite'])->name('abandons.date-limite');
     });
 
-    // Relances automatiques (caissiere + patron)
+    // Relances — lecture (caissière + patron)
     Route::middleware(['role:caissiere,patron'])->group(function () {
         Route::get('/relances', [RelanceController::class, 'index'])->name('relances.index');
+    });
+
+    // Relances — envoi SMS (caissière uniquement)
+    Route::middleware(['role:caissiere'])->group(function () {
         Route::post('/relances/{id}/relancer', [RelanceController::class, 'relancer'])->name('relances.relancer');
     });
 

@@ -92,9 +92,11 @@ class StockTransferService
                     'nom'          => $sourceStock->nom,
                     'categorie'    => $sourceStock->categorie,
                     'quantite'     => $line->quantite,
-                    'prixAchat'    => $sourceStock->prixAchat,
-                    'prixVente'    => $sourceStock->prixVente,
-                    'prixGros'     => $sourceStock->prixGros,
+                    'prixAchat'       => $sourceStock->prixAchat,
+                    'prixVente'       => $sourceStock->prixVente,
+                    'prix_revendeur'  => $sourceStock->prix_revendeur,
+                    'prix_demi_gros'  => $sourceStock->prix_demi_gros,
+                    'prixGros'        => $sourceStock->prixGros,
                     'seuil_alerte' => $sourceStock->seuil_alerte,
                 ]);
             }

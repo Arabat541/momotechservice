@@ -87,7 +87,7 @@ class AuthController extends Controller
             'prenom'   => 'required|string|max:100',
             'email'    => 'required|email|max:255|unique:users,email',
             'password' => 'required|min:8|max:255',
-            'role'     => 'nullable|in:reparateur,caissiere',
+            'role'     => 'nullable|in:caissiere',
         ]);
 
         $user = User::create([
@@ -95,7 +95,7 @@ class AuthController extends Controller
             'prenom'   => $request->prenom,
             'email'    => $request->email,
             'password' => Hash::make($request->password),
-            'role'     => $request->input('role', 'reparateur'),
+            'role'     => $request->input('role', 'caissiere'),
         ]);
 
         // Assign to current shop if available

@@ -9,6 +9,7 @@ use App\Models\Settings;
 use App\Models\Stock;
 use App\Services\CashSessionService;
 use App\Services\InvoiceService;
+use App\Services\NotificationService;
 use App\Services\RepairService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -19,6 +20,7 @@ class RepairController extends Controller
         private RepairService $repairService,
         private InvoiceService $invoiceService,
         private CashSessionService $cashSessionService,
+        private NotificationService $notificationService,
     ) {}
 
     public function index(Request $request)
@@ -28,7 +30,7 @@ class RepairController extends Controller
         $statut  = $request->input('statut', '');
         $type    = $request->input('type', '');
 
-        $query = Repair::where('shopId', $shopId);
+        $query = Repair::query();
 
         if ($statut) {
             $query->where('statut_reparation', $statut);
@@ -47,7 +49,10 @@ class RepairController extends Controller
 
         $repairs = $query->orderBy('date_creation', 'desc')->paginate(20)->withQueryString();
 
-        return view('dashboard.reparations-liste', compact('repairs', 'search', 'statut', 'type'));
+        $allStatuts  = array_keys(RepairService::STATUTS);
+        $repairSvc   = $this->repairService;
+
+        return view('dashboard.reparations-liste', compact('repairs', 'search', 'statut', 'type', 'allStatuts', 'repairSvc'));
     }
 
     public function createPlace(Request $request)
@@ -90,7 +95,7 @@ class RepairController extends Controller
             'piece_quantite'         => 'nullable|array|max:20',
             'piece_quantite.*'       => 'nullable|integer|min:1|max:9999',
             'montant_paye'           => 'nullable|numeric|min:0|max:99999999',
-            'statut_reparation'      => 'nullable|in:En attente,En cours,Terminé,Récupéré,En attente de pièces,Annulé',
+            'statut_reparation'      => 'nullable|in:En attente,En attente de paiement,En cours,En attente de pièces,Terminé,Prêt pour retrait,Irréparable,Livré,Annulé',
             'date_rendez_vous'       => 'nullable|date',
             'numeroReparation'       => 'nullable|string|max:30',
         ]);
@@ -141,14 +146,14 @@ class RepairController extends Controller
         return redirect()->route($route)->with('success', "Réparation {$repair->numeroReparation} enregistrée.");
     }
 
-    // Réservé au technicien : diagnostic uniquement (pannes, pièces, statut, notes)
+    // Mise à jour du diagnostic : pannes, pièces, statut technique, notes réparateur
     public function updateDiagnostic(Request $request, string $id)
     {
         $shopId = $request->attributes->get('shopId');
         $repair = Repair::where('id', $id)->where('shopId', $shopId)->firstOrFail();
 
         $validated = $request->validate([
-            'statut_reparation'        => 'sometimes|in:En diagnostic,En cours,Terminé,En attente de pièces',
+            'statut_reparation'        => 'sometimes|in:En cours,En attente de pièces,Terminé,Prêt pour retrait,Irréparable',
             'panne_description'        => 'nullable|array|max:20',
             'panne_description.*'      => 'nullable|string|max:255',
             'panne_montant'            => 'nullable|array|max:20',
@@ -203,19 +208,32 @@ class RepairController extends Controller
         }
 
         $ancienStatut = $repair->statut_reparation;
+
+        // Dates automatiques selon le nouveau statut
+        if (isset($data['statut_reparation']) && $data['statut_reparation'] !== $ancienStatut) {
+            $data = array_merge($data, $this->repairService->autoDateFields($data['statut_reparation']));
+        }
+
         $repair->update($data);
 
-        // Envoyer SMS + marquer date_terminee si la réparation passe à "Terminé"
-        if (
-            isset($data['statut_reparation'])
-            && $data['statut_reparation'] === 'Terminé'
-            && $ancienStatut !== 'Terminé'
-        ) {
-            $repair->update(['date_terminee' => now(), 'relance_count' => 0, 'derniere_relance' => null]);
+        $nouveauStatut = $data['statut_reparation'] ?? null;
+
+        // SMS + notifications internes lors des transitions de statut
+        if ($nouveauStatut && $nouveauStatut !== $ancienStatut) {
             $telephone = $repair->client?->telephone ?? $repair->client_telephone;
-            if ($telephone) {
-                EnvoyerSmsJob::dispatch('notification', $telephone, $repair->numeroReparation, $repair->shopId);
+
+            if ($nouveauStatut === 'Terminé') {
+                $repair->update(['relance_count' => 0, 'derniere_relance' => null]);
+                if ($telephone) {
+                    EnvoyerSmsJob::dispatch('notification', $telephone, $repair->numeroReparation, $repair->shopId);
+                }
+            } elseif ($nouveauStatut === 'Prêt pour retrait') {
+                if ($telephone) {
+                    EnvoyerSmsJob::dispatch('retrait', $telephone, $repair->numeroReparation, $repair->shopId);
+                }
             }
+
+            $this->repairService->onStatutChange($repair, $nouveauStatut, $this->notificationService);
         }
 
         return back()->with('success', 'Diagnostic mis à jour.');
@@ -224,10 +242,17 @@ class RepairController extends Controller
     public function show(Request $request, string $id)
     {
         $shopId = $request->attributes->get('shopId');
-        $repair = Repair::with('photos')->where('id', $id)->where('shopId', $shopId)->firstOrFail();
-        $stocks = Stock::where('shopId', $shopId)->get();
+        $repair = Repair::with('photos')->findOrFail($id);
+        $stocks = Stock::query()->get();
 
-        return view('dashboard.reparation-detail', compact('repair', 'stocks'));
+        $userRole    = $request->attributes->get('userRole');
+        $allStatuts  = array_keys(RepairService::STATUTS);
+        $repairSvc   = $this->repairService;
+        $diagStatuts = ['En cours', 'En attente de pièces', 'Terminé', 'Prêt pour retrait', 'Irréparable'];
+
+        return view('dashboard.reparation-detail', compact(
+            'repair', 'stocks', 'allStatuts', 'diagStatuts', 'repairSvc', 'userRole'
+        ));
     }
 
     public function update(Request $request, string $id)
@@ -239,7 +264,7 @@ class RepairController extends Controller
             'client_nom'           => 'sometimes|string|max:150',
             'client_telephone'     => ['sometimes', 'string', 'max:30', 'regex:/^[\d\+\-\s\(\)]{7,30}$/'],
             'appareil_marque_modele' => 'sometimes|string|max:200',
-            'statut_reparation'    => 'sometimes|in:En attente,En cours,Terminé,Récupéré,En attente de pièces,Annulé',
+            'statut_reparation'    => 'sometimes|in:En attente,En attente de paiement,En cours,En attente de pièces,Terminé,Prêt pour retrait,Irréparable,Livré,Annulé',
             'montant_paye'         => 'sometimes|numeric|min:0|max:99999999',
             'date_rendez_vous'     => 'nullable|date',
             'date_retrait'         => 'nullable|date',
@@ -256,9 +281,15 @@ class RepairController extends Controller
 
         if ($request->has('mark_retrieved')) {
             $data['date_retrait'] = now();
+            $data['statut_reparation'] = 'Livré';
         }
         if ($request->has('unmark_retrieved')) {
             $data['date_retrait'] = null;
+        }
+
+        // Dates auto pour les transitions de statut
+        if (isset($data['statut_reparation']) && $data['statut_reparation'] !== $repair->statut_reparation) {
+            $data = array_merge($data, $this->repairService->autoDateFields($data['statut_reparation']));
         }
 
         $repair->update($data);
@@ -277,8 +308,8 @@ class RepairController extends Controller
     public function printReceipt(Request $request, string $id)
     {
         $shopId  = $request->attributes->get('shopId');
-        $repair  = Repair::where('id', $id)->where('shopId', $shopId)->firstOrFail();
-        $settings = Settings::where('shopId', $shopId)->first();
+        $repair  = Repair::findOrFail($id);
+        $settings = Settings::where('shopId', $repair->shopId)->first();
 
         return view('dashboard.receipt', compact('repair', 'settings'));
     }
@@ -286,7 +317,7 @@ class RepairController extends Controller
     public function exportCsv(Request $request)
     {
         $shopId  = $request->attributes->get('shopId');
-        $repairs = Repair::where('shopId', $shopId)->orderBy('date_creation', 'desc')->get();
+        $repairs = Repair::query()->orderBy('date_creation', 'desc')->get();
 
         $headers = ["N° Réparation", "Type", "Client", "Téléphone", "Appareil", "Total", "Payé", "Reste", "Statut", "Date Création", "État Paiement"];
         $csv = implode(',', $headers) . "\n";
