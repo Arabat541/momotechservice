@@ -57,11 +57,17 @@ class CashSessionController extends Controller
         return view('cash-sessions.show', compact('session'));
     }
 
-    public function zReport(string $id)
+    public function zReport(Request $request, string $id)
     {
         $session = CashSession::withoutGlobalScopes()
             ->with(['sales.stock', 'invoices.repair.client', 'user'])
             ->findOrFail($id);
+
+        $user   = $request->attributes->get('user');
+        $shopId = $request->attributes->get('shopId');
+        if ($user->role !== 'patron' && $session->shopId !== $shopId) {
+            abort(403, 'Accès refusé à ce rapport de caisse.');
+        }
 
         $ventesComptant    = $session->sales->where('mode_paiement', 'comptant');
         $ventesCredit      = $session->sales->where('mode_paiement', 'credit');

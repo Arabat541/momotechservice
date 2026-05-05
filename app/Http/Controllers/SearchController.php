@@ -42,7 +42,7 @@ class SearchController extends Controller
               ->orWhere('client_nom',            'like', "%{$esc}%")
               ->orWhere('client_telephone',      'like', "%{$esc}%");
         })
-        ->orderByDesc('created_at')
+        ->orderByDesc('date_creation')
         ->limit(5)
         ->get()
         ->map(fn($r) => [

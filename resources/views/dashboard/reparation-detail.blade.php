@@ -17,7 +17,7 @@
             </div>
         </div>
         <div class="flex items-center gap-2">
-            @if(in_array(session('user_role'), ['caissiere', 'patron']))
+            @if(session('user_role') === 'caissiere')
             <a href="{{ route('reparations.receipt', $repair->id) }}" target="_blank"
                class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
                 <i class="fas fa-print mr-2"></i> Imprimer Reçu
@@ -85,6 +85,19 @@
                     <input type="number" name="montant_paye" step="any" value="{{ $repair->montant_paye }}"
                            class="w-full text-sm py-2 border-gray-300 rounded-md px-3 border no-spinner">
                 </div>
+            </div>
+
+            <div>
+                <label class="text-sm font-medium text-gray-600">Mode de paiement</label>
+                <select name="mode_paiement" class="w-full text-sm py-2 border-gray-300 rounded-md px-3 border">
+                    <option value="">— Non précisé —</option>
+                    <option value="especes"      {{ $repair->mode_paiement === 'especes'      ? 'selected' : '' }}>Espèces</option>
+                    <option value="orange_money" {{ $repair->mode_paiement === 'orange_money' ? 'selected' : '' }}>Orange Money</option>
+                    <option value="wave"         {{ $repair->mode_paiement === 'wave'         ? 'selected' : '' }}>Wave</option>
+                    <option value="mtn_money"    {{ $repair->mode_paiement === 'mtn_money'    ? 'selected' : '' }}>MTN Money</option>
+                    <option value="cheque"       {{ $repair->mode_paiement === 'cheque'       ? 'selected' : '' }}>Chèque</option>
+                    <option value="virement"     {{ $repair->mode_paiement === 'virement'     ? 'selected' : '' }}>Virement</option>
+                </select>
             </div>
 
             @if($repair->type_reparation === 'rdv')
@@ -242,8 +255,48 @@
                 @endif
             </div>
 
+            {{-- Enregistrer un paiement --}}
+            @if(session('user_role') === 'caissiere' && $repair->reste_a_payer > 0)
+            <div class="border-t pt-3"
+                 x-data="{ montant: '', max: {{ (float) $repair->reste_a_payer }}, erreur: false }">
+                <h4 class="text-sm font-semibold text-gray-700 mb-2">
+                    <i class="fas fa-coins text-yellow-500 mr-1"></i> Enregistrer un paiement
+                </h4>
+                <form action="{{ route('repairs.paiement', $repair->id) }}" method="POST" class="space-y-2"
+                      @submit.prevent="
+                          erreur = (parseFloat(montant) <= 0 || parseFloat(montant) > max);
+                          if (!erreur) $el.submit();
+                      ">
+                    @csrf
+                    <div class="flex gap-2">
+                        <input type="number" name="montant" step="any" min="0.01"
+                               :max="max" x-model="montant"
+                               placeholder="Montant (max {{ number_format($repair->reste_a_payer, 0, ',', ' ') }} cfa)"
+                               class="flex-1 text-sm py-2 border-gray-300 rounded-md px-3 border no-spinner">
+                        <select name="mode_paiement" required
+                                class="text-sm py-2 border-gray-300 rounded-md px-3 border">
+                            <option value="">Mode…</option>
+                            <option value="especes">Espèces</option>
+                            <option value="orange_money">Orange Money</option>
+                            <option value="wave">Wave</option>
+                            <option value="mtn_money">MTN Money</option>
+                            <option value="cheque">Chèque</option>
+                            <option value="virement">Virement</option>
+                        </select>
+                    </div>
+                    <p x-show="erreur" class="text-xs text-red-600">
+                        Le montant doit être entre 0 et {{ number_format($repair->reste_a_payer, 0, ',', ' ') }} cfa.
+                    </p>
+                    <button type="submit"
+                            class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-md font-medium">
+                        <i class="fas fa-check mr-1"></i> Valider le paiement
+                    </button>
+                </form>
+            </div>
+            @endif
+
             {{-- Action livraison (caissière) --}}
-            @if(in_array(session('user_role'), ['caissiere', 'patron']) && !in_array($repair->statut_reparation, ['Livré', 'Annulé', 'Irréparable']))
+            @if(session('user_role') === 'caissiere' && !in_array($repair->statut_reparation, ['Livré', 'Annulé', 'Irréparable']))
             <div class="border-t pt-3">
                 <form action="{{ route('reparations.update', $repair->id) }}" method="POST">
                     @csrf

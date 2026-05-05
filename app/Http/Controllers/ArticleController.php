@@ -5,16 +5,21 @@ namespace App\Http\Controllers;
 use App\Models\Client;
 use App\Models\Repair;
 use App\Models\Sale;
+use App\Models\Settings;
 use App\Models\Stock;
 use App\Services\CashSessionService;
+use App\Services\CreditService;
 use App\Services\SaleService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class ArticleController extends Controller
 {
     public function __construct(
         private SaleService $saleService,
         private CashSessionService $cashSessionService,
+        private CreditService $creditService,
     ) {}
 
     public function index(Request $request)
@@ -67,8 +72,10 @@ class ArticleController extends Controller
             'quantite'      => 'required|integer|min:1|max:9999',
             'client'        => 'nullable|string|max:150',
             'client_id'     => 'nullable|string|max:30|exists:clients,id',
-            'mode_paiement' => 'nullable|in:comptant,credit',
-            'montant_paye'  => 'nullable|numeric|min:0|max:99999999',
+            'mode_paiement'  => 'nullable|in:comptant,credit',
+            'montant_paye'   => 'nullable|numeric|min:0|max:99999999',
+            'moyen_paiement' => 'nullable|in:especes,orange_money,wave,mtn_money',
+            'remise'         => 'nullable|numeric|min:0|max:99999999',
         ]);
 
         $shopId  = $request->attributes->get('shopId');
@@ -102,9 +109,14 @@ class ArticleController extends Controller
                 modePaiement: $modePaiement,
                 montantPaye: isset($validated['montant_paye']) ? floatval($validated['montant_paye']) : null,
                 clientNom: $validated['client'] ?? null,
+                remise: floatval($validated['remise'] ?? 0),
             );
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
+        }
+
+        if ($modePaiement === 'comptant' && !empty($validated['moyen_paiement'])) {
+            $sale->update(['moyen_paiement' => $validated['moyen_paiement']]);
         }
 
         $label = $modePaiement === 'credit'
@@ -122,5 +134,162 @@ class ArticleController extends Controller
         $this->saleService->annuler($vente);
 
         return back()->with('success', 'Vente annulée, stock restauré.');
+    }
+
+    public function edit(Request $request, string $id)
+    {
+        $role  = $request->attributes->get('userRole', session('user_role'));
+        $vente = $role === 'patron'
+            ? Sale::withoutGlobalScopes()->findOrFail($id)
+            : Sale::findOrFail($id);
+
+        $stock      = Stock::withoutGlobalScopes()->find($vente->stockId);
+        $revendeurs = Client::where('type', 'revendeur')->orderBy('nom')->get();
+
+        return view('ventes.edit', compact('vente', 'stock', 'revendeurs'));
+    }
+
+    public function update(Request $request, string $id)
+    {
+        $role  = $request->attributes->get('userRole', session('user_role'));
+        $user  = $request->attributes->get('user');
+        $vente = $role === 'patron'
+            ? Sale::withoutGlobalScopes()->findOrFail($id)
+            : Sale::findOrFail($id);
+
+        if (!in_array($vente->statut, ['soldee', 'credit'])) {
+            return back()->with('error', 'Cette vente ne peut pas être modifiée.');
+        }
+
+        $validated = $request->validate([
+            'client'        => 'nullable|string|max:150',
+            'client_id'     => 'nullable|string|max:30|exists:clients,id',
+            'quantite'      => 'required|integer|min:1|max:9999',
+            'prixVente'     => 'required|numeric|min:0|max:99999999',
+            'mode_paiement'  => 'required|in:comptant,credit',
+            'montant_paye'   => 'required|numeric|min:0|max:99999999',
+            'moyen_paiement' => 'nullable|in:especes,orange_money,wave,mtn_money',
+            'remise'         => 'nullable|numeric|min:0|max:99999999',
+            'date'           => 'required|date',
+        ]);
+
+        if ($validated['mode_paiement'] === 'credit' && empty($validated['client_id'])) {
+            return back()->withInput()->with('error', 'Un revendeur doit être sélectionné pour une vente à crédit.');
+        }
+
+        $stock           = Stock::withoutGlobalScopes()->find($vente->stockId);
+        $ancienneQte     = $vente->quantite;
+        $nouvelleQte     = (int) $validated['quantite'];
+        $deltaQte        = $nouvelleQte - $ancienneQte;
+
+        if ($deltaQte > 0 && (!$stock || $stock->quantite < $deltaQte)) {
+            $dispo = $stock?->quantite ?? 0;
+            return back()->withInput()->with('error', "Stock insuffisant — seulement {$dispo} unité(s) disponible(s) pour augmenter la quantité.");
+        }
+
+        $ancienMode         = $vente->mode_paiement;
+        $nouveauMode        = $validated['mode_paiement'];
+        $sousTotal          = floatval($validated['prixVente']) * $nouvelleQte;
+        $nouvelleRemise     = min(floatval($validated['remise'] ?? 0), max(0.0, $sousTotal - 0.01));
+        $nouveauTotal       = $sousTotal - $nouvelleRemise;
+        $nouveauMontantPaye = floatval($validated['montant_paye']);
+        $nouveauResteCredit = max(0.0, $nouveauTotal - $nouveauMontantPaye);
+        $ancienResteCredit  = floatval($vente->reste_credit);
+
+        try {
+            DB::transaction(function () use (
+                $vente, $stock, $deltaQte, $ancienneQte, $nouvelleQte,
+                $nouveauTotal, $nouveauMontantPaye, $nouveauResteCredit,
+                $ancienResteCredit, $ancienMode, $nouveauMode, $validated, $user, $nouvelleRemise
+            ) {
+                // 1. Ajustement stock
+                if ($deltaQte > 0 && $stock) {
+                    $stock->decrement('quantite', $deltaQte);
+                } elseif ($deltaQte < 0 && $stock) {
+                    $stock->increment('quantite', abs($deltaQte));
+                }
+
+                // 2. Résolution des clients
+                $nouveauClientId = $validated['client_id'] ?? null;
+                $ancienClientId  = $vente->client_id;
+
+                $nouveauClient = $nouveauClientId
+                    ? Client::withoutGlobalScopes()->find($nouveauClientId)
+                    : null;
+                $ancienClient = $ancienClientId
+                    ? Client::withoutGlobalScopes()->find($ancienClientId)
+                    : null;
+
+                // 3. Ajustement crédit
+                if ($ancienMode === 'comptant' && $nouveauMode === 'credit') {
+                    // comptant → crédit : créer la dette
+                    if ($nouveauClient && $nouveauResteCredit > 0) {
+                        $this->creditService->enregistrerDette($vente, $nouveauClient, $nouveauResteCredit, $user->id);
+                    }
+                } elseif ($ancienMode === 'credit' && $nouveauMode === 'comptant') {
+                    // crédit → comptant : effacer la dette résiduelle via avoir
+                    if ($ancienClient && $ancienResteCredit > 0) {
+                        $this->creditService->enregistrerAvoir($ancienClient, $ancienResteCredit, $user->id, "Modification vente — passage en comptant");
+                    }
+                } elseif ($ancienMode === 'credit' && $nouveauMode === 'credit') {
+                    $clientChanged = $nouveauClientId && $nouveauClientId !== $ancienClientId;
+
+                    if ($clientChanged) {
+                        // Réaffectation : annuler l'ancienne dette, créer une nouvelle
+                        if ($ancienClient && $ancienResteCredit > 0) {
+                            $this->creditService->enregistrerAvoir($ancienClient, $ancienResteCredit, $user->id, "Réaffectation crédit — modification vente");
+                        }
+                        if ($nouveauClient && $nouveauResteCredit > 0) {
+                            $this->creditService->enregistrerDette($vente, $nouveauClient, $nouveauResteCredit, $user->id);
+                        }
+                    } else {
+                        // Même client : ajustement delta
+                        $delta = $nouveauResteCredit - $ancienResteCredit;
+                        if ($delta > 0 && $ancienClient) {
+                            $this->creditService->enregistrerDette($vente, $ancienClient, $delta, $user->id);
+                        } elseif ($delta < 0 && $ancienClient) {
+                            $this->creditService->enregistrerAvoir($ancienClient, abs($delta), $user->id, "Ajustement crédit — modification vente");
+                        }
+                    }
+                }
+
+                // 4. Nom client final
+                $clientNomFinal = match(true) {
+                    $nouveauMode === 'credit' && $nouveauClient !== null => $nouveauClient->nom,
+                    !empty($validated['client'])                         => $validated['client'],
+                    default                                              => $vente->client,
+                };
+
+                // 5. Mise à jour de la vente
+                $vente->update([
+                    'client'        => $clientNomFinal,
+                    'client_id'     => $nouveauMode === 'credit' ? ($nouveauClientId ?? $ancienClientId) : null,
+                    'quantite'      => $nouvelleQte,
+                    'prixVente'     => floatval($validated['prixVente']),
+                    'remise'        => $nouvelleRemise,
+                    'total'         => $nouveauTotal,
+                    'mode_paiement' => $nouveauMode,
+                    'montant_paye'  => $nouveauMontantPaye,
+                    'reste_credit'  => $nouveauResteCredit,
+                    'statut'         => $nouveauResteCredit > 0 ? 'credit' : 'soldee',
+                    'moyen_paiement' => $nouveauMode === 'comptant' ? ($validated['moyen_paiement'] ?? null) : null,
+                    'date'           => $validated['date'],
+                ]);
+            });
+        } catch (\RuntimeException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('article')->with('success', 'Vente modifiée avec succès.');
+    }
+
+    public function printReceipt(Request $request, string $id)
+    {
+        $vente = Sale::with('client')->findOrFail($id);
+
+        $settings = Settings::withoutGlobalScopes()->where('shopId', $vente->shopId)->first();
+        $qrCode   = QrCode::format('svg')->size(100)->errorCorrection('M')->generate((string) $vente->id);
+
+        return view('dashboard.sale-receipt', compact('vente', 'settings', 'qrCode'));
     }
 }

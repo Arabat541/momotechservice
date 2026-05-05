@@ -109,6 +109,21 @@
                     </div>
                 </template>
 
+                {{-- Moyen de paiement (comptant uniquement) --}}
+                <template x-if="modePaiement === 'comptant'">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Moyen de paiement</label>
+                        <select name="moyen_paiement"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+                            <option value="">— Non précisé —</option>
+                            <option value="especes">Espèces</option>
+                            <option value="orange_money">Orange Money</option>
+                            <option value="wave">Wave</option>
+                            <option value="mtn_money">MTN Money</option>
+                        </select>
+                    </div>
+                </template>
+
                 {{-- Revendeur (crédit) --}}
                 <template x-if="modePaiement === 'credit'">
                     <div>
@@ -149,6 +164,17 @@
                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 no-spinner">
                     </div>
                 </template>
+
+                {{-- Remise --}}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Remise (cfa)</label>
+                    <input type="number" name="remise" step="any" min="0"
+                           x-model.number="remise" @input="calcTotal()"
+                           placeholder="0"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 no-spinner">
+                    <p x-show="remise > 0 && remise >= sousTotal"
+                       class="mt-1 text-xs text-red-600">La remise doit être inférieure au sous-total.</p>
+                </div>
             </div>
 
             {{-- Résumé total --}}
@@ -169,6 +195,13 @@
                             normal:     'Prix normal'
                         }[palierActif]"></p>
                     </div>
+                    <template x-if="remise > 0 && remise < sousTotal">
+                        <div>
+                            <p class="text-xs text-gray-500 uppercase tracking-wide">Sous-total</p>
+                            <p class="text-base font-medium text-gray-600 line-through" x-text="fmt(sousTotal) + ' cfa'"></p>
+                            <p class="text-xs text-green-600">Remise : <span x-text="fmt(remise) + ' cfa'"></span></p>
+                        </div>
+                    </template>
                     <div>
                         <p class="text-xs text-gray-500 uppercase tracking-wide">Total</p>
                         <p class="text-lg font-bold text-blue-700" x-text="fmt(total) + ' cfa'"></p>
@@ -190,7 +223,7 @@
 
             <div class="mt-4 flex justify-end">
                 <button type="submit"
-                        :disabled="!selectedStockId || quantite < 1 || (selectedStock && quantite > selectedStock.quantite) || (modePaiement === 'credit' && resteCredit > creditDisponible)"
+                        :disabled="!selectedStockId || quantite < 1 || (selectedStock && quantite > selectedStock.quantite) || (modePaiement === 'credit' && resteCredit > creditDisponible) || (remise > 0 && remise >= sousTotal)"
                         class="px-6 py-2 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white rounded-lg font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed">
                     <i class="fas fa-check mr-2"></i>
                     <span x-text="modePaiement === 'credit' ? 'Valider la vente à crédit' : 'Valider la vente'"></span>
@@ -217,6 +250,7 @@
             <table class="w-full">
                 <thead class="bg-gray-50 border-b border-gray-200">
                     <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Réf.</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Article</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Qté</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Client</th>
@@ -231,6 +265,7 @@
                 <tbody class="divide-y divide-gray-100">
                     @foreach($ventes as $vente)
                     <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-xs font-mono text-gray-500">{{ $vente->numeroVente ?? '—' }}</td>
                         <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ $vente->nom }}</td>
                         <td class="px-4 py-3 text-sm text-gray-600">{{ $vente->quantite }}</td>
                         <td class="px-4 py-3 text-sm text-gray-600">
@@ -254,16 +289,32 @@
                         </td>
                         <td class="px-4 py-3 text-xs text-gray-500">{{ $vente->date->format('d/m/Y H:i') }}</td>
                         <td class="px-4 py-3">
-                            @if(session('user_role') === 'caissiere')
-                            <form action="{{ route('article.annuler', $vente->id) }}" method="POST"
-                                  onsubmit="return confirm('Annuler cette vente et restaurer le stock ?')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-red-500 hover:text-red-700 text-xs">
-                                    <i class="fas fa-undo"></i>
-                                </button>
-                            </form>
-                            @endif
+                            <div class="flex items-center gap-2">
+                                @if(session('user_role') === 'caissiere')
+                                <a href="{{ route('sale.receipt', $vente->id) }}" target="_blank"
+                                   title="Imprimer le reçu"
+                                   class="text-gray-500 hover:text-gray-700 text-xs">
+                                    <i class="fas fa-receipt"></i>
+                                </a>
+                                @endif
+                                @if(session('user_role') === 'caissiere')
+                                <a href="{{ route('article.edit', $vente->id) }}"
+                                   title="Modifier"
+                                   class="text-blue-500 hover:text-blue-700 text-xs">
+                                    <i class="fas fa-pen"></i>
+                                </a>
+                                @endif
+                                @if(session('user_role') === 'caissiere')
+                                <form action="{{ route('article.annuler', $vente->id) }}" method="POST"
+                                      onsubmit="return confirm('Annuler cette vente et restaurer le stock ?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-red-500 hover:text-red-700 text-xs">
+                                        <i class="fas fa-undo"></i>
+                                    </button>
+                                </form>
+                                @endif
+                            </div>
                         </td>
                     </tr>
                     @endforeach
@@ -293,8 +344,10 @@ function ventePage() {
         quantite: 1,
         modePaiement: 'comptant',
         montantPaye: 0,
+        remise: 0,
         prixUnitaire: 0,
         palierActif: 'normal',
+        sousTotal: 0,
         total: 0,
         resteCredit: 0,
         creditDisponible: 0,
@@ -331,13 +384,19 @@ function ventePage() {
             return stock.prixVente;
         },
         calcTotal() {
-            if (!this.selectedStock) { this.total = 0; this.prixUnitaire = 0; this.palierActif = 'normal'; return; }
+            if (!this.selectedStock) { this.sousTotal = 0; this.total = 0; this.prixUnitaire = 0; this.palierActif = 'normal'; return; }
             const isRevendeur = this.modePaiement === 'credit' || !!this.selectedRevendeurId;
             this.prixUnitaire = this.resolvePrice(this.selectedStock, this.quantite || 1, isRevendeur);
-            this.total        = this.prixUnitaire * (this.quantite || 0);
+            this.sousTotal    = this.prixUnitaire * (this.quantite || 0);
+            const remiseCap   = Math.min(this.remise || 0, Math.max(0, this.sousTotal - 0.01));
+            this.total        = Math.max(0, this.sousTotal - remiseCap);
             this.resteCredit  = Math.max(0, this.total - (this.montantPaye || 0));
         },
         valider() {
+            if (this.remise > 0 && this.remise >= this.sousTotal) {
+                alert('La remise doit être inférieure au sous-total.');
+                return false;
+            }
             if (this.modePaiement === 'credit' && this.resteCredit > this.creditDisponible) {
                 alert('Crédit insuffisant pour ce revendeur.');
                 return false;

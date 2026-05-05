@@ -87,6 +87,19 @@
             </div>
 
             <div>
+                <label class="text-xs font-medium text-gray-600">Moyen de paiement</label>
+                <select name="mode_paiement" id="modePaiement" class="w-full text-sm py-1.5 border-gray-300 rounded-md px-3 border" onchange="updatePreview()">
+                    <option value="">— Non précisé —</option>
+                    <option value="especes">Espèces</option>
+                    <option value="orange_money">Orange Money</option>
+                    <option value="wave">Wave</option>
+                    <option value="mtn_money">MTN Money</option>
+                    <option value="cheque">Chèque</option>
+                    <option value="virement">Virement</option>
+                </select>
+            </div>
+
+            <div>
                 <label class="text-xs font-medium text-gray-600">Statut</label>
                 <select name="statut_reparation" class="w-full text-sm py-1.5 border-gray-300 rounded-md px-3 border">
                     <option value="En cours">En cours</option>
@@ -132,9 +145,13 @@
                     <div class="flex justify-between font-bold text-base"><span>TOTAL:</span><span id="prevTotal">0 cfa</span></div>
                     <div class="flex justify-between text-xs"><span>Payé:</span><span id="prevPaye">0 cfa</span></div>
                     <div class="flex justify-between text-xs font-semibold"><span>Reste à payer:</span><span id="prevReste">0 cfa</span></div>
+                    <div class="flex justify-between text-xs" id="prevModeWrap" style="display:none">
+                        <span>Mode:</span><span id="prevMode"></span>
+                    </div>
                 </div>
                 <div class="text-center mb-2 py-2">
-                    <svg id="barcodePreview"></svg>
+                    <div id="qrPreview" class="flex justify-center items-center"></div>
+                    <p class="text-xs text-gray-500 mt-1 font-mono">{{ $numero }}</p>
                 </div>
                 <div class="text-xs text-center border-t border-dashed border-gray-400 pt-1">
                     <p class="font-semibold">Merci pour votre confiance!</p>
@@ -287,6 +304,17 @@
         }
         const etatPaiement = (paye >= total && total > 0) ? 'Soldé' : 'Non soldé';
         document.getElementById('prevPaiement').textContent = etatPaiement;
+
+        // Moyen de paiement
+        const modeLabels = { especes: 'Espèces', orange_money: 'Orange Money', wave: 'Wave', mtn_money: 'MTN Money', cheque: 'Chèque', virement: 'Virement' };
+        const modeSelect = document.getElementById('modePaiement');
+        const modeWrap   = document.getElementById('prevModeWrap');
+        if (modeSelect && modeSelect.value) {
+            document.getElementById('prevMode').textContent = modeLabels[modeSelect.value] || modeSelect.value;
+            modeWrap.style.display = 'flex';
+        } else if (modeWrap) {
+            modeWrap.style.display = 'none';
+        }
     }
 
     // Attach live listeners
@@ -309,56 +337,29 @@
         setTimeout(updatePreview, 500);
     });
 
-    // Barcode
-    function initBarcode() {
-        if (typeof JsBarcode !== 'undefined') {
-            JsBarcode('#barcodePreview', '{{ $numero }}', { format: 'CODE128', width: 2, height: 50, displayValue: true, fontSize: 14, font: 'Courier New', margin: 5, textMargin: 2 });
-        }
+    let savedRepairId = null;
+
+    function initQrPreview() {
+        const el = document.getElementById('qrPreview');
+        if (!el || typeof QRCode === 'undefined') return;
+        el.innerHTML = '';
+        new QRCode(el, { text: '{{ $numero }}', width: 110, height: 110, colorDark: '#000', colorLight: '#fff', correctLevel: QRCode.CorrectLevel.M });
     }
 
     function printTicket() {
-        updatePreview(); // garantit que les valeurs autofill sont prises en compte
-        const content = document.getElementById('receiptPreview').innerHTML;
-        const css = `
-            @page { size: 80mm auto; margin: 0; }
-            * { margin:0; padding:0; box-sizing:border-box; }
-            body { font-family:'Courier New',monospace; font-size:13px; line-height:1.4; width:72mm; max-width:72mm; padding:3mm 4mm; color:#000; }
-            .text-center,.center { text-align:center; }
-            .text-xs,.small { font-size:11px; }
-            .text-sm { font-size:13px; }
-            .text-base,.text-lg,.total-row { font-size:16px; }
-            .font-bold,.font-semibold,.bold { font-weight:bold; }
-            .uppercase { text-transform:uppercase; }
-            .italic { font-style:italic; }
-            .underline { text-decoration:underline; }
-            .flex { display:flex; }
-            .justify-between { justify-content:space-between; }
-            .border-t { border-top:1px solid #000; }
-            .border-b { border-bottom:1px solid #000; }
-            .border-dashed { border-style:dashed; }
-            .mb-0\\.5,.mb-1 { margin-bottom:2px; }
-            .mb-2 { margin-bottom:4px; }
-            .mt-1 { margin-top:3px; }
-            .py-1,.pt-1 { padding-top:3px; padding-bottom:3px; }
-            .hidden { display:none; }
-            svg { width:100%; max-width:64mm; height:auto; }
-            img { display:block; margin:0 auto 2px; width:50px; height:50px; }
-            p { margin:0; }
-        `;
-        const w = window.open('', '_blank', 'width=420,height=600');
-        w.document.write('<html><head><title>Ticket</title><style>'+css+'</style></head><body>'+content+'</body></html>');
-        w.document.close();
-        w.onload = function() { setTimeout(function(){ w.print(); w.close(); }, 200); };
+        if (savedRepairId) {
+            window.open('{{ url("/dashboard/reparations") }}/' + savedRepairId + '/recu', '_blank');
+        } else {
+            alert('Enregistrez d\'abord la réparation pour imprimer le ticket.');
+        }
     }
 
     function printBarcode() {
-        const svg = document.getElementById('barcodePreview');
-        if (!svg) return;
-        const css = '@page{size:58mm auto;margin:0}body{margin:0;padding:3mm;text-align:center;font-family:monospace}svg{width:100%;max-width:50mm;height:auto}';
-        const w = window.open('', '_blank', 'width=320,height=200');
-        w.document.write('<html><head><title>Code barre</title><style>'+css+'</style></head><body>'+svg.outerHTML+'</body></html>');
-        w.document.close();
-        w.onload = function() { setTimeout(function(){ w.print(); w.close(); }, 200); };
+        if (savedRepairId) {
+            window.open('{{ url("/dashboard/reparations") }}/' + savedRepairId + '/etiquette', '_blank');
+        } else {
+            alert('Enregistrez d\'abord la réparation pour imprimer l\'étiquette.');
+        }
     }
 
     // AJAX form submit + popup
@@ -377,6 +378,7 @@
         .then(r => r.json())
         .then(data => {
             if (data.success) {
+                savedRepairId = data.id;
                 document.getElementById('modalReceiptContent').innerHTML = document.getElementById('receiptPreview').innerHTML;
                 document.getElementById('successModal').classList.remove('hidden');
             } else {
@@ -396,7 +398,9 @@
         document.getElementById('successModal').classList.add('hidden');
         window.location.href = '{{ route("reparations.liste") }}';
     }
+
+    document.addEventListener('DOMContentLoaded', function() { initQrPreview(); });
 </script>
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js" onload="initBarcode()"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" onload="initQrPreview()"></script>
 @endpush
 @endsection

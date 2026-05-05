@@ -6,6 +6,7 @@ use App\Models\Repair;
 use App\Models\RepairPhoto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class RepairPhotoController extends Controller
 {
@@ -28,7 +29,7 @@ class RepairPhotoController extends Controller
         }
 
         $file     = $request->file('photo');
-        $filename = $repair->id . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+        $filename = $repair->id . '_' . Str::random(16) . '.' . $file->getClientOriginalExtension();
 
         Storage::disk(self::DISK)->putFileAs(self::DIR, $file, $filename);
 

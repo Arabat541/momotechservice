@@ -68,13 +68,18 @@ class InvoiceService
 
     private function genererNumero(string $shopId): string
     {
-        $annee   = now()->format('Y');
-        $mois    = now()->format('m');
-        $count   = Invoice::withoutGlobalScopes()
+        $annee = now()->format('Y');
+        $mois  = now()->format('m');
+
+        $lastNum = Invoice::withoutGlobalScopes()
             ->where('shopId', $shopId)
             ->whereYear('created_at', $annee)
             ->whereMonth('created_at', $mois)
-            ->count() + 1;
+            ->lockForUpdate()
+            ->selectRaw("MAX(CAST(SUBSTRING_INDEX(numero_facture, '-', -1) AS UNSIGNED)) as last_num")
+            ->value('last_num');
+
+        $count = ($lastNum ?? 0) + 1;
 
         return sprintf('FAC-%s%s-%04d', $annee, $mois, $count);
     }

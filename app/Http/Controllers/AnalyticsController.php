@@ -176,7 +176,8 @@ class AnalyticsController extends Controller
         return match ($periode) {
             'trimestre' => [Carbon::now()->startOfQuarter(), Carbon::now()->endOfQuarter()],
             'annee'     => [Carbon::now()->startOfYear(), Carbon::now()->endOfYear()],
-            default     => [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()],
+            // Default: last 3 months to avoid full-table scans on large datasets
+            default     => [Carbon::now()->subMonths(3)->startOfDay(), Carbon::now()->endOfDay()],
         };
     }
 }

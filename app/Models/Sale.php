@@ -15,13 +15,15 @@ class Sale extends BaseModel
     public $timestamps = false;
 
     protected $fillable = [
-        'id', 'nom', 'quantite', 'client', 'prixVente', 'total', 'stockId', 'shopId', 'date',
-        'client_id', 'cash_session_id', 'mode_paiement', 'montant_paye', 'reste_credit', 'statut',
+        'id', 'numeroVente', 'nom', 'quantite', 'client', 'prixVente', 'remise', 'total',
+        'stockId', 'shopId', 'date',
+        'client_id', 'cash_session_id', 'mode_paiement', 'moyen_paiement', 'montant_paye', 'reste_credit', 'statut',
     ];
 
     protected $casts = [
         'quantite'     => 'integer',
         'prixVente'    => 'float',
+        'remise'       => 'float',
         'total'        => 'float',
         'montant_paye' => 'float',
         'reste_credit' => 'float',

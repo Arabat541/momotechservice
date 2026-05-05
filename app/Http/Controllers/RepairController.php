@@ -12,7 +12,9 @@ use App\Services\InvoiceService;
 use App\Services\NotificationService;
 use App\Services\RepairService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class RepairController extends Controller
 {
@@ -95,6 +97,7 @@ class RepairController extends Controller
             'piece_quantite'         => 'nullable|array|max:20',
             'piece_quantite.*'       => 'nullable|integer|min:1|max:9999',
             'montant_paye'           => 'nullable|numeric|min:0|max:99999999',
+            'mode_paiement'          => 'nullable|in:especes,orange_money,wave,mtn_money,cheque,virement',
             'statut_reparation'      => 'nullable|in:En attente,En attente de paiement,En cours,En attente de pièces,Terminé,Prêt pour retrait,Irréparable,Livré,Annulé',
             'date_rendez_vous'       => 'nullable|date',
             'numeroReparation'       => 'nullable|string|max:30',
@@ -139,7 +142,7 @@ class RepairController extends Controller
         }
 
         if ($request->ajax() || $request->wantsJson()) {
-            return response()->json(['success' => true, 'numero' => $repair->numeroReparation]);
+            return response()->json(['success' => true, 'id' => $repair->id, 'numero' => $repair->numeroReparation]);
         }
 
         $route = $validated['type_reparation'] === 'rdv' ? 'reparations.rdv' : 'reparations.place';
@@ -168,6 +171,13 @@ class RepairController extends Controller
         $data = [];
 
         if (isset($validated['statut_reparation'])) {
+            if ($validated['statut_reparation'] !== $repair->statut_reparation) {
+                $role    = $request->attributes->get('userRole', session('user_role', 'caissiere'));
+                $allowed = $this->repairService->allowedTransitions($repair->statut_reparation, $role);
+                if (!in_array($validated['statut_reparation'], $allowed)) {
+                    return back()->with('error', "Transition vers « {$validated['statut_reparation']} » non autorisée depuis « {$repair->statut_reparation} ».");
+                }
+            }
             $data['statut_reparation'] = $validated['statut_reparation'];
         }
 
@@ -266,14 +276,23 @@ class RepairController extends Controller
             'appareil_marque_modele' => 'sometimes|string|max:200',
             'statut_reparation'    => 'sometimes|in:En attente,En attente de paiement,En cours,En attente de pièces,Terminé,Prêt pour retrait,Irréparable,Livré,Annulé',
             'montant_paye'         => 'sometimes|numeric|min:0|max:99999999',
+            'mode_paiement'        => 'nullable|in:especes,orange_money,wave,mtn_money,cheque,virement',
             'date_rendez_vous'     => 'nullable|date',
             'date_retrait'         => 'nullable|date',
         ]);
 
         $data = array_intersect_key($validated, array_flip([
             'client_nom', 'client_telephone', 'appareil_marque_modele',
-            'statut_reparation', 'montant_paye', 'date_rendez_vous', 'date_retrait',
+            'statut_reparation', 'montant_paye', 'mode_paiement', 'date_rendez_vous', 'date_retrait',
         ]));
+
+        if (isset($data['statut_reparation']) && $data['statut_reparation'] !== $repair->statut_reparation) {
+            $role    = $request->attributes->get('userRole', session('user_role', 'caissiere'));
+            $allowed = $this->repairService->allowedTransitions($repair->statut_reparation, $role);
+            if (!in_array($data['statut_reparation'], $allowed)) {
+                return back()->with('error', "Transition vers « {$data['statut_reparation']} » non autorisée depuis « {$repair->statut_reparation} ».");
+            }
+        }
 
         if (isset($data['montant_paye'])) {
             $data = array_merge($data, $this->repairService->applyPayment($repair, $data['montant_paye']));
@@ -307,11 +326,42 @@ class RepairController extends Controller
 
     public function printReceipt(Request $request, string $id)
     {
-        $shopId  = $request->attributes->get('shopId');
-        $repair  = Repair::findOrFail($id);
+        $repair   = Repair::findOrFail($id);
         $settings = Settings::where('shopId', $repair->shopId)->first();
 
-        return view('dashboard.receipt', compact('repair', 'settings'));
+        $trackUrl = route('track') . '?numero=' . urlencode($repair->numeroReparation);
+        $qrCode   = QrCode::format('svg')->size(120)->errorCorrection('M')->generate($trackUrl);
+
+        return view('dashboard.receipt', compact('repair', 'settings', 'qrCode'));
+    }
+
+    public function enregistrerPaiement(Request $request, string $id)
+    {
+        $repair = Repair::findOrFail($id);
+
+        $validated = $request->validate([
+            'montant'       => ['required', 'numeric', 'min:0.01', 'max:' . max(0.01, (float) $repair->reste_a_payer)],
+            'mode_paiement' => 'required|in:especes,orange_money,wave,mtn_money,cheque,virement',
+        ]);
+
+        DB::transaction(function () use ($repair, $validated) {
+            $nouveauMontantPaye = $repair->montant_paye + floatval($validated['montant']);
+            $nouveauReste       = max(0.0, $repair->total_reparation - $nouveauMontantPaye);
+
+            $repair->montant_paye  = $nouveauMontantPaye;
+            $repair->reste_a_payer = $nouveauReste;
+            $repair->mode_paiement = $validated['mode_paiement'];
+
+            if ($nouveauReste <= 0) {
+                $repair->etat_paiement = 'Soldé';
+                $repair->reste_a_payer = 0;
+            }
+
+            $repair->save();
+        });
+
+        $montantFormate = number_format(floatval($validated['montant']), 0, ',', ' ');
+        return back()->with('success', "Paiement de {$montantFormate} cfa enregistré.");
     }
 
     public function exportCsv(Request $request)

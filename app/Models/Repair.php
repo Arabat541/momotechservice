@@ -26,6 +26,7 @@ class Repair extends BaseModel
         'date_terminee', 'date_pret_retrait', 'date_irreparable',
         'relance_count', 'derniere_relance',
         'mis_en_vente', 'date_limite_recuperation',
+        'mode_paiement',
     ];
 
     protected $casts = [

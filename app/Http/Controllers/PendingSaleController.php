@@ -7,6 +7,7 @@ use App\Models\PendingSale;
 use App\Models\PendingSaleLine;
 use App\Models\Stock;
 use App\Services\CashSessionService;
+use App\Services\PricingService;
 use App\Services\SaleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -107,7 +108,7 @@ class PendingSaleController extends Controller
             return back()->with('error', "Stock insuffisant pour « {$stock->nom} » (disponible : {$stock->quantite}).");
         }
 
-        $prix   = $this->resolvePrice($stock, $qtyFinale, $client);
+        $prix   = PricingService::resolvePrix($stock, $qtyFinale, $client);
         $palier = $this->resolvePalier($stock, $qtyFinale, $client);
 
         if ($existante) {
@@ -220,16 +221,6 @@ class PendingSaleController extends Controller
         $sale->update(['statut' => 'annulee']);
 
         return back()->with('success', 'Vente en attente annulée.');
-    }
-
-    private function resolvePrice(Stock $stock, int $quantite, ?Client $client): float
-    {
-        if ($client?->isRevendeur()) {
-            if ($quantite >= 10 && $stock->prixGros !== null)       return $stock->prixGros;
-            if ($quantite >= 3  && $stock->prix_demi_gros !== null) return $stock->prix_demi_gros;
-            if ($stock->prix_revendeur !== null)                    return $stock->prix_revendeur;
-        }
-        return $stock->prixVente;
     }
 
     private function resolvePalier(Stock $stock, int $quantite, ?Client $client): string

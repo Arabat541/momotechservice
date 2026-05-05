@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -37,8 +38,10 @@ class AppServiceProvider extends ServiceProvider
                 return;
             }
 
-            $service       = app(NotificationService::class);
-            $allNotifs     = $service->getNotificationsForUser($user, $shopId);
+            $service   = app(NotificationService::class);
+            $allNotifs = Cache::remember('notifications_' . $userId, 30, function () use ($service, $user, $shopId) {
+                return $service->getNotificationsForUser($user, $shopId);
+            });
             $notifCount    = $allNotifs->count();
             $notifications = $allNotifs->take(5);
 

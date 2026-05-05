@@ -52,8 +52,10 @@ Route::post('/suivi', [StorefrontController::class, 'trackRepairSearch'])->name(
 |--------------------------------------------------------------------------
 */
 // 2FA verification (no auth.jwt required — user just passed password check)
-Route::get('/2fa',  [TwoFactorController::class, 'verify'])->name('two-factor.verify');
-Route::post('/2fa', [TwoFactorController::class, 'verifySubmit'])->name('two-factor.verify.submit');
+Route::get('/2fa', [TwoFactorController::class, 'verify'])->name('two-factor.verify');
+Route::middleware('throttle:5,1')->group(function () {
+    Route::post('/2fa', [TwoFactorController::class, 'verifySubmit'])->name('two-factor.verify.submit');
+});
 
 Route::get('/connexion', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/deconnexion', [AuthController::class, 'logout'])->name('logout');
@@ -83,9 +85,13 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
         Route::delete('/reparations/{id}', [RepairController::class, 'destroy'])->name('reparations.destroy');
     });
 
-    // Réparations — lecture patron (caissière + patron)
+    // Réparations — export CSV (caissière + patron)
     Route::middleware(['role:caissiere,patron'])->group(function () {
         Route::get('/liste-reparations/export-csv', [RepairController::class, 'exportCsv'])->name('reparations.export.csv');
+    });
+
+    // Impression reçu réparation (caissière uniquement)
+    Route::middleware(['role:caissiere'])->group(function () {
         Route::get('/reparations/{id}/recu', [RepairController::class, 'printReceipt'])->name('reparations.receipt');
     });
 
@@ -103,10 +109,18 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
         Route::get('/article', [ArticleController::class, 'index'])->name('article');
     });
 
+    // Impression reçu vente (caissière uniquement)
+    Route::middleware(['role:caissiere'])->group(function () {
+        Route::get('/article/{id}/recu', [ArticleController::class, 'printReceipt'])->name('sale.receipt');
+    });
+
     // Vente d'articles — écriture (caissière uniquement)
     Route::middleware(['role:caissiere'])->group(function () {
         Route::post('/article/vendre', [ArticleController::class, 'vendre'])->name('article.vendre');
         Route::delete('/article/annuler/{id}', [ArticleController::class, 'annuler'])->name('article.annuler');
+        Route::get('/article/{id}/edit', [ArticleController::class, 'edit'])->name('article.edit');
+        Route::put('/article/{id}', [ArticleController::class, 'update'])->name('article.update');
+        Route::post('/reparations/{id}/paiement', [RepairController::class, 'enregistrerPaiement'])->name('repairs.paiement');
     });
 
     // Ventes en attente (caissière uniquement)
@@ -239,7 +253,7 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
     });
 
     // Recherche globale
-    Route::middleware(['role:caissiere,patron'])->group(function () {
+    Route::middleware(['role:caissiere,patron', 'throttle:30,1'])->group(function () {
         Route::get('/search', [SearchController::class, 'search'])->name('search.global');
     });
 
@@ -293,12 +307,18 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
         Route::get('/clients/{id}/dashboard', [ClientController::class, 'dashboard'])->name('clients.dashboard');
     });
 
-    // Garanties pièces
-    Route::get('/garanties', [WarrantyController::class, 'index'])->name('warranties.index');
-    Route::post('/garanties', [WarrantyController::class, 'store'])->name('warranties.store');
-    Route::get('/garanties/{id}', [WarrantyController::class, 'show'])->name('warranties.show');
-    Route::post('/garanties/{id}/utiliser', [WarrantyController::class, 'utiliser'])->name('warranties.utiliser');
-    Route::get('/garanties/{id}/imprimer', [WarrantyController::class, 'print'])->name('warranties.print');
+    // Garanties pièces — lecture (caissière + patron)
+    Route::middleware(['role:caissiere,patron'])->group(function () {
+        Route::get('/garanties', [WarrantyController::class, 'index'])->name('warranties.index');
+        Route::get('/garanties/{id}', [WarrantyController::class, 'show'])->name('warranties.show');
+        Route::get('/garanties/{id}/imprimer', [WarrantyController::class, 'print'])->name('warranties.print');
+    });
+
+    // Garanties pièces — écriture (caissière uniquement)
+    Route::middleware(['role:caissiere'])->group(function () {
+        Route::post('/garanties', [WarrantyController::class, 'store'])->name('warranties.store');
+        Route::post('/garanties/{id}/utiliser', [WarrantyController::class, 'utiliser'])->name('warranties.utiliser');
+    });
 
     // Étiquettes QR code (caissière uniquement)
     Route::middleware(['role:caissiere'])->group(function () {
@@ -377,9 +397,13 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
     });
 
     // Photos réparation (stockées dans storage/app/repairs — accès authentifié uniquement)
-    Route::post('/reparations/{id}/photos', [RepairPhotoController::class, 'store'])->name('repair-photos.store');
-    Route::get('/photos/{photoId}', [RepairPhotoController::class, 'serve'])->name('repair-photos.serve');
-    Route::delete('/photos/{photoId}', [RepairPhotoController::class, 'destroy'])->name('repair-photos.destroy');
+    Route::middleware(['role:caissiere,patron'])->group(function () {
+        Route::get('/photos/{photoId}', [RepairPhotoController::class, 'serve'])->name('repair-photos.serve');
+    });
+    Route::middleware(['role:caissiere'])->group(function () {
+        Route::post('/reparations/{id}/photos', [RepairPhotoController::class, 'store'])->name('repair-photos.store');
+        Route::delete('/photos/{photoId}', [RepairPhotoController::class, 'destroy'])->name('repair-photos.destroy');
+    });
 
     // Transferts intra-boutique (caissière uniquement)
     Route::middleware(['role:caissiere,patron'])->group(function () {

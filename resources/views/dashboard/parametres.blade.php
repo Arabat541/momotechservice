@@ -209,6 +209,39 @@
             Gestion des boutiques
         </h4>
 
+        {{-- Créer une boutique --}}
+        <div class="mb-6 pb-6 border-b border-slate-200">
+            <h5 class="text-md font-medium text-slate-600 mb-3 flex items-center">
+                <i class="fas fa-plus-circle mr-2 text-purple-500"></i>
+                Nouvelle boutique
+            </h5>
+            <form action="{{ route('shops.store') }}" method="POST"
+                  class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                @csrf
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Nom <span class="text-red-500">*</span></label>
+                    <input type="text" name="nom" required placeholder="Ex: Boutique Plateau"
+                           class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Adresse</label>
+                    <input type="text" name="adresse" placeholder="Ex: Abidjan, Plateau"
+                           class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Téléphone</label>
+                    <input type="text" name="telephone" placeholder="Ex: +225 07 00 00 00 00"
+                           class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div class="sm:col-span-3">
+                    <button type="submit"
+                            class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-5 py-2 rounded-lg font-semibold text-sm">
+                        <i class="fas fa-plus mr-2"></i> Créer la boutique
+                    </button>
+                </div>
+            </form>
+        </div>
+
         @if($shops->isEmpty())
             <p class="text-center text-slate-500 p-4">Aucune boutique configurée.</p>
         @else

@@ -46,7 +46,7 @@ class StorefrontController extends Controller
             $query->where('categorie', $categorie);
         }
 
-        $stocks = $query->orderBy('nom')->get();
+        $stocks = $query->orderBy('nom')->limit(100)->get();
 
         // Regrouper par nom (insensible à la casse)
         $produits = $stocks
@@ -73,6 +73,7 @@ class StorefrontController extends Controller
         $categoriesCount = Stock::withoutGlobalScopes()
             ->where('quantite', '>', 0)
             ->whereNotNull('categorie')
+            ->limit(100)
             ->get()
             ->groupBy(fn($s) => mb_strtolower(trim($s->nom)))
             ->map(fn($g) => $g->first()->categorie)
@@ -81,6 +82,7 @@ class StorefrontController extends Controller
 
         $totalProduits = Stock::withoutGlobalScopes()
             ->where('quantite', '>', 0)
+            ->limit(100)
             ->get()
             ->groupBy(fn($s) => mb_strtolower(trim($s->nom)))
             ->count();
@@ -117,9 +119,30 @@ class StorefrontController extends Controller
         ));
     }
 
-    public function trackRepair()
+    public function trackRepair(Request $request)
     {
-        return view('storefront.track');
+        $numero = $request->query('numero');
+
+        if (!$numero) {
+            return view('storefront.track');
+        }
+
+        $repair = Repair::withoutGlobalScopes()->where('numeroReparation', $numero)->first();
+
+        if (!$repair) {
+            return view('storefront.track', ['error' => 'Aucune réparation trouvée avec ce numéro.', 'numero' => $numero]);
+        }
+
+        return view('storefront.track', [
+            'repair' => [
+                'numeroReparation' => $repair->numeroReparation,
+                'appareil'         => $repair->appareil_marque_modele,
+                'statut'           => $repair->statut_reparation,
+                'date_creation'    => $repair->date_creation?->format('d/m/Y'),
+                'date_retrait'     => $repair->date_retrait?->format('d/m/Y'),
+            ],
+            'numero' => $numero,
+        ]);
     }
 
     public function trackRepairSearch(Request $request)

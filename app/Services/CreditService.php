@@ -49,13 +49,16 @@ class CreditService
     public function enregistrerAvoir(Client $client, float $montant, string $createdBy, ?string $notes = null): CreditTransaction
     {
         return DB::transaction(function () use ($client, $montant, $createdBy, $notes) {
+            $soldeApres = max(0.0, $client->solde_credit - min($montant, $client->solde_credit));
+
             $transaction = CreditTransaction::create([
-                'client_id'  => $client->id,
-                'shopId'     => $client->shopId,
-                'montant'    => $montant,
-                'type'       => 'avoir',
-                'notes'      => $notes,
-                'created_by' => $createdBy,
+                'client_id'   => $client->id,
+                'shopId'      => $client->shopId,
+                'montant'     => $montant,
+                'type'        => 'avoir',
+                'notes'       => $notes,
+                'created_by'  => $createdBy,
+                'solde_apres' => $soldeApres,
             ]);
 
             // Un avoir augmente le solde crédit disponible (diminue la dette)

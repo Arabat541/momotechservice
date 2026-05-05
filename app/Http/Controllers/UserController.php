@@ -60,7 +60,12 @@ class UserController extends Controller
         }
 
         $user->shops()->detach();
-        $user->delete();
+
+        try {
+            $user->delete();
+        } catch (\Illuminate\Database\QueryException $e) {
+            return back()->with('error', 'Impossible de supprimer cet utilisateur : il est lié à des réparations ou d\'autres données.');
+        }
 
         return back()->with('success', 'Utilisateur supprimé.');
     }

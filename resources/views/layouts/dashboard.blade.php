@@ -76,7 +76,7 @@
     ];
 @endphp
 
-<div class="min-h-screen flex" x-data="{ sidebarOpen: true }" x-cloak>
+<div class="min-h-screen flex" x-data="{ sidebarOpen: true, sections: {} }" x-cloak>
     {{-- Sidebar --}}
     <aside class="sidebar-gradient shadow-2xl flex flex-col justify-between fixed left-0 top-0 bottom-0 z-40 overflow-x-hidden transition-all duration-300"
            :class="sidebarOpen ? 'w-64' : 'w-20'">
@@ -117,12 +117,39 @@
                     @if(empty($visibleItems)) @continue @endif
 
                     @if($section['title'])
-                    <div x-show="sidebarOpen" class="pt-3 pb-1 px-1">
-                        <span class="text-xs font-semibold text-blue-300 uppercase tracking-widest">{{ $section['title'] }}</span>
+                    {{-- Section header — cliquable pour plier/déplier --}}
+                    <div x-show="sidebarOpen" class="pt-3 pb-0 px-1">
+                        <button type="button"
+                                @click="sections['{{ $section['title'] }}'] = sections['{{ $section['title'] }}'] === false ? true : false"
+                                class="w-full flex items-center justify-between group py-1 focus:outline-none">
+                            <span class="text-xs font-semibold text-blue-300 uppercase tracking-widest group-hover:text-white transition-colors">{{ $section['title'] }}</span>
+                            <i class="fas fa-chevron-down text-blue-400/70 text-[9px] transition-transform duration-200"
+                               :class="sections['{{ $section['title'] }}'] === false ? '-rotate-90' : 'rotate-0'"></i>
+                        </button>
                     </div>
                     <div x-show="!sidebarOpen" class="border-t border-white/10 my-1"></div>
-                    @endif
 
+                    {{-- Items — masqués si section repliée (sauf quand sidebar réduite) --}}
+                    <div x-show="!sidebarOpen || sections['{{ $section['title'] }}'] !== false"
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0 -translate-y-1"
+                         x-transition:enter-end="opacity-100 translate-y-0"
+                         x-transition:leave="transition ease-in duration-150"
+                         x-transition:leave-start="opacity-100 translate-y-0"
+                         x-transition:leave-end="opacity-0 -translate-y-1">
+                        @foreach($visibleItems as $item)
+                        <a href="{{ route($item['route']) }}"
+                           class="w-full flex items-center space-x-3 rounded-lg transition-all duration-200
+                                  {{ request()->routeIs($item['route']) ? 'bg-white/20 text-white shadow-md' : 'text-blue-100 hover:bg-white/10 hover:text-white' }}"
+                           :class="sidebarOpen ? 'px-3 py-2' : 'p-3 justify-center'"
+                           title="{{ $item['label'] }}">
+                            <i class="fas {{ $item['icon'] }} flex-shrink-0" :class="sidebarOpen ? 'text-base w-5 text-center' : 'text-xl'"></i>
+                            <span x-show="sidebarOpen" class="font-medium text-sm whitespace-nowrap">{{ $item['label'] }}</span>
+                        </a>
+                        @endforeach
+                    </div>
+                    @else
+                    {{-- Section sans titre (Tableau de bord) — toujours visible --}}
                     @foreach($visibleItems as $item)
                     <a href="{{ route($item['route']) }}"
                        class="w-full flex items-center space-x-3 rounded-lg transition-all duration-200
@@ -133,6 +160,7 @@
                         <span x-show="sidebarOpen" class="font-medium text-sm whitespace-nowrap">{{ $item['label'] }}</span>
                     </a>
                     @endforeach
+                    @endif
                 @endforeach
             </nav>
         </div>

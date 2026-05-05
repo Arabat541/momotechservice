@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Reçu {{ $repair->numeroReparation }}</title>
+<title>Reçu Vente</title>
 <style>
     @page {
         size: 80mm auto;
@@ -32,7 +32,7 @@
     .total-row { font-size: 16px; font-weight: bold; }
     .small { font-size: 11px; }
     .qr-wrap { text-align: center; margin: 6px 0; }
-    .qr-wrap svg { width: 120px; height: 120px; }
+    .qr-wrap svg { width: 100px; height: 100px; }
     .footer { font-size: 11px; text-align: center; margin-top: 6px; }
     .cut-line { border-top: 1px dashed #000; margin-top: 8px; }
 
@@ -51,18 +51,17 @@
 <body>
 @php
     $company = $settings?->companyInfo ?? [];
-    $warranty = $settings?->warranty ?? [];
-    $pannes = is_array($repair->pannes_services) ? $repair->pannes_services : [];
-    $pieces = is_array($repair->pieces_rechange_utilisees) ? $repair->pieces_rechange_utilisees : [];
-    $isRdv = $repair->type_reparation === 'rdv';
     $modePaiementLabels = [
+        'comptant'     => 'Comptant',
+        'credit'       => 'À crédit',
+    ];
+    $moyenPaiementLabels = [
         'especes'      => 'Espèces',
         'orange_money' => 'Orange Money',
         'wave'         => 'Wave',
         'mtn_money'    => 'MTN Money',
-        'cheque'       => 'Chèque',
-        'virement'     => 'Virement',
     ];
+    $dateVente = $vente->date ? \Carbon\Carbon::parse($vente->date) : now();
 @endphp
 
 {{-- Header --}}
@@ -76,83 +75,76 @@
 
 <div class="separator-double"></div>
 
-{{-- Repair info --}}
+{{-- Vente info --}}
 <div class="section">
-    <div class="row"><span class="label">N°:</span><span>{{ $repair->numeroReparation }}</span></div>
-    <div class="row"><span class="label">Date:</span><span>{{ $repair->date_creation ? $repair->date_creation->format('d/m/Y') : 'N/A' }}</span></div>
-    @if($isRdv && $repair->date_rendez_vous)
-    <div class="row"><span class="label">RDV:</span><span>{{ $repair->date_rendez_vous->format('d/m/Y') }}</span></div>
+    <div class="row"><span class="label">Vente N°:</span><span>{{ $vente->numeroVente ?? substr($vente->id, 0, 12) }}</span></div>
+    <div class="row"><span class="label">Date:</span><span>{{ $dateVente->format('d/m/Y H:i') }}</span></div>
+    @if($vente->client)
+    <div class="row"><span class="label">Client:</span><span>{{ $vente->client }}</span></div>
     @endif
 </div>
 
 <div class="separator"></div>
 
-{{-- Client --}}
+{{-- Article --}}
 <div class="section">
-    <div><span class="label">Client:</span> {{ $repair->client_nom }}</div>
-    <div><span class="label">Tél:</span> {{ $repair->client_telephone }}</div>
-    <div><span class="label">Appareil:</span> {{ $repair->appareil_marque_modele }}</div>
+    <div class="bold" style="text-decoration:underline;margin-bottom:2px">Article:</div>
+    <div class="row">
+        <span>{{ $vente->nom }}</span>
+        <span>x{{ $vente->quantite }}</span>
+    </div>
+    <div class="row small">
+        <span>Prix unitaire</span>
+        <span>{{ number_format($vente->prixVente, 0, ',', ' ') }} cfa</span>
+    </div>
 </div>
-
-<div class="separator"></div>
-
-{{-- Pannes --}}
-@if(count($pannes) > 0)
-<div class="section">
-    <div class="bold" style="text-decoration:underline;margin-bottom:1px">Pannes / Services:</div>
-    @foreach($pannes as $panne)
-        @if(!empty($panne['description']) && ($panne['montant'] ?? 0) > 0)
-        <div class="row small">
-            <span>- {{ $panne['description'] }}</span>
-            <span>{{ number_format($panne['montant'], 0, ',', ' ') }} cfa</span>
-        </div>
-        @endif
-    @endforeach
-</div>
-@endif
-
-{{-- Pièces --}}
-@if(count($pieces) > 0)
-<div class="section">
-    <div class="bold" style="text-decoration:underline;margin-bottom:1px">Pièces:</div>
-    @foreach($pieces as $piece)
-        @if(!empty($piece['nom']) && ($piece['quantiteUtilisee'] ?? 0) > 0)
-        <div class="small">- {{ $piece['nom'] }} (x{{ $piece['quantiteUtilisee'] }})</div>
-        @endif
-    @endforeach
-</div>
-@endif
 
 <div class="separator-double"></div>
 
-{{-- Totals --}}
+{{-- Totaux --}}
 <div class="section">
+    @if(($vente->remise ?? 0) > 0)
+    <div class="row small">
+        <span>Sous-total:</span>
+        <span>{{ number_format($vente->prixVente * $vente->quantite, 0, ',', ' ') }} cfa</span>
+    </div>
+    <div class="row small">
+        <span>Remise:</span>
+        <span>-{{ number_format($vente->remise, 0, ',', ' ') }} cfa</span>
+    </div>
+    @endif
     <div class="row total-row">
         <span>TOTAL:</span>
-        <span>{{ number_format($repair->total_reparation, 0, ',', ' ') }} cfa</span>
+        <span>{{ number_format($vente->total, 0, ',', ' ') }} cfa</span>
     </div>
     <div class="row small">
         <span>Payé:</span>
-        <span>{{ number_format($repair->montant_paye, 0, ',', ' ') }} cfa</span>
+        <span>{{ number_format($vente->montant_paye, 0, ',', ' ') }} cfa</span>
     </div>
+    @if($vente->reste_credit > 0)
     <div class="row small bold">
-        <span>Reste à payer:</span>
-        <span>{{ number_format($repair->reste_a_payer, 0, ',', ' ') }} cfa</span>
+        <span>Reste à crédit:</span>
+        <span>{{ number_format($vente->reste_credit, 0, ',', ' ') }} cfa</span>
     </div>
-    @if($repair->mode_paiement)
-    <div class="row small">
+    @endif
+    <div class="row small" style="margin-top:2px">
         <span>Mode:</span>
-        <span>{{ $modePaiementLabels[$repair->mode_paiement] ?? $repair->mode_paiement }}</span>
+        <span>{{ $modePaiementLabels[$vente->mode_paiement] ?? $vente->mode_paiement }}</span>
+    </div>
+    @if($vente->moyen_paiement)
+    <div class="row small">
+        <span>Via:</span>
+        <span>{{ $moyenPaiementLabels[$vente->moyen_paiement] ?? $vente->moyen_paiement }}</span>
     </div>
     @endif
 </div>
 
 <div class="separator"></div>
 
-{{-- QR code suivi --}}
+{{-- QR code --}}
 <div class="qr-wrap">
     {!! $qrCode !!}
-    <p class="small" style="margin-top:2px">Scannez pour suivre votre réparation</p>
+    <p class="small" style="margin-top:2px">Réf: {{ $vente->numeroVente ?? substr($vente->id, 0, 12) }}</p>
 </div>
 
 <div class="separator"></div>
@@ -160,10 +152,8 @@
 {{-- Footer --}}
 <div class="footer">
     <p class="bold">Merci pour votre confiance!</p>
-    @if(!empty($warranty['conditions']))
-    <p>{{ $warranty['conditions'] }} (Durée: {{ $warranty['duree'] ?? '7' }} jours)</p>
-    @endif
-    <p class="bold" style="margin-top:2px">Statut: {{ $repair->statut_reparation }} | Paiement: {{ $repair->etat_paiement }}</p>
+    <p>{{ $company['nom'] ?? 'MOMO TECH SERVICE' }}</p>
+    @if(!empty($company['telephone']))<p>{{ $company['telephone'] }}</p>@endif
 </div>
 
 <div class="cut-line"></div>

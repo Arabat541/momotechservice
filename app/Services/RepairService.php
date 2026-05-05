@@ -145,6 +145,7 @@ class RepairService
                     'nom' => $stock->nom,
                     'quantiteUtilisee' => $qte,
                     'prixVente' => $stock->prixVente,
+                    'prixAchat' => $stock->prixAchat,
                 ];
             }
         }
@@ -218,6 +219,7 @@ class RepairService
                 'date_mise_en_reparation'  => now(),
                 'date_rendez_vous'         => $validated['date_rendez_vous'] ?? null,
                 'etat_paiement'            => $totals['etat_paiement'],
+                'mode_paiement'            => $validated['mode_paiement'] ?? null,
                 'userId'                   => $userId,
             ]);
         });

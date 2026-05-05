@@ -59,8 +59,8 @@ class AuthController extends Controller
 
         // Set first shop as current if not set
         $firstShop = $user->role === 'patron'
-            ? \App\Models\Shop::first()
-            : $user->shops()->first();
+            ? \App\Models\Shop::orderBy('nom')->first()
+            : $user->shops()->orderBy('nom')->first();
 
         if ($firstShop) {
             session(['current_shop_id' => $firstShop->id]);

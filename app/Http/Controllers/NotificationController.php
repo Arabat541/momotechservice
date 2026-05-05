@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Notification;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class NotificationController extends Controller
 {
@@ -42,7 +43,14 @@ class NotificationController extends Controller
 
     public function markRead(Request $request, Notification $notification)
     {
+        $role   = session('user_role', 'caissiere');
+        $shopId = session('current_shop_id');
+        if ($role !== 'patron' && $notification->shop_id !== $shopId) {
+            abort(403);
+        }
+
         $notification->update(['lu_at' => now()]);
+        Cache::forget('notifications_' . session('user_id'));
 
         return back()->with('success', 'Notification marquée comme lue.');
     }
@@ -59,12 +67,19 @@ class NotificationController extends Controller
         }
 
         $query->update(['lu_at' => now()]);
+        Cache::forget('notifications_' . session('user_id'));
 
         return back()->with('success', 'Toutes les notifications ont été marquées comme lues.');
     }
 
-    public function destroy(Notification $notification)
+    public function destroy(Request $request, Notification $notification)
     {
+        $role   = session('user_role', 'caissiere');
+        $shopId = session('current_shop_id');
+        if ($role !== 'patron' && $notification->shop_id !== $shopId) {
+            abort(403);
+        }
+
         $notification->delete();
 
         return back()->with('success', 'Notification supprimée.');

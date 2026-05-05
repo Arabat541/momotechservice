@@ -15,7 +15,7 @@ class MarginController extends Controller
         $debut   = $request->input('debut', now()->startOfMonth()->toDateString());
         $fin     = $request->input('fin', now()->toDateString());
 
-        $repairs = Repair::where('shopId', $shopId)
+        $repairs = Repair::when($shopId, fn($q) => $q->where('shopId', $shopId))
             ->where('etat_paiement', 'Soldé')
             ->whereBetween('date_creation', [$debut . ' 00:00:00', $fin . ' 23:59:59'])
             ->get();

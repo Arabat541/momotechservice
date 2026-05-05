@@ -6,6 +6,8 @@ use App\Models\Client;
 use App\Models\Sale;
 use App\Models\Stock;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use App\Services\PricingService;
 
 class SaleService
 {
@@ -24,6 +26,7 @@ class SaleService
         string $modePaiement = 'comptant',
         ?float $montantPaye = null,
         ?string $clientNom = null,
+        float $remise = 0.0,
     ): Sale {
         if ($stock->quantite < $quantite) {
             throw new \RuntimeException("Stock insuffisant. Disponible : {$stock->quantite}");
@@ -35,20 +38,24 @@ class SaleService
             }
         }
 
-        return DB::transaction(function () use ($stock, $quantite, $shopId, $createdBy, $client, $cashSessionId, $modePaiement, $montantPaye, $clientNom) {
-            $prixUnitaire = $this->resolvePrice($stock, $quantite, $client);
+        return DB::transaction(function () use ($stock, $quantite, $shopId, $createdBy, $client, $cashSessionId, $modePaiement, $montantPaye, $clientNom, $remise) {
+            $prixUnitaire = PricingService::resolvePrix($stock, $quantite, $client);
 
-            $total        = $prixUnitaire * $quantite;
+            $sousTotal    = $prixUnitaire * $quantite;
+            $remise       = max(0.0, min($remise, $sousTotal - 0.01)); // jamais >= sousTotal
+            $total        = $sousTotal - $remise;
             $montantPaye  = $montantPaye ?? ($modePaiement === 'comptant' ? $total : 0);
             $resteCredit  = max(0, $total - $montantPaye);
 
             $stock->decrement('quantite', $quantite);
 
             $sale = Sale::create([
+                'numeroVente'     => 'VTE-' . strtoupper(Str::random(8)),
                 'nom'             => $stock->nom,
                 'quantite'        => $quantite,
                 'client'          => $client?->nom ?? $clientNom ?? 'Anonyme',
                 'prixVente'       => $prixUnitaire,
+                'remise'          => $remise,
                 'total'           => $total,
                 'stockId'         => $stock->id,
                 'shopId'          => $shopId,
@@ -70,22 +77,6 @@ class SaleService
 
             return $sale;
         });
-    }
-
-    private function resolvePrice(Stock $stock, int $quantite, ?Client $client): float
-    {
-        if ($client?->isRevendeur()) {
-            if ($quantite >= 10 && $stock->prixGros !== null) {
-                return $stock->prixGros;
-            }
-            if ($quantite >= 3 && $stock->prix_demi_gros !== null) {
-                return $stock->prix_demi_gros;
-            }
-            if ($stock->prix_revendeur !== null) {
-                return $stock->prix_revendeur;
-            }
-        }
-        return $stock->prixVente;
     }
 
     public function annuler(Sale $vente): void
