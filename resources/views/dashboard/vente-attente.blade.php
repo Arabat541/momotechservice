@@ -276,8 +276,8 @@
 
 @push('scripts')
 <script>
-const __stocks     = @json($stocks->map(fn($s) => ['id'=>$s->id,'nom'=>$s->nom,'quantite'=>$s->quantite,'prixVente'=>$s->prixVente,'prix_revendeur'=>$s->prix_revendeur,'prix_demi_gros'=>$s->prix_demi_gros,'prixGros'=>$s->prixGros])->values());
-const __revendeurs = @json($revendeurs->map(fn($r) => ['id'=>$r->id,'nom'=>$r->nom,'credit_limite'=>(float)$r->credit_limite,'solde_credit'=>(float)$r->solde_credit])->values());
+const __stocks     = {!! $stocksJson !!};
+const __revendeurs = {!! $revendeursJson !!};
 
 function pendingPage() {
     return {
