@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Client;
 use App\Models\CreditTransaction;
 use App\Models\Sale;
+use App\Models\Settings;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -159,6 +161,79 @@ class ClientController extends Controller
             'achats', 'totalAchats', 'totalComptant', 'totalCredit',
             'evolutionMois', 'transactions', 'topArticles'
         ));
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $shopId  = $request->attributes->get('shopId');
+        $type    = $request->query('type');
+        $clients = Client::when($shopId, fn($q) => $q->where('shopId', $shopId))
+            ->when($type, fn($q) => $q->where('type', $type))
+            ->withCount('repairs')
+            ->orderBy('nom')
+            ->get();
+
+        $companyInfo = $this->getCompanyInfo($shopId);
+        $logoBase64  = $this->getLogoBase64();
+
+        return Pdf::loadView('exports.clients-pdf', compact('clients', 'companyInfo', 'logoBase64'))
+            ->setPaper('a4', 'portrait')
+            ->download('clients-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    public function exportDashboardPdf(Request $request, string $id)
+    {
+        $client = Client::findOrFail($id);
+
+        if (!$client->isRevendeur()) {
+            abort(403);
+        }
+
+        $periode = $request->query('periode', 'mois');
+        [$debut, $fin] = match ($periode) {
+            'trimestre' => [Carbon::now()->startOfQuarter(), Carbon::now()->endOfQuarter()],
+            'annee'     => [Carbon::now()->startOfYear(), Carbon::now()->endOfYear()],
+            default     => [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()],
+        };
+
+        $achats = Sale::withoutGlobalScopes()
+            ->where('client_id', $client->id)
+            ->whereBetween('date', [$debut, $fin])
+            ->orderByDesc('date')
+            ->get();
+
+        $totalAchats   = $achats->sum('total');
+        $totalComptant = $achats->where('mode_paiement', 'comptant')->sum('montant_paye');
+        $totalCredit   = $achats->where('mode_paiement', 'credit')->sum('reste_credit');
+
+        $companyInfo = $this->getCompanyInfo($client->shopId);
+        $logoBase64  = $this->getLogoBase64();
+
+        return Pdf::loadView('exports.revendeur-dashboard-pdf', compact(
+            'client', 'achats', 'totalAchats', 'totalComptant', 'totalCredit', 'companyInfo', 'logoBase64'
+        ))
+            ->setPaper('a4', 'portrait')
+            ->download('revendeur-' . \Illuminate\Support\Str::slug($client->nom) . '-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    private function getCompanyInfo(?string $shopId): array
+    {
+        $settings = $shopId
+            ? Settings::withoutGlobalScopes()->where('shopId', $shopId)->first()
+            : Settings::withoutGlobalScopes()->first();
+        $default = ['nom' => 'MOMO TECH SERVICE', 'adresse' => '', 'telephone' => ''];
+        return array_merge($default, $settings?->companyInfo ?? []);
+    }
+
+    private function getLogoBase64(): ?string
+    {
+        foreach (['logo-receipt.png', 'logo-app.png'] as $file) {
+            $path = public_path('images/' . $file);
+            if (file_exists($path)) {
+                return base64_encode(file_get_contents($path));
+            }
+        }
+        return null;
     }
 
     public function remboursement(Request $request, string $id)

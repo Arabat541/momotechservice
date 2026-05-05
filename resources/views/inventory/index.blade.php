@@ -12,8 +12,12 @@
         <div class="flex items-center gap-2">
             @if(session('user_role') === 'patron')
             <a href="{{ route('export.module', 'inventaires') }}"
-               class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+               class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
                 <i class="fas fa-file-csv"></i> CSV
+            </a>
+            <a href="{{ route('export.pdf', 'inventaires') }}"
+               class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+                <i class="fas fa-file-pdf"></i> PDF
             </a>
             @endif
             @if(!$enCours)

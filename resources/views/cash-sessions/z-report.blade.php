@@ -3,9 +3,25 @@
 @section('body')
 <div class="min-h-screen bg-white p-8 max-w-2xl mx-auto">
     {{-- En-tête --}}
+    @php
+        $zOpened = $report['session']->opened_at ?? $report['session']->created_at;
+        $zClosed = $report['session']->closed_at;
+        $zDuree  = ($zOpened && $zClosed) ? $zOpened->diff($zClosed) : null;
+    @endphp
     <div class="text-center mb-8">
         <h1 class="text-2xl font-bold text-gray-900">RAPPORT Z — CLÔTURE DE CAISSE</h1>
         <p class="text-gray-600 mt-1">{{ \Carbon\Carbon::parse($report['session']->date)->format('d/m/Y') }}</p>
+        @if($zOpened)
+        <p class="text-gray-500 text-sm mt-1">
+            Ouverte à {{ $zOpened->format('H\hi') }}
+            @if($zClosed)
+                — Fermée à {{ $zClosed->format('H\hi') }}
+                @if($zDuree)
+                    — {{ $zDuree->h }}h{{ str_pad($zDuree->i, 2, '0', STR_PAD_LEFT) }} de service
+                @endif
+            @endif
+        </p>
+        @endif
     </div>
 
     {{-- Session info --}}
@@ -13,6 +29,12 @@
         <div class="grid grid-cols-2 gap-2">
             <div><span class="text-gray-500">Caissier(e) :</span> <strong>{{ optional($report['session']->user)->prenom }} {{ optional($report['session']->user)->nom }}</strong></div>
             <div><span class="text-gray-500">Statut :</span> <strong>{{ $report['session']->statut === 'fermee' ? 'Clôturée' : 'Ouverte' }}</strong></div>
+            @if($zOpened)
+            <div><span class="text-gray-500">Heure ouverture :</span> <strong>{{ $zOpened->format('H\hi') }}</strong></div>
+            @if($zClosed)
+            <div><span class="text-gray-500">Heure fermeture :</span> <strong>{{ $zClosed->format('H\hi') }}@if($zDuree) ({{ $zDuree->h }}h{{ str_pad($zDuree->i, 2, '0', STR_PAD_LEFT) }})@endif</strong></div>
+            @endif
+            @endif
         </div>
     </div>
 
@@ -138,10 +160,13 @@
         </div>
     </div>
 
-    <div class="text-center mt-8 text-xs text-gray-400 no-print">
+    <div class="text-center mt-8 text-xs text-gray-400 no-print flex justify-center gap-3">
         <button onclick="window.print()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
             <i class="fas fa-print mr-2"></i> Imprimer
         </button>
+        <a href="{{ route('caisse.z-report.pdf', $report['session']->id) }}" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700">
+            <i class="fas fa-file-pdf mr-2"></i> Télécharger PDF
+        </a>
     </div>
 </div>
 @endsection

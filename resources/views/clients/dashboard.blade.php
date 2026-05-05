@@ -11,16 +11,24 @@
                 <p class="text-gray-500 text-sm">{{ $client->nom_boutique ?? 'Revendeur' }} — Dashboard analytique</p>
             </div>
         </div>
-        <form method="GET" class="flex gap-2 items-center">
-            <select name="periode" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
-                <option value="mois" {{ ($periode ?? 'mois') === 'mois' ? 'selected' : '' }}>Ce mois</option>
-                <option value="trimestre" {{ ($periode ?? 'mois') === 'trimestre' ? 'selected' : '' }}>Ce trimestre</option>
-                <option value="annee" {{ ($periode ?? 'mois') === 'annee' ? 'selected' : '' }}>Cette année</option>
-            </select>
-            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm">
-                <i class="fas fa-filter"></i>
-            </button>
-        </form>
+        <div class="flex items-center gap-2">
+            @if(session('user_role') === 'patron')
+            <a href="{{ route('clients.dashboard.pdf', [$client->id, 'periode' => $periode ?? 'mois']) }}"
+               class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+                <i class="fas fa-file-pdf"></i> Exporter PDF
+            </a>
+            @endif
+            <form method="GET" class="flex gap-2 items-center">
+                <select name="periode" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+                    <option value="mois" {{ ($periode ?? 'mois') === 'mois' ? 'selected' : '' }}>Ce mois</option>
+                    <option value="trimestre" {{ ($periode ?? 'mois') === 'trimestre' ? 'selected' : '' }}>Ce trimestre</option>
+                    <option value="annee" {{ ($periode ?? 'mois') === 'annee' ? 'selected' : '' }}>Cette année</option>
+                </select>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm">
+                    <i class="fas fa-filter"></i>
+                </button>
+            </form>
+        </div>
     </div>
 
     {{-- KPIs --}}

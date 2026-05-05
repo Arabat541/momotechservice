@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\PurchaseOrder;
+use App\Models\Settings;
 use App\Models\Stock;
 use App\Models\Supplier;
 use App\Services\PurchaseOrderService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
 class PurchaseOrderController extends Controller
@@ -131,5 +133,26 @@ class PurchaseOrderController extends Controller
     {
         $order = PurchaseOrder::with(['supplier', 'lines.stock', 'createdBy'])->findOrFail($id);
         return view('purchase-orders.print', compact('order'));
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $shopId = $request->attributes->get('shopId');
+        $orders = PurchaseOrder::with(['supplier', 'lines'])
+            ->when($shopId, fn($q) => $q->where('shopId', $shopId))
+            ->orderByDesc('date_commande')
+            ->get();
+
+        $settings    = $shopId ? Settings::withoutGlobalScopes()->where('shopId', $shopId)->first() : null;
+        $companyInfo = array_merge(['nom' => 'MOMO TECH SERVICE', 'adresse' => '', 'telephone' => ''], $settings?->companyInfo ?? []);
+        $logoBase64  = null;
+        foreach (['logo-receipt.png', 'logo-app.png'] as $file) {
+            $path = public_path('images/' . $file);
+            if (file_exists($path)) { $logoBase64 = base64_encode(file_get_contents($path)); break; }
+        }
+
+        return Pdf::loadView('exports.bons-commande-pdf', compact('orders', 'companyInfo', 'logoBase64'))
+            ->setPaper('a4', 'portrait')
+            ->download('bons-commande-' . now()->format('Y-m-d') . '.pdf');
     }
 }

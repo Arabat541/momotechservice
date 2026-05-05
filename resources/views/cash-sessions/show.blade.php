@@ -9,9 +9,26 @@
             <div>
                 <h1 class="text-2xl font-bold text-gray-900">Session du {{ \Carbon\Carbon::parse($session->date)->format('d/m/Y') }}</h1>
                 <p class="text-gray-500 text-sm">{{ optional($session->user)->prenom }} {{ optional($session->user)->nom }}</p>
+                @php
+                    $opened = $session->opened_at ?? $session->created_at;
+                    $closed = $session->closed_at;
+                    $duree  = ($opened && $closed) ? $opened->diff($closed) : null;
+                @endphp
+                <p class="text-gray-400 text-xs mt-0.5">
+                    Ouverte à {{ $opened?->format('H\hi') ?? '—' }}
+                    @if($closed)
+                        — Fermée à {{ $closed->format('H\hi') }}
+                        @if($duree)
+                            <span class="ml-1">({{ $duree->h }}h{{ str_pad($duree->i, 2, '0', STR_PAD_LEFT) }} de service)</span>
+                        @endif
+                    @endif
+                </p>
             </div>
         </div>
         <div class="flex items-center gap-3">
+            <a href="{{ route('caisse.detail.pdf', $session->id) }}" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                <i class="fas fa-file-pdf mr-1"></i> PDF Détail
+            </a>
             @if($session->statut === 'fermee')
             <a href="{{ route('caisse.z-report', $session->id) }}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium">
                 <i class="fas fa-print mr-1"></i> Rapport Z

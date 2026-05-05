@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Settings;
 use App\Models\Supplier;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
 class SupplierController extends Controller
@@ -100,5 +102,22 @@ class SupplierController extends Controller
 
         $supplier->delete();
         return redirect()->route('suppliers.index')->with('success', 'Fournisseur supprimé.');
+    }
+
+    public function exportPdf(Request $request, string $id)
+    {
+        $supplier    = Supplier::with(['reappros.stock', 'purchaseInvoices'])->findOrFail($id);
+        $shopId      = $request->attributes->get('shopId');
+        $settings    = $shopId ? Settings::withoutGlobalScopes()->where('shopId', $shopId)->first() : null;
+        $companyInfo = array_merge(['nom' => 'MOMO TECH SERVICE', 'adresse' => '', 'telephone' => ''], $settings?->companyInfo ?? []);
+        $logoBase64  = null;
+        foreach (['logo-receipt.png', 'logo-app.png'] as $file) {
+            $path = public_path('images/' . $file);
+            if (file_exists($path)) { $logoBase64 = base64_encode(file_get_contents($path)); break; }
+        }
+
+        return Pdf::loadView('exports.fournisseur-fiche-pdf', compact('supplier', 'companyInfo', 'logoBase64'))
+            ->setPaper('a4', 'portrait')
+            ->download('fournisseur-' . \Illuminate\Support\Str::slug($supplier->nom) . '-' . now()->format('Y-m-d') . '.pdf');
     }
 }

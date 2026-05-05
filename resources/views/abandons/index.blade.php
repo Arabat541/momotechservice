@@ -8,6 +8,11 @@
             <h1 class="text-2xl font-bold text-gray-900">Appareils non récupérés</h1>
             <p class="text-gray-500 text-sm mt-1">Réparations terminées sans récupération depuis plus de {{ $delai }} jours</p>
         </div>
+        <div class="flex items-center gap-2">
+        <a href="{{ route('abandons.export.pdf') }}"
+           class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+            <i class="fas fa-file-pdf"></i> Exporter PDF
+        </a>
         <form method="GET" action="{{ route('abandons.index') }}" class="flex items-center gap-2">
             <label class="text-sm text-gray-600">Délai :</label>
             <select name="delai" onchange="this.form.submit()"
@@ -17,6 +22,7 @@
                 @endforeach
             </select>
         </form>
+        </div>
     </div>
 
     @if(session('success'))

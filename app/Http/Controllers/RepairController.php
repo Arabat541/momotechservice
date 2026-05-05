@@ -11,6 +11,7 @@ use App\Services\CashSessionService;
 use App\Services\InvoiceService;
 use App\Services\NotificationService;
 use App\Services\RepairService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -364,33 +365,38 @@ class RepairController extends Controller
         return back()->with('success', "Paiement de {$montantFormate} cfa enregistré.");
     }
 
-    public function exportCsv(Request $request)
+    public function exportPdf(Request $request)
     {
         $shopId  = $request->attributes->get('shopId');
-        $repairs = Repair::query()->orderBy('date_creation', 'desc')->get();
+        $repairs = Repair::when($shopId, fn($q) => $q->where('shopId', $shopId))
+            ->orderBy('date_creation', 'desc')
+            ->get();
 
-        $headers = ["N° Réparation", "Type", "Client", "Téléphone", "Appareil", "Total", "Payé", "Reste", "Statut", "Date Création", "État Paiement"];
-        $csv = implode(',', $headers) . "\n";
+        $companyInfo = $this->getCompanyInfo($shopId);
+        $logoBase64  = $this->getLogoBase64();
 
-        foreach ($repairs as $r) {
-            $csv .= implode(',', [
-                '"' . $r->numeroReparation . '"',
-                '"' . $r->type_reparation . '"',
-                '"' . $r->client_nom . '"',
-                '"' . $r->client_telephone . '"',
-                '"' . $r->appareil_marque_modele . '"',
-                $r->total_reparation,
-                $r->montant_paye,
-                $r->reste_a_payer,
-                '"' . $r->statut_reparation . '"',
-                '"' . ($r->date_creation?->format('d/m/Y H:i') ?? '') . '"',
-                '"' . $r->etat_paiement . '"',
-            ]) . "\n";
+        return Pdf::loadView('exports.reparations-pdf', compact('repairs', 'companyInfo', 'logoBase64'))
+            ->setPaper('a4', 'landscape')
+            ->download('reparations-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    private function getCompanyInfo(?string $shopId): array
+    {
+        $settings = $shopId
+            ? Settings::withoutGlobalScopes()->where('shopId', $shopId)->first()
+            : Settings::withoutGlobalScopes()->first();
+        $default = ['nom' => 'MOMO TECH SERVICE', 'adresse' => '', 'telephone' => ''];
+        return array_merge($default, $settings?->companyInfo ?? []);
+    }
+
+    private function getLogoBase64(): ?string
+    {
+        foreach (['logo-receipt.png', 'logo-app.png'] as $file) {
+            $path = public_path('images/' . $file);
+            if (file_exists($path)) {
+                return base64_encode(file_get_contents($path));
+            }
         }
-
-        return response($csv, 200, [
-            'Content-Type'        => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="reparations.csv"',
-        ]);
+        return null;
     }
 }

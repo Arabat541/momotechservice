@@ -8,9 +8,15 @@
             <h1 class="text-2xl font-bold text-gray-900">Relances clients</h1>
             <p class="text-gray-500 text-sm mt-1">Réparations terminées non récupérées</p>
         </div>
-        <span class="bg-orange-100 text-orange-700 text-sm font-semibold px-3 py-1.5 rounded-full">
-            {{ $repairs->total() }} en attente
-        </span>
+        <div class="flex items-center gap-3">
+            <span class="bg-orange-100 text-orange-700 text-sm font-semibold px-3 py-1.5 rounded-full">
+                {{ $repairs->total() }} en attente
+            </span>
+            <a href="{{ route('relances.export.pdf') }}"
+               class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+                <i class="fas fa-file-pdf"></i> Exporter PDF
+            </a>
+        </div>
     </div>
 
     @if(session('success'))

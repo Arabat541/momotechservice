@@ -15,11 +15,14 @@ class CashSession extends BaseModel
 
     protected $fillable = [
         'id', 'shopId', 'userId', 'date',
+        'opened_at', 'closed_at',
         'montant_ouverture', 'montant_fermeture_attendu', 'montant_fermeture_reel', 'ecart', 'statut',
     ];
 
     protected $casts = [
         'date'                      => 'date',
+        'opened_at'                 => 'datetime',
+        'closed_at'                 => 'datetime',
         'montant_ouverture'         => 'float',
         'montant_fermeture_attendu' => 'float',
         'montant_fermeture_reel'    => 'float',

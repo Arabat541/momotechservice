@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\SAV;
 use App\Models\Repair;
 use App\Models\Settings;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -18,6 +19,26 @@ class SAVController extends Controller
             ->paginate(20);
 
         return view('dashboard.sav', compact('savs'));
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $shopId = $request->attributes->get('shopId');
+        $savs   = SAV::when($shopId, fn($q) => $q->where('shopId', $shopId))
+            ->orderBy('date_creation', 'desc')
+            ->get();
+
+        $settings    = $shopId ? Settings::withoutGlobalScopes()->where('shopId', $shopId)->first() : null;
+        $companyInfo = array_merge(['nom' => 'MOMO TECH SERVICE', 'adresse' => '', 'telephone' => ''], $settings?->companyInfo ?? []);
+        $logoBase64  = null;
+        foreach (['logo-receipt.png', 'logo-app.png'] as $file) {
+            $path = public_path('images/' . $file);
+            if (file_exists($path)) { $logoBase64 = base64_encode(file_get_contents($path)); break; }
+        }
+
+        return Pdf::loadView('exports.sav-pdf', compact('savs', 'companyInfo', 'logoBase64'))
+            ->setPaper('a4', 'landscape')
+            ->download('sav-' . now()->format('Y-m-d') . '.pdf');
     }
 
     public function store(Request $request)

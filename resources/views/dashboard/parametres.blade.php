@@ -113,8 +113,8 @@
         </h4>
 
         <div class="flex flex-wrap gap-2 mb-4">
-            <a href="{{ route('users.export.csv') }}" class="inline-flex items-center px-3 py-1.5 text-sm border rounded-md hover:bg-gray-50">
-                <i class="fas fa-file-csv mr-1"></i> Exporter CSV
+            <a href="{{ route('users.export.pdf') }}" class="inline-flex items-center px-3 py-1.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-md font-medium">
+                <i class="fas fa-file-pdf mr-1"></i> Exporter PDF
             </a>
         </div>
 

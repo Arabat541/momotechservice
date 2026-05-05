@@ -8,10 +8,16 @@
             <h1 class="text-2xl font-bold text-gray-900">Rapport de marge</h1>
             <p class="text-gray-500 text-sm mt-1">Coût pièces vs CA facturé sur les réparations soldées</p>
         </div>
-        <a href="{{ route('margin.index', array_merge(request()->query(), ['export' => 'csv'])) }}"
-           class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
-            <i class="fas fa-file-csv"></i> Exporter CSV
-        </a>
+        <div class="flex items-center gap-2">
+            <a href="{{ route('margin.index', array_merge(request()->query(), ['export' => 'csv'])) }}"
+               class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+                <i class="fas fa-file-csv"></i> Exporter CSV
+            </a>
+            <a href="{{ route('margin.index', array_merge(request()->query(), ['export' => 'pdf'])) }}"
+               class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+                <i class="fas fa-file-pdf"></i> Exporter PDF
+            </a>
+        </div>
     </div>
 
     {{-- Filtres --}}

@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Settings;
+use App\Models\Shop;
 use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
 class UserController extends Controller
@@ -70,19 +73,40 @@ class UserController extends Controller
         return back()->with('success', 'Utilisateur supprimé.');
     }
 
-    public function exportCsv(Request $request)
+    public function exportPdf(Request $request)
     {
-        $users = User::with('shops')->get();
+        $shopIds = Shop::pluck('id')->toArray();
+        $users   = User::with('shops')
+            ->whereHas('shops', fn($q) => $q->whereIn('shops.id', $shopIds))
+            ->orWhere('role', 'patron')
+            ->orderBy('nom')
+            ->get();
 
-        $csv = "Nom,Prénom,Email,Rôle,Boutiques\n";
-        foreach ($users as $u) {
-            $shopNames = $u->shops->pluck('nom')->implode('; ');
-            $csv .= "\"{$u->nom}\",\"{$u->prenom}\",\"{$u->email}\",\"{$u->role}\",\"{$shopNames}\"\n";
+        $companyInfo = $this->getCompanyInfo(null);
+        $logoBase64  = $this->getLogoBase64();
+
+        return Pdf::loadView('exports.utilisateurs-pdf', compact('users', 'companyInfo', 'logoBase64'))
+            ->setPaper('a4', 'portrait')
+            ->download('utilisateurs-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    private function getCompanyInfo(?string $shopId): array
+    {
+        $settings = $shopId
+            ? Settings::withoutGlobalScopes()->where('shopId', $shopId)->first()
+            : Settings::withoutGlobalScopes()->first();
+        $default = ['nom' => 'MOMO TECH SERVICE', 'adresse' => '', 'telephone' => ''];
+        return array_merge($default, $settings?->companyInfo ?? []);
+    }
+
+    private function getLogoBase64(): ?string
+    {
+        foreach (['logo-receipt.png', 'logo-app.png'] as $file) {
+            $path = public_path('images/' . $file);
+            if (file_exists($path)) {
+                return base64_encode(file_get_contents($path));
+            }
         }
-
-        return response($csv, 200, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="utilisateurs.csv"',
-        ]);
+        return null;
     }
 }

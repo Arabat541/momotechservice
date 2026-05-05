@@ -28,6 +28,7 @@ class CashSessionService
             'shopId'           => $shopId,
             'userId'           => $userId,
             'date'             => $today,
+            'opened_at'        => now(),
             'montant_ouverture'=> $montantOuverture,
             'statut'           => 'ouverte',
         ]);
@@ -47,6 +48,7 @@ class CashSessionService
                 'montant_fermeture_attendu' => $attendu,
                 'montant_fermeture_reel'    => $montantReel,
                 'ecart'                     => $ecart,
+                'closed_at'                 => now(),
                 'statut'                    => 'fermee',
             ]);
 

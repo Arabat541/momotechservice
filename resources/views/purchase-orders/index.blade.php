@@ -10,9 +10,17 @@
             <p class="text-orange-600 text-sm mt-1"><i class="fas fa-exclamation-triangle mr-1"></i> {{ $enAlerte }} article(s) en alerte de stock</p>
             @endif
         </div>
-        <a href="{{ route('purchase-orders.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
-            <i class="fas fa-plus"></i> Nouveau bon de commande
-        </a>
+        <div class="flex items-center gap-2">
+            @if(session('user_role') === 'patron')
+            <a href="{{ route('purchase-orders.export.pdf') }}"
+               class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+                <i class="fas fa-file-pdf"></i> Exporter PDF
+            </a>
+            @endif
+            <a href="{{ route('purchase-orders.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+                <i class="fas fa-plus"></i> Nouveau bon de commande
+            </a>
+        </div>
     </div>
 
     {{-- Filtres statut --}}

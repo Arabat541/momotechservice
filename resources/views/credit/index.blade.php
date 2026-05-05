@@ -6,10 +6,16 @@
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold text-gray-900">Crédit revendeurs</h1>
         @if(session('user_role') === 'patron')
-        <a href="{{ route('export.module', 'credits') }}"
-           class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
-            <i class="fas fa-file-csv"></i> Exporter CSV
-        </a>
+        <div class="flex items-center gap-2">
+            <a href="{{ route('export.module', 'credits') }}"
+               class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+                <i class="fas fa-file-csv"></i> Exporter CSV
+            </a>
+            <a href="{{ route('export.pdf', 'credits') }}"
+               class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+                <i class="fas fa-file-pdf"></i> Exporter PDF
+            </a>
+        </div>
         @endif
     </div>
 

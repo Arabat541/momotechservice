@@ -11,8 +11,12 @@
         @if(session('user_role') === 'patron')
         <div class="flex items-center gap-2">
             <a href="{{ route('export.module', 'transferts') }}"
-               class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+               class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
                 <i class="fas fa-file-csv"></i> CSV
+            </a>
+            <a href="{{ route('export.pdf', 'transferts') }}"
+               class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+                <i class="fas fa-file-pdf"></i> PDF
             </a>
             <a href="{{ route('transfers.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
                 <i class="fas fa-exchange-alt"></i> Nouveau transfert

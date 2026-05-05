@@ -45,7 +45,8 @@
         <table class="w-full">
             <thead class="bg-gray-50 border-b border-gray-200">
                 <tr>
-                    <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</th>
+                    <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Date & Heure ouv.</th>
+                    <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Fermeture</th>
                     <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Caissier(e)</th>
                     <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Statut</th>
                     <th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Ouverture</th>
@@ -59,6 +60,14 @@
                 <tr class="hover:bg-gray-50 transition-colors">
                     <td class="px-6 py-4 text-sm font-medium text-gray-800">
                         {{ \Carbon\Carbon::parse($session->date)->format('d/m/Y') }}
+                        <span class="text-gray-400 text-xs ml-1">{{ ($session->opened_at ?? $session->created_at)?->format('H\hi') }}</span>
+                    </td>
+                    <td class="px-6 py-4 text-sm">
+                        @if($session->statut === 'fermee')
+                            <span class="text-gray-700">{{ $session->closed_at?->format('H\hi') ?? '—' }}</span>
+                        @else
+                            <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700">En cours</span>
+                        @endif
                     </td>
                     <td class="px-6 py-4 text-sm text-gray-600">
                         {{ optional($session->user)->prenom }} {{ optional($session->user)->nom }}
@@ -94,7 +103,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="7" class="px-6 py-12 text-center text-gray-400">
+                    <td colspan="8" class="px-6 py-12 text-center text-gray-400">
                         <i class="fas fa-cash-register text-3xl mb-3 block"></i>
                         Aucune session de caisse.
                     </td>

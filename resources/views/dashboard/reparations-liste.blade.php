@@ -6,8 +6,8 @@
 <div class="space-y-6 p-4 sm:p-6 bg-white rounded-xl shadow-2xl">
     <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
         <h1 class="text-2xl font-bold text-gray-800">Liste de Toutes les Réparations</h1>
-        <a href="{{ route('reparations.export.csv') }}" class="inline-flex items-center px-4 py-2 text-sm border rounded-md hover:bg-gray-50">
-            <i class="fas fa-download mr-2"></i> Exporter CSV
+        <a href="{{ route('reparations.export.pdf', request()->query()) }}" class="inline-flex items-center px-4 py-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-md font-medium">
+            <i class="fas fa-file-pdf mr-2"></i> Exporter PDF
         </a>
     </div>
 

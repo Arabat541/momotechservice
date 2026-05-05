@@ -10,6 +10,7 @@ use App\Models\Stock;
 use App\Services\CashSessionService;
 use App\Services\CreditService;
 use App\Services\SaleService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
@@ -291,5 +292,41 @@ class ArticleController extends Controller
         $qrCode   = QrCode::format('svg')->size(100)->errorCorrection('M')->generate((string) $vente->id);
 
         return view('dashboard.sale-receipt', compact('vente', 'settings', 'qrCode'));
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $shopId = $request->attributes->get('shopId');
+        $ventes = Sale::with('client')
+            ->when($shopId, fn($q) => $q->where('shopId', $shopId))
+            ->orderByDesc('date')
+            ->get();
+
+        $companyInfo = $this->getCompanyInfo($shopId);
+        $logoBase64  = $this->getLogoBase64();
+
+        return Pdf::loadView('exports.ventes-articles-pdf', compact('ventes', 'companyInfo', 'logoBase64'))
+            ->setPaper('a4', 'landscape')
+            ->download('ventes-articles-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    private function getCompanyInfo(?string $shopId): array
+    {
+        $settings = $shopId
+            ? Settings::withoutGlobalScopes()->where('shopId', $shopId)->first()
+            : Settings::withoutGlobalScopes()->first();
+        $default = ['nom' => 'MOMO TECH SERVICE', 'adresse' => '', 'telephone' => ''];
+        return array_merge($default, $settings?->companyInfo ?? []);
+    }
+
+    private function getLogoBase64(): ?string
+    {
+        foreach (['logo-receipt.png', 'logo-app.png'] as $file) {
+            $path = public_path('images/' . $file);
+            if (file_exists($path)) {
+                return base64_encode(file_get_contents($path));
+            }
+        }
+        return null;
     }
 }

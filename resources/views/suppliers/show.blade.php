@@ -13,9 +13,17 @@
                 @endif
             </div>
         </div>
-        <a href="{{ route('suppliers.edit', $supplier->id) }}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium">
-            <i class="fas fa-edit mr-1"></i> Modifier
-        </a>
+        <div class="flex items-center gap-2">
+            @if(session('user_role') === 'patron')
+            <a href="{{ route('fournisseurs.fiche.pdf', $supplier->id) }}"
+               class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+                <i class="fas fa-file-pdf"></i> Fiche PDF
+            </a>
+            @endif
+            <a href="{{ route('suppliers.edit', $supplier->id) }}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium">
+                <i class="fas fa-edit mr-1"></i> Modifier
+            </a>
+        </div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

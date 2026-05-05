@@ -27,6 +27,10 @@
 <div class="space-y-6" x-data="ventePage()" x-init="init()">
     <div class="flex items-center justify-between">
         <h2 class="text-xl font-bold text-gray-800">Vente d'articles</h2>
+        <a href="{{ route('article.export.pdf') }}"
+           class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+            <i class="fas fa-file-pdf"></i> Exporter PDF
+        </a>
     </div>
 
     {{-- ── Formulaire de vente (caissière uniquement) ── --}}

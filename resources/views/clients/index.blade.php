@@ -8,9 +8,15 @@
             <h1 class="text-2xl font-bold text-gray-900">Clients</h1>
             <p class="text-gray-500 text-sm mt-1">{{ $clients->total() }} client(s) enregistré(s)</p>
         </div>
-        <a href="{{ route('clients.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
-            <i class="fas fa-plus"></i> Nouveau client
-        </a>
+        <div class="flex items-center gap-2">
+            <a href="{{ route('clients.export.pdf') }}"
+               class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+                <i class="fas fa-file-pdf"></i> Exporter PDF
+            </a>
+            <a href="{{ route('clients.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+                <i class="fas fa-plus"></i> Nouveau client
+            </a>
+        </div>
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
