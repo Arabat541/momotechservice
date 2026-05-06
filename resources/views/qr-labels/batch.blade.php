@@ -20,8 +20,9 @@
         <div class="line client-info">
             {{ $item['repair']->client_nom }}&nbsp;|&nbsp;{{ $item['repair']->client_telephone }}
         </div>
-        <div class="line appareil">{{ $item['repair']->appareil_marque_modele }}</div>
-        <div class="line date-info">{{ \Carbon\Carbon::parse($item['repair']->date_creation)->format('d/m/Y') }}</div>
+        <div class="line appareil-date">
+            {{ $item['repair']->appareil_marque_modele }}&nbsp;—&nbsp;{{ \Carbon\Carbon::parse($item['repair']->date_creation)->format('d/m/Y') }}
+        </div>
     </div>
     @endforeach
 </div>
@@ -30,9 +31,10 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000; }
 
+/* 5 + 5 + 16 + 4 + 3 = 33mm (marge 5mm) */
 .label-wrap {
-    width: 54mm;
-    height: 38mm;
+    width: 56mm;
+    height: 36mm;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -46,10 +48,10 @@ body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000;
     text-overflow: ellipsis;
     flex-shrink: 0;
 }
-.shop-name  { font-size: 7pt; font-weight: bold; text-transform: uppercase; height: 4mm; line-height: 4mm; }
-.repair-num { font-size: 8pt; font-weight: bold; height: 4mm; line-height: 4mm; }
+.shop-name  { font-size: 6pt; font-weight: bold; text-transform: uppercase; height: 5mm; line-height: 5mm; }
+.repair-num { font-size: 7pt; font-weight: bold;                             height: 5mm; line-height: 5mm; }
 .barcode-wrap {
-    width: 52mm;
+    width: 54mm;
     height: 16mm;
     flex-shrink: 0;
     overflow: hidden;
@@ -57,10 +59,9 @@ body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000;
     align-items: center;
     justify-content: center;
 }
-.barcode-wrap svg { width: 52mm !important; height: 16mm !important; display: block; }
-.client-info { font-size: 6pt; height: 4mm; line-height: 4mm; }
-.appareil    { font-size: 6pt; height: 4mm; line-height: 4mm; }
-.date-info   { font-size: 6pt; height: 4mm; line-height: 4mm; }
+.barcode-wrap svg { width: 50mm !important; height: 16mm !important; display: block; }
+.client-info   { font-size: 5pt; height: 4mm; line-height: 4mm; }
+.appareil-date { font-size: 5pt; height: 3mm; line-height: 3mm; }
 
 @media screen {
     body { background: #f3f4f6; padding: 10mm; }
@@ -71,7 +72,7 @@ body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000;
         border: 1px solid #d1d5db;
         border-radius: 4px;
         box-shadow: 0 1px 4px rgba(0,0,0,.1);
-        margin: 1mm 2mm;
+        margin: 1mm;
     }
     .btn-ctrl {
         background: #6b7280;
@@ -87,14 +88,15 @@ body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000;
     .count-label { font-size: 13px; color: #6b7280; font-family: sans-serif; }
 }
 @media print {
-    @page { size: 58mm auto; margin: 0; }
+    @page { size: 58mm 38mm landscape; margin: 0; }
     .no-print { display: none !important; }
     body { background: #fff; padding: 0; }
     .label-grid { display: block; }
     .label-wrap {
-        width: 54mm;
-        height: 38mm;
-        margin: 1mm 2mm;
+        width: 56mm;
+        height: 36mm;
+        margin: 1mm;
+        padding: 0;
         border: none;
         border-radius: 0;
         box-shadow: none;
@@ -111,10 +113,10 @@ document.addEventListener('DOMContentLoaded', function () {
     try {
         JsBarcode('#barcode-{{ $item['repair']->id }}', '{{ $item['repair']->numeroReparation }}', {
             format: 'CODE128',
-            width: 1.2,
-            height: 40,
+            width: 0.9,
+            height: 38,
             displayValue: true,
-            fontSize: 8,
+            fontSize: 7,
             margin: 0,
         });
     } catch (e) {}
