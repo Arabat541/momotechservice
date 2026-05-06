@@ -54,4 +54,9 @@ class Sale extends BaseModel
     {
         return $this->hasMany(CreditTransaction::class, 'sale_id');
     }
+
+    public function salePayments()
+    {
+        return $this->hasMany(SalePayment::class, 'sale_id');
+    }
 }

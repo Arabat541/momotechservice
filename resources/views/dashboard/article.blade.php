@@ -113,18 +113,41 @@
                     </div>
                 </template>
 
-                {{-- Moyen de paiement (comptant uniquement) --}}
+                {{-- Moyens de paiement mixtes (comptant uniquement) --}}
                 <template x-if="modePaiement === 'comptant'">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Moyen de paiement</label>
-                        <select name="moyen_paiement"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
-                            <option value="">— Non précisé —</option>
-                            <option value="especes">Espèces</option>
-                            <option value="orange_money">Orange Money</option>
-                            <option value="wave">Wave</option>
-                            <option value="mtn_money">MTN Money</option>
-                        </select>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-gray-700">Moyen(s) de paiement</label>
+                        <template x-for="(ligne, idx) in lignesMoyens" :key="idx">
+                            <div class="flex gap-2 items-center">
+                                <select :name="'lignes_moyens[' + idx + '][moyen]'" x-model="ligne.moyen"
+                                        class="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500">
+                                    <option value="">— Moyen —</option>
+                                    <option value="especes">Espèces</option>
+                                    <option value="orange_money">Orange Money</option>
+                                    <option value="moov_money">Moov Money</option>
+                                    <option value="wave">Wave</option>
+                                    <option value="mtn_money">MTN Money</option>
+                                </select>
+                                <input type="number" :name="'lignes_moyens[' + idx + '][montant]'"
+                                       x-model.number="ligne.montant" @input="calcTotalMoyens()"
+                                       step="any" min="0.01" placeholder="Montant"
+                                       class="w-28 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 no-spinner">
+                                <button type="button" @click="removeLigneMoyen(idx)" x-show="lignesMoyens.length > 1"
+                                        class="text-red-400 hover:text-red-600 text-sm flex-shrink-0 px-1">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </template>
+                        <button type="button" @click="addLigneMoyen()"
+                                class="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                            <i class="fas fa-plus-circle"></i> Ajouter un moyen
+                        </button>
+                        <div x-show="total > 0" class="flex justify-between text-xs bg-gray-50 rounded px-3 py-1.5">
+                            <span>Total saisi : <strong x-text="fmt(totalMoyens) + ' cfa'"></strong></span>
+                            <span :class="totalMoyens > 0 && Math.abs(totalMoyens - total) < 1 ? 'text-green-600 font-semibold' : 'text-gray-400'">
+                                <span x-text="Math.abs(totalMoyens - total) < 1 ? '✅ = prix vente' : 'Total vente : ' + fmt(total) + ' cfa'"></span>
+                            </span>
+                        </div>
                     </div>
                 </template>
 
@@ -227,7 +250,7 @@
 
             <div class="mt-4 flex justify-end">
                 <button type="submit"
-                        :disabled="!selectedStockId || quantite < 1 || (selectedStock && quantite > selectedStock.quantite) || (modePaiement === 'credit' && resteCredit > creditDisponible) || (remise > 0 && remise >= sousTotal)"
+                        :disabled="!selectedStockId || quantite < 1 || (selectedStock && quantite > selectedStock.quantite) || (modePaiement === 'credit' && resteCredit > creditDisponible) || (remise > 0 && remise >= sousTotal) || !moyensPaiementValides()"
                         class="px-6 py-2 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white rounded-lg font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed">
                     <i class="fas fa-check mr-2"></i>
                     <span x-text="modePaiement === 'credit' ? 'Valider la vente à crédit' : 'Valider la vente'"></span>
@@ -355,6 +378,8 @@ function ventePage() {
         total: 0,
         resteCredit: 0,
         creditDisponible: 0,
+        lignesMoyens: [{ moyen: '', montant: '' }],
+        totalMoyens: 0,
 
         init() {},
 
@@ -375,8 +400,24 @@ function ventePage() {
                 this.selectedRevendeurId = '';
                 this.selectedRevendeur   = null;
                 this.creditDisponible    = 0;
+                this.lignesMoyens = [{ moyen: '', montant: '' }];
+                this.totalMoyens  = 0;
             }
             this.calcTotal();
+        },
+        addLigneMoyen() { this.lignesMoyens.push({ moyen: '', montant: '' }); },
+        removeLigneMoyen(idx) {
+            if (this.lignesMoyens.length > 1) { this.lignesMoyens.splice(idx, 1); this.calcTotalMoyens(); }
+        },
+        calcTotalMoyens() {
+            this.totalMoyens = this.lignesMoyens.reduce((s, l) => s + (parseFloat(l.montant) || 0), 0);
+        },
+        moyensPaiementValides() {
+            if (this.modePaiement !== 'comptant') return true;
+            const lignesRenseignees = this.lignesMoyens.filter(l => l.moyen !== '' || parseFloat(l.montant) > 0);
+            if (lignesRenseignees.length === 0) return true; // optionnel
+            return lignesRenseignees.every(l => l.moyen !== '' && parseFloat(l.montant) > 0)
+                && Math.abs(this.totalMoyens - this.total) < 1;
         },
         resolvePrice(stock, quantite, isRevendeur) {
             if (isRevendeur) {

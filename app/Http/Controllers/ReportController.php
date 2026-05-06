@@ -177,8 +177,8 @@ class ReportController extends Controller
             ->get();
 
         $valorisation = $stocks->sum(fn($s) => $s->quantite * $s->prixAchat);
-        $sousSeuil    = $stocks->filter(fn($s) => $s->seuil_alerte > 0 && $s->quantite <= $s->seuil_alerte);
-        $epuises      = $stocks->where('quantite', 0);
+        $sousSeuil    = $stocks->filter(fn($s) => $s->isStockFaible());
+        $epuises      = $stocks->filter(fn($s) => $s->isStockEpuise());
         $nbTotal      = $stocks->count();
 
         return compact('boutiqueId', 'categorie', 'stocks', 'valorisation', 'sousSeuil', 'epuises', 'nbTotal');

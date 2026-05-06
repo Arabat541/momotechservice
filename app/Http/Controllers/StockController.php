@@ -45,17 +45,19 @@ class StockController extends Controller
                 COUNT(*) as articles,
                 SUM(quantite * prixVente) as valeur,
                 SUM((prixVente - prixAchat) * quantite) as benefice,
-                SUM(quantite < 10) as stock_faible
+                SUM(seuil_alerte > 0 AND quantite <= seuil_alerte) as stock_faible,
+                SUM(seuil_epuise > 0 AND quantite <= seuil_epuise) as stock_epuise
             ')
             ->first();
 
-        $statsArticles    = $statsRaw->articles    ?? 0;
-        $statsValeur      = $statsRaw->valeur       ?? 0;
-        $statsBenefice    = $statsRaw->benefice     ?? 0;
-        $statsStockFaible = $statsRaw->stock_faible ?? 0;
+        $statsArticles    = $statsRaw->articles     ?? 0;
+        $statsValeur      = $statsRaw->valeur        ?? 0;
+        $statsBenefice    = $statsRaw->benefice      ?? 0;
+        $statsStockFaible = $statsRaw->stock_faible  ?? 0;
+        $statsStockEpuise = $statsRaw->stock_epuise  ?? 0;
 
         return view('dashboard.stocks', compact(
-            'stocks', 'statsArticles', 'statsValeur', 'statsStockFaible', 'statsBenefice',
+            'stocks', 'statsArticles', 'statsValeur', 'statsStockFaible', 'statsStockEpuise', 'statsBenefice',
             'shops', 'shopId', 'filtre'
         ));
     }
@@ -77,6 +79,8 @@ class StockController extends Controller
             'prix_revendeur' => 'nullable|numeric|min:0|max:99999999',
             'prix_demi_gros' => 'nullable|numeric|min:0|max:99999999',
             'prixGros'       => 'nullable|numeric|min:0|max:99999999',
+            'seuil_alerte'   => 'nullable|integer|min:0',
+            'seuil_epuise'   => 'nullable|integer|min:0',
         ]);
 
         Stock::create([
@@ -88,6 +92,8 @@ class StockController extends Controller
             'prix_revendeur'     => $validated['prix_revendeur'] ?: null,
             'prix_demi_gros'     => $validated['prix_demi_gros'] ?: null,
             'prixGros'           => $validated['prixGros'] ?: null,
+            'seuil_alerte'       => $validated['seuil_alerte'] ?? 0,
+            'seuil_epuise'       => $validated['seuil_epuise'] ?? 0,
             'beneficeNetAttendu' => $validated['prixVente'] - $validated['prixAchat'],
         ]);
 
@@ -106,6 +112,8 @@ class StockController extends Controller
             'prix_revendeur' => 'nullable|numeric|min:0|max:99999999',
             'prix_demi_gros' => 'nullable|numeric|min:0|max:99999999',
             'prixGros'       => 'nullable|numeric|min:0|max:99999999',
+            'seuil_alerte'   => 'nullable|integer|min:0',
+            'seuil_epuise'   => 'nullable|integer|min:0',
         ]);
 
         $stock->update([
@@ -116,6 +124,8 @@ class StockController extends Controller
             'prix_revendeur'     => $validated['prix_revendeur'] ?: null,
             'prix_demi_gros'     => $validated['prix_demi_gros'] ?: null,
             'prixGros'           => $validated['prixGros'] ?: null,
+            'seuil_alerte'       => $validated['seuil_alerte'] ?? 0,
+            'seuil_epuise'       => $validated['seuil_epuise'] ?? 0,
             'beneficeNetAttendu' => $validated['prixVente'] - $validated['prixAchat'],
         ]);
 

@@ -15,7 +15,10 @@
     tfoot td { padding:6px 8px; font-weight:700; border-top:2px solid #cbd5e1; background:#f1f5f9; }
     tfoot td.right { text-align:right; }
     .alert-box { background:#fff7ed; border:1px solid #fed7aa; padding:8px 12px; border-radius:4px; margin-bottom:14px; }
+    .alert-box-red { background:#fff1f2; border:1px solid #fecdd3; padding:8px 12px; border-radius:4px; margin-bottom:14px; }
     .alert-title { font-size:10px; font-weight:700; color:#c2410c; margin-bottom:6px; }
+    .row-epuise { background:#fff1f2 !important; }
+    .row-faible { background:#fff7ed !important; }
 </style>
 </head>
 <body>
@@ -45,12 +48,32 @@
     </tr>
 </table>
 
-{{-- Articles sous seuil --}}
+{{-- Articles épuisés --}}
+@if($epuises->count() > 0)
+<div class="alert-box-red">
+    <div class="alert-title" style="color:#be123c;">🔴 Articles épuisés (qté ≤ seuil épuisé)</div>
+    <table>
+        <thead><tr><th>Article</th><th class="right">Qté</th><th class="right">Seuil épuisé</th><th>Boutique</th></tr></thead>
+        <tbody>
+            @foreach($epuises as $s)
+            <tr>
+                <td>{{ $s->nom }}</td>
+                <td class="right" style="color:#dc2626; font-weight:700;">{{ $s->quantite }}</td>
+                <td class="right" style="color:#64748b;">{{ $s->seuil_epuise }}</td>
+                <td>{{ $s->shop?->nom ?? '—' }}</td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+</div>
+@endif
+
+{{-- Articles sous seuil faible --}}
 @if($sousSeuil->count() > 0)
 <div class="alert-box">
-    <div class="alert-title">⚠ Articles sous seuil d'alerte</div>
+    <div class="alert-title">🟡 Articles sous seuil d'alerte (stock faible)</div>
     <table>
-        <thead><tr><th>Article</th><th class="right">Qté</th><th class="right">Seuil</th><th>Boutique</th></tr></thead>
+        <thead><tr><th>Article</th><th class="right">Qté</th><th class="right">Seuil alerte</th><th>Boutique</th></tr></thead>
         <tbody>
             @foreach($sousSeuil as $s)
             <tr>
@@ -73,7 +96,8 @@
             <th>Article</th>
             <th>Catégorie</th>
             <th class="right">Qté</th>
-            <th class="right">Seuil</th>
+            <th class="right">🟡 Seuil</th>
+            <th class="right">🔴 Seuil</th>
             <th class="right">P. Achat (F)</th>
             <th class="right">P. Vente (F)</th>
             <th class="right">Valorisation (F)</th>
@@ -83,26 +107,27 @@
     </thead>
     <tbody>
         @forelse($stocks as $s)
-        <tr>
+        <tr class="{{ $s->isStockEpuise() ? 'row-epuise' : ($s->isStockFaible() ? 'row-faible' : '') }}">
             <td>{{ $s->nom }}</td>
             <td style="color:#64748b;">{{ $s->categorie ?: '—' }}</td>
-            <td class="right" style="font-weight:700; color:{{ $s->quantite == 0 ? '#dc2626' : ($s->isUnderThreshold() ? '#ea580c' : '#1e293b') }};">{{ $s->quantite }}</td>
+            <td class="right" style="font-weight:700; color:{{ $s->isStockEpuise() ? '#dc2626' : ($s->isStockFaible() ? '#ea580c' : '#1e293b') }};">{{ $s->quantite }}</td>
             <td class="right" style="color:#94a3b8;">{{ $s->seuil_alerte ?: '—' }}</td>
+            <td class="right" style="color:#94a3b8;">{{ $s->seuil_epuise ?: '—' }}</td>
             <td class="right">{{ number_format($s->prixAchat, 0, ',', ' ') }}</td>
             <td class="right">{{ number_format($s->prixVente, 0, ',', ' ') }}</td>
             <td class="right" style="font-weight:700; color:#2563eb;">{{ number_format($s->quantite * $s->prixAchat, 0, ',', ' ') }}</td>
             <td>{{ $s->shop?->nom ?? '—' }}</td>
-            <td style="color:{{ $s->quantite == 0 ? '#dc2626' : ($s->isUnderThreshold() ? '#ea580c' : '#16a34a') }}; font-weight:700;">
-                {{ $s->quantite == 0 ? 'Épuisé' : ($s->isUnderThreshold() ? 'Faible' : 'OK') }}
+            <td style="color:{{ $s->isStockEpuise() ? '#dc2626' : ($s->isStockFaible() ? '#ea580c' : '#16a34a') }}; font-weight:700;">
+                {{ $s->isStockEpuise() ? '🔴 Épuisé' : ($s->isStockFaible() ? '🟡 Faible' : 'OK') }}
             </td>
         </tr>
         @empty
-        <tr><td colspan="9" style="text-align:center; color:#94a3b8; padding:12px;">Aucun article.</td></tr>
+        <tr><td colspan="10" style="text-align:center; color:#94a3b8; padding:12px;">Aucun article.</td></tr>
         @endforelse
     </tbody>
     <tfoot>
         <tr>
-            <td colspan="6">TOTAL VALORISATION</td>
+            <td colspan="7">TOTAL VALORISATION</td>
             <td class="right" style="color:#2563eb;">{{ number_format($valorisation, 0, ',', ' ') }}</td>
             <td colspan="2"></td>
         </tr>

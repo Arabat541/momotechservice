@@ -20,14 +20,14 @@
 </div>
 
 <style>
-@page { size: 59mm 38mm; margin: 0; }
+@page { size: 58mm 40mm; margin: 0; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000; }
 
 .label-wrap {
-    width: 57mm;
-    height: 36mm;
-    margin: 1mm;
+    width: 54mm;
+    height: 38mm;
+    margin: 1mm 2mm;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -44,15 +44,15 @@ body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000;
 .shop-name  { font-size: 7pt; font-weight: bold; text-transform: uppercase; height: 4mm; line-height: 4mm; }
 .repair-num { font-size: 8pt; font-weight: bold; height: 4mm; line-height: 4mm; }
 .barcode-wrap {
-    width: 55mm;
-    height: 14mm;
+    width: 52mm;
+    height: 16mm;
     flex-shrink: 0;
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
 }
-.barcode-wrap svg { width: 55mm !important; height: 14mm !important; display: block; }
+.barcode-wrap svg { width: 52mm !important; height: 16mm !important; display: block; }
 .client-info { font-size: 6pt; height: 4mm; line-height: 4mm; }
 .appareil    { font-size: 6pt; height: 4mm; line-height: 4mm; }
 .date-info   { font-size: 6pt; height: 4mm; line-height: 4mm; }
@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', function () {
     try {
         JsBarcode('#barcode', '{{ $repair->numeroReparation }}', {
             format: 'CODE128',
-            width: 1.5,
+            width: 1.2,
             height: 40,
             displayValue: true,
             fontSize: 8,

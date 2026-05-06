@@ -322,7 +322,7 @@
 
                             {{-- Liste --}}
                             <div class="divide-y divide-gray-100 max-h-80 overflow-y-auto">
-                                @forelse($notifications ?? [] as $notif)
+                                @forelse($bellNotifications ?? [] as $notif)
                                 @php
                                     $borderColor = match($notif->type) {
                                         'stock_alerte'    => 'border-orange-400',

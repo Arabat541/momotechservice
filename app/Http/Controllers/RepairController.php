@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Jobs\EnvoyerSmsJob;
 use App\Models\Client;
 use App\Models\Repair;
+use App\Models\RepairPayment;
 use App\Models\Settings;
 use App\Models\Stock;
 use App\Services\CashSessionService;
@@ -339,19 +340,37 @@ class RepairController extends Controller
     public function enregistrerPaiement(Request $request, string $id)
     {
         $repair = Repair::findOrFail($id);
+        $user   = $request->attributes->get('user');
 
         $validated = $request->validate([
-            'montant'       => ['required', 'numeric', 'min:0.01', 'max:' . max(0.01, (float) $repair->reste_a_payer)],
-            'mode_paiement' => 'required|in:especes,orange_money,wave,mtn_money,cheque,virement',
+            'lignes'           => 'required|array|min:1|max:10',
+            'lignes.*.montant' => 'required|numeric|min:0.01|max:99999999',
+            'lignes.*.moyen'   => 'required|in:especes,orange_money,moov_money,wave,mtn_money,cheque,virement',
+            'lignes.*.notes'   => 'nullable|string|max:200',
         ]);
 
-        DB::transaction(function () use ($repair, $validated) {
-            $nouveauMontantPaye = $repair->montant_paye + floatval($validated['montant']);
+        $totalLignes = collect($validated['lignes'])->sum(fn($l) => floatval($l['montant']));
+
+        if ($totalLignes > $repair->reste_a_payer + 0.01) {
+            return back()->with('error', 'Le total saisi (' . number_format($totalLignes, 0, ',', ' ') . ' cfa) dépasse le reste à payer (' . number_format($repair->reste_a_payer, 0, ',', ' ') . ' cfa).');
+        }
+
+        DB::transaction(function () use ($repair, $validated, $totalLignes, $user) {
+            foreach ($validated['lignes'] as $ligne) {
+                RepairPayment::create([
+                    'repair_id'  => $repair->id,
+                    'montant'    => floatval($ligne['montant']),
+                    'moyen'      => $ligne['moyen'],
+                    'notes'      => $ligne['notes'] ?? null,
+                    'created_by' => $user->id,
+                ]);
+            }
+
+            $nouveauMontantPaye = $repair->repairPayments()->sum('montant');
             $nouveauReste       = max(0.0, $repair->total_reparation - $nouveauMontantPaye);
 
             $repair->montant_paye  = $nouveauMontantPaye;
             $repair->reste_a_payer = $nouveauReste;
-            $repair->mode_paiement = $validated['mode_paiement'];
 
             if ($nouveauReste <= 0) {
                 $repair->etat_paiement = 'Soldé';
@@ -361,7 +380,7 @@ class RepairController extends Controller
             $repair->save();
         });
 
-        $montantFormate = number_format(floatval($validated['montant']), 0, ',', ' ');
+        $montantFormate = number_format($totalLignes, 0, ',', ' ');
         return back()->with('success', "Paiement de {$montantFormate} cfa enregistré.");
     }
 

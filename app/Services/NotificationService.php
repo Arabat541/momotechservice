@@ -26,10 +26,18 @@ class NotificationService
             return;
         }
 
+        if ($stock->isStockEpuise()) {
+            $titre   = "🔴 Stock épuisé : {$stock->nom}";
+            $message = "Quantité : {$stock->quantite} — Seuil épuisé : {$stock->seuil_epuise}";
+        } else {
+            $titre   = "🟡 Stock faible : {$stock->nom}";
+            $message = "Quantité : {$stock->quantite} — Seuil alerte : {$stock->seuil_alerte}";
+        }
+
         Notification::create([
             'type'        => 'stock_alerte',
-            'titre'       => "Stock critique : {$stock->nom}",
-            'message'     => "Quantité : {$stock->quantite} / Seuil : {$stock->seuil_alerte}",
+            'titre'       => $titre,
+            'message'     => $message,
             'shop_id'     => $stock->shopId,
             'role_cible'  => 'all',
             'entity_type' => 'Stock',

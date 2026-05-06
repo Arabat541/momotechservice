@@ -31,15 +31,12 @@
 body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000; }
 
 .label-wrap {
-    width: 59mm;
+    width: 54mm;
     height: 38mm;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 1mm;
-    page-break-inside: avoid;
-    break-inside: avoid;
 }
 .line {
     width: 100%;
@@ -52,15 +49,15 @@ body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000;
 .shop-name  { font-size: 7pt; font-weight: bold; text-transform: uppercase; height: 4mm; line-height: 4mm; }
 .repair-num { font-size: 8pt; font-weight: bold; height: 4mm; line-height: 4mm; }
 .barcode-wrap {
-    width: 55mm;
-    height: 14mm;
+    width: 52mm;
+    height: 16mm;
     flex-shrink: 0;
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
 }
-.barcode-wrap svg { width: 55mm !important; height: 14mm !important; display: block; }
+.barcode-wrap svg { width: 52mm !important; height: 16mm !important; display: block; }
 .client-info { font-size: 6pt; height: 4mm; line-height: 4mm; }
 .appareil    { font-size: 6pt; height: 4mm; line-height: 4mm; }
 .date-info   { font-size: 6pt; height: 4mm; line-height: 4mm; }
@@ -74,6 +71,7 @@ body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000;
         border: 1px solid #d1d5db;
         border-radius: 4px;
         box-shadow: 0 1px 4px rgba(0,0,0,.1);
+        margin: 1mm 2mm;
     }
     .btn-ctrl {
         background: #6b7280;
@@ -89,15 +87,20 @@ body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000;
     .count-label { font-size: 13px; color: #6b7280; font-family: sans-serif; }
 }
 @media print {
-    @page { size: A4 portrait; margin: 5mm; }
+    @page { size: 58mm auto; margin: 0; }
     .no-print { display: none !important; }
     body { background: #fff; padding: 0; }
-    .label-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 59mm);
-        gap: 2mm;
+    .label-grid { display: block; }
+    .label-wrap {
+        width: 54mm;
+        height: 38mm;
+        margin: 1mm 2mm;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        page-break-after: always;
+        break-after: always;
     }
-    .label-wrap { border: 0.5pt solid #000; border-radius: 0; box-shadow: none; }
 }
 </style>
 
@@ -108,7 +111,7 @@ document.addEventListener('DOMContentLoaded', function () {
     try {
         JsBarcode('#barcode-{{ $item['repair']->id }}', '{{ $item['repair']->numeroReparation }}', {
             format: 'CODE128',
-            width: 1.5,
+            width: 1.2,
             height: 40,
             displayValue: true,
             fontSize: 8,

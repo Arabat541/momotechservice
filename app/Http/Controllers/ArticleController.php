@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Client;
 use App\Models\Repair;
 use App\Models\Sale;
+use App\Models\SalePayment;
 use App\Models\Settings;
 use App\Models\Stock;
 use App\Services\CashSessionService;
@@ -69,14 +70,16 @@ class ArticleController extends Controller
         }
 
         $validated = $request->validate([
-            'article_id'    => 'required|string|max:30',
-            'quantite'      => 'required|integer|min:1|max:9999',
-            'client'        => 'nullable|string|max:150',
-            'client_id'     => 'nullable|string|max:30|exists:clients,id',
-            'mode_paiement'  => 'nullable|in:comptant,credit',
-            'montant_paye'   => 'nullable|numeric|min:0|max:99999999',
-            'moyen_paiement' => 'nullable|in:especes,orange_money,wave,mtn_money',
-            'remise'         => 'nullable|numeric|min:0|max:99999999',
+            'article_id'              => 'required|string|max:30',
+            'quantite'                => 'required|integer|min:1|max:9999',
+            'client'                  => 'nullable|string|max:150',
+            'client_id'               => 'nullable|string|max:30|exists:clients,id',
+            'mode_paiement'           => 'nullable|in:comptant,credit',
+            'montant_paye'            => 'nullable|numeric|min:0|max:99999999',
+            'remise'                  => 'nullable|numeric|min:0|max:99999999',
+            'lignes_moyens'           => 'nullable|array|max:10',
+            'lignes_moyens.*.moyen'   => 'required_with:lignes_moyens|in:especes,orange_money,moov_money,wave,mtn_money',
+            'lignes_moyens.*.montant' => 'required_with:lignes_moyens|numeric|min:0.01|max:99999999',
         ]);
 
         $shopId  = $request->attributes->get('shopId');
@@ -116,8 +119,20 @@ class ArticleController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        if ($modePaiement === 'comptant' && !empty($validated['moyen_paiement'])) {
-            $sale->update(['moyen_paiement' => $validated['moyen_paiement']]);
+        if ($modePaiement === 'comptant' && !empty($validated['lignes_moyens'])) {
+            $lignes = collect($validated['lignes_moyens'])->filter(fn($l) => !empty($l['moyen']) && floatval($l['montant']) > 0);
+            if ($lignes->isNotEmpty()) {
+                foreach ($lignes as $ligne) {
+                    SalePayment::create([
+                        'sale_id'    => $sale->id,
+                        'montant'    => floatval($ligne['montant']),
+                        'moyen'      => $ligne['moyen'],
+                        'created_by' => $user->id,
+                    ]);
+                }
+                $moyenPaiement = $lignes->count() === 1 ? $lignes->first()['moyen'] : 'mixte';
+                $sale->update(['moyen_paiement' => $moyenPaiement]);
+            }
         }
 
         $label = $modePaiement === 'credit'
@@ -163,15 +178,17 @@ class ArticleController extends Controller
         }
 
         $validated = $request->validate([
-            'client'        => 'nullable|string|max:150',
-            'client_id'     => 'nullable|string|max:30|exists:clients,id',
-            'quantite'      => 'required|integer|min:1|max:9999',
-            'prixVente'     => 'required|numeric|min:0|max:99999999',
-            'mode_paiement'  => 'required|in:comptant,credit',
-            'montant_paye'   => 'required|numeric|min:0|max:99999999',
-            'moyen_paiement' => 'nullable|in:especes,orange_money,wave,mtn_money',
-            'remise'         => 'nullable|numeric|min:0|max:99999999',
-            'date'           => 'required|date',
+            'client'                  => 'nullable|string|max:150',
+            'client_id'               => 'nullable|string|max:30|exists:clients,id',
+            'quantite'                => 'required|integer|min:1|max:9999',
+            'prixVente'               => 'required|numeric|min:0|max:99999999',
+            'mode_paiement'           => 'required|in:comptant,credit',
+            'montant_paye'            => 'required|numeric|min:0|max:99999999',
+            'remise'                  => 'nullable|numeric|min:0|max:99999999',
+            'date'                    => 'required|date',
+            'lignes_moyens'           => 'nullable|array|max:10',
+            'lignes_moyens.*.moyen'   => 'required_with:lignes_moyens|in:especes,orange_money,moov_money,wave,mtn_money',
+            'lignes_moyens.*.montant' => 'required_with:lignes_moyens|numeric|min:0.01|max:99999999',
         ]);
 
         if ($validated['mode_paiement'] === 'credit' && empty($validated['client_id'])) {
@@ -261,7 +278,22 @@ class ArticleController extends Controller
                     default                                              => $vente->client,
                 };
 
-                // 5. Mise à jour de la vente
+                // 5. Mise à jour des SalePayments (comptant uniquement)
+                $vente->salePayments()->delete();
+                if ($nouveauMode === 'comptant' && !empty($validated['lignes_moyens'])) {
+                    foreach ($validated['lignes_moyens'] as $ligne) {
+                        if (!empty($ligne['moyen']) && floatval($ligne['montant']) > 0) {
+                            SalePayment::create([
+                                'sale_id'    => $vente->id,
+                                'montant'    => floatval($ligne['montant']),
+                                'moyen'      => $ligne['moyen'],
+                                'created_by' => $user->id,
+                            ]);
+                        }
+                    }
+                }
+
+                // 6. Mise à jour de la vente
                 $vente->update([
                     'client'        => $clientNomFinal,
                     'client_id'     => $nouveauMode === 'credit' ? ($nouveauClientId ?? $ancienClientId) : null,
@@ -273,7 +305,7 @@ class ArticleController extends Controller
                     'montant_paye'  => $nouveauMontantPaye,
                     'reste_credit'  => $nouveauResteCredit,
                     'statut'         => $nouveauResteCredit > 0 ? 'credit' : 'soldee',
-                    'moyen_paiement' => $nouveauMode === 'comptant' ? ($validated['moyen_paiement'] ?? null) : null,
+                    'moyen_paiement' => $nouveauMode === 'comptant' ? $this->resolveMoyenPaiement($validated['lignes_moyens'] ?? []) : null,
                     'date'           => $validated['date'],
                 ]);
             });
@@ -308,6 +340,13 @@ class ArticleController extends Controller
         return Pdf::loadView('exports.ventes-articles-pdf', compact('ventes', 'companyInfo', 'logoBase64'))
             ->setPaper('a4', 'landscape')
             ->download('ventes-articles-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    private function resolveMoyenPaiement(array $lignes): ?string
+    {
+        $valides = collect($lignes)->filter(fn($l) => !empty($l['moyen']) && floatval($l['montant']) > 0);
+        if ($valides->isEmpty()) return null;
+        return $valides->count() === 1 ? $valides->first()['moyen'] : 'mixte';
     }
 
     private function getCompanyInfo(?string $shopId): array

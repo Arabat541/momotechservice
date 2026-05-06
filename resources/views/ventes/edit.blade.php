@@ -193,6 +193,37 @@
             <input type="hidden" name="montant_paye" :value="total">
         </template>
 
+        {{-- Moyens de paiement mixtes (comptant uniquement) --}}
+        <template x-if="modePaiement === 'comptant'">
+            <div class="space-y-2">
+                <label class="block text-sm font-medium text-gray-700">Moyen(s) de paiement</label>
+                <template x-for="(ligne, idx) in lignesMoyens" :key="idx">
+                    <div class="flex gap-2 items-center">
+                        <select :name="'lignes_moyens[' + idx + '][moyen]'" x-model="ligne.moyen"
+                                class="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500">
+                            <option value="">— Moyen —</option>
+                            <option value="especes">Espèces</option>
+                            <option value="orange_money">Orange Money</option>
+                            <option value="moov_money">Moov Money</option>
+                            <option value="wave">Wave</option>
+                            <option value="mtn_money">MTN Money</option>
+                        </select>
+                        <input type="number" :name="'lignes_moyens[' + idx + '][montant]'"
+                               x-model.number="ligne.montant" step="any" min="0.01" placeholder="Montant"
+                               class="w-28 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 no-spinner">
+                        <button type="button" @click="removeLigneMoyen(idx)" x-show="lignesMoyens.length > 1"
+                                class="text-red-400 hover:text-red-600 text-sm flex-shrink-0 px-1">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </template>
+                <button type="button" @click="addLigneMoyen()"
+                        class="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                    <i class="fas fa-plus-circle"></i> Ajouter un moyen
+                </button>
+            </div>
+        </template>
+
         {{-- Date --}}
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Date de vente</label>
@@ -211,7 +242,7 @@
                 <i class="fas fa-times mr-1"></i> Annuler
             </a>
             <button type="submit"
-                    :disabled="remise > 0 && remise >= sousTotal"
+                    :disabled="(remise > 0 && remise >= sousTotal) || !moyensPaiementValides()"
                     class="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                 <i class="fas fa-save mr-2"></i> Enregistrer les modifications
             </button>
@@ -233,10 +264,30 @@ function venteEdit(initQte, initPrix, initMode, initMontantPaye, initRemise) {
         sousTotal:    initSousTotal,
         total:        initSousTotal - initRemiseCap,
         resteCredit:  Math.max(0, initSousTotal - initRemiseCap - initMontantPaye),
+        lignesMoyens: [{ moyen: '', montant: '' }],
+        totalMoyens:  0,
 
         onModeChange() {
-            this.montantPaye = 0;
+            this.montantPaye  = 0;
+            this.lignesMoyens = [{ moyen: '', montant: '' }];
+            this.totalMoyens  = 0;
             this.calcTotal();
+        },
+        addLigneMoyen() {
+            this.lignesMoyens.push({ moyen: '', montant: '' });
+        },
+        removeLigneMoyen(idx) {
+            if (this.lignesMoyens.length > 1) {
+                this.lignesMoyens.splice(idx, 1);
+                this.calcTotalMoyens();
+            }
+        },
+        calcTotalMoyens() {
+            this.totalMoyens = this.lignesMoyens.reduce((s, l) => s + (parseFloat(l.montant) || 0), 0);
+        },
+        moyensPaiementValides() {
+            if (this.modePaiement !== 'comptant') return true;
+            return this.lignesMoyens.some(l => l.moyen !== '' && parseFloat(l.montant) > 0);
         },
         calcTotal() {
             this.sousTotal   = (this.prixUnitaire || 0) * (this.quantite || 0);

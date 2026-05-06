@@ -255,43 +255,104 @@
                 @endif
             </div>
 
-            {{-- Enregistrer un paiement --}}
+            {{-- Enregistrer un paiement mixte --}}
             @if(session('user_role') === 'caissiere' && $repair->reste_a_payer > 0)
-            <div class="border-t pt-3"
-                 x-data="{ montant: '', max: {{ (float) $repair->reste_a_payer }}, erreur: false }">
+            <div class="border-t pt-3" x-data="paiementMixte({{ (float) $repair->reste_a_payer }})">
                 <h4 class="text-sm font-semibold text-gray-700 mb-2">
                     <i class="fas fa-coins text-yellow-500 mr-1"></i> Enregistrer un paiement
                 </h4>
                 <form action="{{ route('repairs.paiement', $repair->id) }}" method="POST" class="space-y-2"
-                      @submit.prevent="
-                          erreur = (parseFloat(montant) <= 0 || parseFloat(montant) > max);
-                          if (!erreur) $el.submit();
-                      ">
+                      @submit.prevent="if (peutSoumettre()) $el.submit()">
                     @csrf
-                    <div class="flex gap-2">
-                        <input type="number" name="montant" step="any" min="0.01"
-                               :max="max" x-model="montant"
-                               placeholder="Montant (max {{ number_format($repair->reste_a_payer, 0, ',', ' ') }} cfa)"
-                               class="flex-1 text-sm py-2 border-gray-300 rounded-md px-3 border no-spinner">
-                        <select name="mode_paiement" required
-                                class="text-sm py-2 border-gray-300 rounded-md px-3 border">
-                            <option value="">Mode…</option>
-                            <option value="especes">Espèces</option>
-                            <option value="orange_money">Orange Money</option>
-                            <option value="wave">Wave</option>
-                            <option value="mtn_money">MTN Money</option>
-                            <option value="cheque">Chèque</option>
-                            <option value="virement">Virement</option>
-                        </select>
+
+                    {{-- Lignes dynamiques --}}
+                    <template x-for="(ligne, idx) in lignes" :key="idx">
+                        <div class="flex gap-1.5 items-center">
+                            <select :name="'lignes[' + idx + '][moyen]'" x-model="ligne.moyen"
+                                    class="text-xs py-1.5 border-gray-300 rounded px-2 border flex-1">
+                                <option value="">Moyen…</option>
+                                <option value="especes">Espèces</option>
+                                <option value="orange_money">Orange Money</option>
+                                <option value="moov_money">Moov Money</option>
+                                <option value="wave">Wave</option>
+                                <option value="mtn_money">MTN Money</option>
+                                <option value="cheque">Chèque</option>
+                                <option value="virement">Virement bancaire</option>
+                            </select>
+                            <input type="number" :name="'lignes[' + idx + '][montant]'"
+                                   x-model.number="ligne.montant" @input="calcTotal()"
+                                   step="any" min="0.01" placeholder="Montant"
+                                   class="text-xs py-1.5 border-gray-300 rounded px-2 border w-24 no-spinner">
+                            <button type="button" @click="removeLigne(idx)" x-show="lignes.length > 1"
+                                    class="text-red-400 hover:text-red-600 text-xs px-1 flex-shrink-0">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    </template>
+
+                    <button type="button" @click="addLigne()"
+                            class="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                        <i class="fas fa-plus-circle"></i> Ajouter un moyen
+                    </button>
+
+                    <div class="flex justify-between text-xs bg-gray-50 rounded px-2 py-1.5">
+                        <span>Total saisi : <strong x-text="fmt(totalSaisi) + ' cfa'"></strong></span>
+                        <span :class="totalSaisi > resteAPayer + 0.01 ? 'text-red-600 font-semibold' : 'text-gray-500'">
+                            Reste : <strong>{{ number_format($repair->reste_a_payer, 0, ',', ' ') }} cfa</strong>
+                        </span>
                     </div>
-                    <p x-show="erreur" class="text-xs text-red-600">
-                        Le montant doit être entre 0 et {{ number_format($repair->reste_a_payer, 0, ',', ' ') }} cfa.
+
+                    <p x-show="totalSaisi > resteAPayer + 0.01" class="text-xs text-red-600">Le total dépasse le reste à payer.</p>
+                    <p x-show="totalSaisi > 0 && totalSaisi <= resteAPayer + 0.01 && !lignesValides()" class="text-xs text-orange-600">
+                        Sélectionnez un moyen et un montant valide pour chaque ligne.
                     </p>
-                    <button type="submit"
-                            class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-md font-medium">
+
+                    <button type="submit" :disabled="!peutSoumettre()"
+                            class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm rounded-md font-medium">
                         <i class="fas fa-check mr-1"></i> Valider le paiement
                     </button>
                 </form>
+            </div>
+            @endif
+
+            {{-- Historique des paiements --}}
+            @php $repairPayments = $repair->repairPayments()->with('createdBy')->orderBy('created_at', 'asc')->get(); @endphp
+            @if($repairPayments->isNotEmpty())
+            <div class="border-t pt-3">
+                <h4 class="text-sm font-semibold text-gray-700 mb-2">
+                    <i class="fas fa-history text-gray-400 mr-1"></i> Historique des paiements
+                </h4>
+                <table class="w-full text-xs">
+                    <thead>
+                        <tr class="text-gray-400 uppercase text-left border-b border-gray-100">
+                            <th class="pb-1">Date</th>
+                            <th class="pb-1">Moyen</th>
+                            <th class="pb-1 text-right">Montant</th>
+                            <th class="pb-1">Par</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+                        @foreach($repairPayments as $pmt)
+                        @php
+                            $moyenLabel = [
+                                'especes'      => 'Espèces',
+                                'orange_money' => 'Orange Money',
+                                'moov_money'   => 'Moov Money',
+                                'wave'         => 'Wave',
+                                'mtn_money'    => 'MTN Money',
+                                'cheque'       => 'Chèque',
+                                'virement'     => 'Virement bancaire',
+                            ][$pmt->moyen] ?? $pmt->moyen;
+                        @endphp
+                        <tr>
+                            <td class="py-1 text-gray-500">{{ $pmt->created_at->format('d/m H\hi') }}</td>
+                            <td class="py-1 font-medium">{{ $moyenLabel }}</td>
+                            <td class="py-1 text-right font-semibold text-green-700">{{ number_format($pmt->montant, 0, ',', ' ') }} F</td>
+                            <td class="py-1 text-gray-400">{{ $pmt->createdBy?->name ?? '—' }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
             @endif
 
@@ -432,4 +493,33 @@
         @endif
     </div>
 </div>
+@push('scripts')
+<script>
+function paiementMixte(resteAPayer) {
+    return {
+        lignes: [{ moyen: '', montant: '' }],
+        resteAPayer: resteAPayer,
+        totalSaisi: 0,
+        addLigne() { this.lignes.push({ moyen: '', montant: '' }); },
+        removeLigne(idx) {
+            if (this.lignes.length > 1) { this.lignes.splice(idx, 1); this.calcTotal(); }
+        },
+        calcTotal() {
+            this.totalSaisi = this.lignes.reduce((s, l) => s + (parseFloat(l.montant) || 0), 0);
+        },
+        lignesValides() {
+            return this.lignes.every(l => l.moyen !== '' && parseFloat(l.montant) > 0);
+        },
+        peutSoumettre() {
+            return this.totalSaisi > 0
+                && this.totalSaisi <= this.resteAPayer + 0.01
+                && this.lignesValides();
+        },
+        fmt(n) {
+            return Math.round(n || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        },
+    };
+}
+</script>
+@endpush
 @endsection

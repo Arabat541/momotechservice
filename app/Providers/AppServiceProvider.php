@@ -42,10 +42,10 @@ class AppServiceProvider extends ServiceProvider
             $allNotifs = Cache::remember('notifications_' . $userId, 30, function () use ($service, $user, $shopId) {
                 return $service->getNotificationsForUser($user, $shopId);
             });
-            $notifCount    = $allNotifs->count();
-            $notifications = $allNotifs->take(5);
+            $notifCount       = $allNotifs->count();
+            $bellNotifications = $allNotifs->take(5);
 
-            $view->with(compact('notifications', 'notifCount'));
+            $view->with(compact('bellNotifications', 'notifCount'));
         });
     }
 }

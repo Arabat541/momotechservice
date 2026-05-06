@@ -48,41 +48,52 @@
     </div>
 
     {{-- Stat cards --}}
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-6 text-white">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-5 text-white">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-blue-100">Articles en stock</p>
+                    <p class="text-blue-100 text-sm">Articles en stock</p>
                     <p class="text-3xl font-bold">{{ $statsArticles }}</p>
                 </div>
-                <i class="fas fa-boxes-stacked text-4xl text-blue-200"></i>
+                <i class="fas fa-boxes-stacked text-3xl text-blue-200"></i>
             </div>
         </div>
-        <div class="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-6 text-white">
+        <div class="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-5 text-white">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-green-100">Valeur totale</p>
-                    <p class="text-3xl font-bold">{{ number_format($statsValeur, 0, ',', ' ') }} cfa</p>
+                    <p class="text-green-100 text-sm">Valeur totale</p>
+                    <p class="text-2xl font-bold">{{ number_format($statsValeur, 0, ',', ' ') }}</p>
+                    <p class="text-green-200 text-xs">cfa</p>
                 </div>
-                <i class="fas fa-credit-card text-4xl text-green-200"></i>
+                <i class="fas fa-credit-card text-3xl text-green-200"></i>
             </div>
         </div>
-        <div class="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl p-6 text-white">
+        <div class="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl p-5 text-white">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-orange-100">Stock faible</p>
+                    <p class="text-orange-100 text-sm">🟡 Stock faible</p>
                     <p class="text-3xl font-bold">{{ $statsStockFaible }}</p>
                 </div>
-                <i class="fas fa-triangle-exclamation text-4xl text-orange-200"></i>
+                <i class="fas fa-triangle-exclamation text-3xl text-orange-200"></i>
             </div>
         </div>
-        <div class="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-6 text-white">
+        <div class="bg-gradient-to-r from-red-500 to-red-700 rounded-xl p-5 text-white">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-purple-100">Bénéfice net total attendu</p>
-                    <p class="text-3xl font-bold">{{ number_format($statsBenefice, 0, ',', ' ') }} cfa</p>
+                    <p class="text-red-100 text-sm">🔴 Stock épuisé</p>
+                    <p class="text-3xl font-bold">{{ $statsStockEpuise }}</p>
                 </div>
-                <i class="fas fa-chart-line text-4xl text-purple-200"></i>
+                <i class="fas fa-circle-xmark text-3xl text-red-200"></i>
+            </div>
+        </div>
+        <div class="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-5 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-purple-100 text-sm">Bénéfice attendu</p>
+                    <p class="text-2xl font-bold">{{ number_format($statsBenefice, 0, ',', ' ') }}</p>
+                    <p class="text-purple-200 text-xs">cfa</p>
+                </div>
+                <i class="fas fa-chart-line text-3xl text-purple-200"></i>
             </div>
         </div>
     </div>
@@ -108,6 +119,7 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gros 10+</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Valeur</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bénéfice</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Seuils</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
                 </thead>
@@ -116,9 +128,15 @@
                     <tr class="hover:bg-gray-50">
                         <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $item->nom }}</td>
                         <td class="px-6 py-4">
-                            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {{ $item->quantite < 10 ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800' }}">
+                            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full
+                                {{ $item->isStockEpuise() ? 'bg-red-100 text-red-800' : ($item->isStockFaible() ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800') }}">
                                 {{ $item->quantite }}
                             </span>
+                            @if($item->isStockEpuise())
+                                <span class="ml-1 text-xs text-red-600 font-semibold">✕ Épuisé</span>
+                            @elseif($item->isStockFaible())
+                                <span class="ml-1 text-xs text-orange-600 font-semibold">⚠ Faible</span>
+                            @endif
                         </td>
                         <td class="px-6 py-4 text-sm text-gray-500">{{ number_format($item->prixAchat, 0, ',', ' ') }}</td>
                         <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ number_format($item->prixVente, 0, ',', ' ') }}</td>
@@ -133,6 +151,20 @@
                         </td>
                         <td class="px-6 py-4 text-sm text-gray-700">{{ number_format($item->quantite * $item->prixVente, 0, ',', ' ') }}</td>
                         <td class="px-6 py-4 text-sm text-gray-700">{{ number_format(($item->prixVente - $item->prixAchat) * $item->quantite, 0, ',', ' ') }}</td>
+                        <td class="px-6 py-4 text-sm">
+                            @if($item->seuil_alerte > 0 || $item->seuil_epuise > 0)
+                                <div class="flex flex-col gap-0.5">
+                                    @if($item->seuil_alerte > 0)
+                                        <span class="inline-flex items-center px-1.5 py-0.5 text-xs rounded bg-orange-100 text-orange-700 whitespace-nowrap">🟡 ≤ {{ $item->seuil_alerte }}</span>
+                                    @endif
+                                    @if($item->seuil_epuise > 0)
+                                        <span class="inline-flex items-center px-1.5 py-0.5 text-xs rounded bg-red-100 text-red-700 whitespace-nowrap">🔴 ≤ {{ $item->seuil_epuise }}</span>
+                                    @endif
+                                </div>
+                            @else
+                                <span class="text-gray-300">—</span>
+                            @endif
+                        </td>
                         <td class="px-6 py-4 text-sm space-x-2">
                             <button @click="openReappro({{ $item->toJson() }})"
                                     class="text-green-600 hover:text-green-800 p-1" title="Réapprovisionner">
@@ -228,6 +260,21 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Bénéfice net attendu</label>
                     <input type="number" name="beneficeNetAttendu" readonly class="w-full border rounded-lg px-3 py-2 bg-gray-100">
+                </div>
+                <div class="pt-2 border-t border-gray-100">
+                    <p class="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Alertes stock (optionnels)</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-medium text-orange-700 mb-1">🟡 Seuil faible (qté ≤)</label>
+                            <input type="number" name="seuil_alerte" value="0" min="0"
+                                   class="w-full border border-orange-200 rounded-lg px-2 py-1.5 text-sm no-spinner">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-red-700 mb-1">🔴 Seuil épuisé (qté ≤)</label>
+                            <input type="number" name="seuil_epuise" value="0" min="0"
+                                   class="w-full border border-red-200 rounded-lg px-2 py-1.5 text-sm no-spinner">
+                        </div>
+                    </div>
                 </div>
                 <button type="submit" class="w-full bg-gradient-to-r from-green-600 to-blue-600 text-white py-2 rounded-lg font-semibold hover:from-green-700 hover:to-blue-700">
                     Ajouter
@@ -373,6 +420,21 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">Bénéfice net attendu</label>
                     <input type="number" name="beneficeNetAttendu" x-model="editItem.beneficeNetAttendu" readonly class="w-full border rounded-lg px-3 py-2 bg-gray-100">
                 </div>
+                <div class="pt-2 border-t border-gray-100">
+                    <p class="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Alertes stock (optionnels)</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-medium text-orange-700 mb-1">🟡 Seuil faible (qté ≤)</label>
+                            <input type="number" name="seuil_alerte" x-model="editItem.seuil_alerte" min="0"
+                                   class="w-full border border-orange-200 rounded-lg px-2 py-1.5 text-sm no-spinner">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-red-700 mb-1">🔴 Seuil épuisé (qté ≤)</label>
+                            <input type="number" name="seuil_epuise" x-model="editItem.seuil_epuise" min="0"
+                                   class="w-full border border-red-200 rounded-lg px-2 py-1.5 text-sm no-spinner">
+                        </div>
+                    </div>
+                </div>
                 <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700">
                     Mettre à jour
                 </button>
@@ -389,7 +451,7 @@ function stocksPage() {
         showEdit: false,
         showReappro: false,
         showHistorique: false,
-        editItem: { nom: '', quantite: 0, prixAchat: 0, prixVente: 0, beneficeNetAttendu: 0 },
+        editItem: { nom: '', quantite: 0, prixAchat: 0, prixVente: 0, beneficeNetAttendu: 0, seuil_alerte: 0, seuil_epuise: 0 },
         editAction: '',
         reapproItem: { id: '', nom: '', quantite: 0, prixAchat: 0 },
         reapproAction: '',

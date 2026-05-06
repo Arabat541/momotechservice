@@ -112,4 +112,9 @@ class Repair extends BaseModel
     {
         return $this->hasMany(RepairPhoto::class, 'repair_id');
     }
+
+    public function repairPayments()
+    {
+        return $this->hasMany(RepairPayment::class, 'repair_id');
+    }
 }
