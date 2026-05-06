@@ -15,8 +15,9 @@
     <div class="line client-info">
         {{ $repair->client_nom }}&nbsp;|&nbsp;{{ $repair->client_telephone }}
     </div>
-    <div class="line appareil">{{ $repair->appareil_marque_modele }}</div>
-    <div class="line date-info">{{ \Carbon\Carbon::parse($repair->date_creation)->format('d/m/Y') }}</div>
+    <div class="line appareil-date">
+        {{ $repair->appareil_marque_modele }}&nbsp;—&nbsp;{{ \Carbon\Carbon::parse($repair->date_creation)->format('d/m/Y') }}
+    </div>
 </div>
 
 <style>
@@ -25,7 +26,7 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000; }
 
-/* 5 + 5 + 16 + 4 + 3 + 3 = 36mm */
+/* 5 + 5 + 16 + 4 + 3 = 33mm (marge 5mm) */
 .label-wrap {
     width: 56mm;
     height: 36mm;
@@ -56,9 +57,8 @@ body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000;
     justify-content: center;
 }
 .barcode-wrap svg { width: 50mm !important; height: 16mm !important; display: block; }
-.client-info { font-size: 5pt; height: 4mm; line-height: 4mm; }
-.appareil    { font-size: 5pt; height: 3mm; line-height: 3mm; }
-.date-info   { font-size: 5pt; height: 3mm; line-height: 3mm; }
+.client-info   { font-size: 5pt; height: 4mm; line-height: 4mm; }
+.appareil-date { font-size: 5pt; height: 3mm; line-height: 3mm; }
 
 @media screen {
     body {
