@@ -20,18 +20,17 @@
 </div>
 
 <style>
-/* Option A — essayer en premier. Si contenu toujours tourné, passer à l'option B commentée ci-dessous */
-@page { size: 58mm 40mm landscape; margin: 0; }
-/* Option B — si l'option A ne corrige pas la rotation :
-@page { size: 40mm 58mm; margin: 0; } */
+@page { size: 58mm 38mm landscape; margin: 0; }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000; }
 
+/* 5 + 5 + 16 + 4 + 3 + 3 = 36mm */
 .label-wrap {
     width: 56mm;
     height: 36mm;
     margin: 1mm;
+    padding: 0;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -45,21 +44,21 @@ body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000;
     text-overflow: ellipsis;
     flex-shrink: 0;
 }
-.shop-name  { font-size: 6pt; font-weight: bold; text-transform: uppercase; height: 3mm; line-height: 3mm; }
-.repair-num { font-size: 7pt; font-weight: bold; height: 3mm; line-height: 3mm; }
+.shop-name  { font-size: 6pt;  font-weight: bold; text-transform: uppercase; height: 5mm; line-height: 5mm; }
+.repair-num { font-size: 7pt;  font-weight: bold;                             height: 5mm; line-height: 5mm; }
 .barcode-wrap {
     width: 54mm;
-    height: 18mm;
+    height: 16mm;
     flex-shrink: 0;
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
 }
-.barcode-wrap svg { width: 54mm !important; height: 18mm !important; display: block; }
-.client-info { font-size: 5.5pt; height: 3mm; line-height: 3mm; }
-.appareil    { font-size: 5.5pt; height: 3mm; line-height: 3mm; }
-.date-info   { font-size: 5.5pt; height: 3mm; line-height: 3mm; }
+.barcode-wrap svg { width: 50mm !important; height: 16mm !important; display: block; }
+.client-info { font-size: 5pt; height: 4mm; line-height: 4mm; }
+.appareil    { font-size: 5pt; height: 3mm; line-height: 3mm; }
+.date-info   { font-size: 5pt; height: 3mm; line-height: 3mm; }
 
 @media screen {
     body {
@@ -105,10 +104,10 @@ document.addEventListener('DOMContentLoaded', function () {
     try {
         JsBarcode('#barcode', '{{ $repair->numeroReparation }}', {
             format: 'CODE128',
-            width: 1.0,
-            height: 45,
+            width: 0.9,
+            height: 38,
             displayValue: true,
-            fontSize: 8,
+            fontSize: 7,
             margin: 0,
         });
     } catch (e) {}
