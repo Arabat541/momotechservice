@@ -15,7 +15,7 @@ class Invoice extends BaseModel
 
     protected $fillable = [
         'id', 'numero_facture', 'shopId', 'repair_id', 'client_id', 'cash_session_id',
-        'montant_estime', 'montant_final', 'montant_paye', 'reste_a_payer', 'statut', 'created_by',
+        'montant_estime', 'montant_final', 'montant_paye', 'reste_a_payer', 'moyen_paiement', 'statut', 'created_by',
     ];
 
     protected $casts = [

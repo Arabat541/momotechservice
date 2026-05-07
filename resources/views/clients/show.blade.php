@@ -61,12 +61,25 @@
             <i class="fas fa-chevron-down text-xs transition-transform" :class="open && 'rotate-180'"></i>
         </button>
         <div x-show="open" x-transition class="mt-4">
-            <form method="POST" action="{{ route('clients.remboursement', $client->id) }}" class="flex gap-3 items-end">
+            <form method="POST" action="{{ route('clients.remboursement', $client->id) }}" class="flex flex-wrap gap-3 items-end">
                 @csrf
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Montant (F CFA)</label>
                     <input type="number" name="montant" min="1" max="{{ $client->solde_credit }}" required
                         class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 w-44">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Moyen de paiement</label>
+                    <select name="moyen_paiement" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+                        <option value="">— Non précisé —</option>
+                        <option value="especes">Espèces</option>
+                        <option value="orange_money">Orange Money</option>
+                        <option value="moov_money">Moov Money</option>
+                        <option value="wave">Wave</option>
+                        <option value="mtn_money">MTN Money</option>
+                        <option value="cheque">Chèque</option>
+                        <option value="virement">Virement</option>
+                    </select>
                 </div>
                 <div class="flex-1">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Notes (optionnel)</label>

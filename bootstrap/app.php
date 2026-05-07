@@ -15,10 +15,11 @@ $app = Application::configure(basePath: dirname(__DIR__))
     })
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
-            'auth.jwt' => \App\Http\Middleware\JwtAuth::class,
-            'role'     => \App\Http\Middleware\RoleMiddleware::class,
-            'shop'     => \App\Http\Middleware\ShopMiddleware::class,
-            'audit'    => \App\Http\Middleware\AuditMiddleware::class,
+            'auth.jwt'         => \App\Http\Middleware\JwtAuth::class,
+            'role'             => \App\Http\Middleware\RoleMiddleware::class,
+            'shop'             => \App\Http\Middleware\ShopMiddleware::class,
+            'audit'            => \App\Http\Middleware\AuditMiddleware::class,
+            'invoice.disabled' => \App\Http\Middleware\InvoiceModuleDisabled::class,
         ]);
 
         $middleware->appendToGroup('web', \App\Http\Middleware\AuditMiddleware::class);

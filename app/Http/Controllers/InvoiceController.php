@@ -73,7 +73,8 @@ class InvoiceController extends Controller
         $user    = $request->attributes->get('user');
 
         $validated = $request->validate([
-            'montant' => ['required', 'numeric', 'min:0.01', 'max:9999999'],
+            'montant'         => ['required', 'numeric', 'min:0.01', 'max:9999999'],
+            'moyen_paiement'  => ['nullable', 'string', 'in:especes,orange_money,moov_money,wave,mtn_money,cheque,virement'],
         ]);
 
         $session = $this->cashSessionService->sessionOuverte($shopId);
@@ -85,7 +86,8 @@ class InvoiceController extends Controller
             $invoice = $this->invoiceService->enregistrerPaiementFinal(
                 $invoice,
                 floatval($validated['montant']),
-                $session->id
+                $session->id,
+                $validated['moyen_paiement'] ?? null
             );
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());

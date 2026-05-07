@@ -99,7 +99,7 @@ class RepairController extends Controller
             'piece_quantite'         => 'nullable|array|max:20',
             'piece_quantite.*'       => 'nullable|integer|min:1|max:9999',
             'montant_paye'           => 'nullable|numeric|min:0|max:99999999',
-            'mode_paiement'          => 'nullable|in:especes,orange_money,wave,mtn_money,cheque,virement',
+            'mode_paiement'          => 'nullable|in:especes,orange_money,moov_money,wave,mtn_money,cheque,virement',
             'statut_reparation'      => 'nullable|in:En attente,En attente de paiement,En cours,En attente de pièces,Terminé,Prêt pour retrait,Irréparable,Livré,Annulé',
             'date_rendez_vous'       => 'nullable|date',
             'numeroReparation'       => 'nullable|string|max:30',
@@ -278,7 +278,7 @@ class RepairController extends Controller
             'appareil_marque_modele' => 'sometimes|string|max:200',
             'statut_reparation'    => 'sometimes|in:En attente,En attente de paiement,En cours,En attente de pièces,Terminé,Prêt pour retrait,Irréparable,Livré,Annulé',
             'montant_paye'         => 'sometimes|numeric|min:0|max:99999999',
-            'mode_paiement'        => 'nullable|in:especes,orange_money,wave,mtn_money,cheque,virement',
+            'mode_paiement'        => 'nullable|in:especes,orange_money,moov_money,wave,mtn_money,cheque,virement',
             'date_rendez_vous'     => 'nullable|date',
             'date_retrait'         => 'nullable|date',
         ]);
@@ -378,6 +378,20 @@ class RepairController extends Controller
             }
 
             $repair->save();
+
+            $invoice = \App\Models\Invoice::withoutGlobalScopes()
+                ->where('repair_id', $repair->id)
+                ->first();
+
+            if ($invoice) {
+                $invoice->update([
+                    'montant_paye'  => $repair->montant_paye,
+                    'reste_a_payer' => $repair->reste_a_payer,
+                    'statut'        => $repair->reste_a_payer <= 0
+                        ? 'soldee'
+                        : ($repair->montant_paye > 0 ? 'partielle' : 'en_attente'),
+                ]);
+            }
         });
 
         $montantFormate = number_format($totalLignes, 0, ',', ' ');

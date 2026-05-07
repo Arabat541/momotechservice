@@ -245,15 +245,16 @@ class ClientController extends Controller
         }
 
         $validated = $request->validate([
-            'montant' => ['required', 'numeric', 'min:0.01', 'max:9999999'],
-            'notes'   => ['nullable', 'string', 'max:500'],
+            'montant'        => ['required', 'numeric', 'min:0.01', 'max:9999999'],
+            'notes'          => ['nullable', 'string', 'max:500'],
+            'moyen_paiement' => ['nullable', 'string', 'in:especes,orange_money,moov_money,wave,mtn_money,cheque,virement'],
         ]);
 
         $user   = $request->attributes->get('user');
         $credit = app(\App\Services\CreditService::class);
 
         try {
-            $credit->enregistrerRemboursement($client, $validated['montant'], $user->id, $validated['notes'] ?? null);
+            $credit->enregistrerRemboursement($client, $validated['montant'], $user->id, $validated['notes'] ?? null, $validated['moyen_paiement'] ?? null);
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }

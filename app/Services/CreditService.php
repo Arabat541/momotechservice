@@ -68,7 +68,7 @@ class CreditService
         });
     }
 
-    public function enregistrerRemboursement(Client $client, float $montant, string $createdBy, ?string $notes = null): CreditTransaction
+    public function enregistrerRemboursement(Client $client, float $montant, string $createdBy, ?string $notes = null, ?string $moyen = null): CreditTransaction
     {
         if ($montant > $client->solde_credit) {
             throw new \RuntimeException(
@@ -76,17 +76,18 @@ class CreditService
             );
         }
 
-        return DB::transaction(function () use ($client, $montant, $createdBy, $notes) {
+        return DB::transaction(function () use ($client, $montant, $createdBy, $notes, $moyen) {
             $soldeApres = max(0, $client->solde_credit - $montant);
 
             $transaction = CreditTransaction::create([
-                'client_id'   => $client->id,
-                'shopId'      => $client->shopId,
-                'montant'     => $montant,
-                'type'        => 'remboursement',
-                'notes'       => $notes,
-                'created_by'  => $createdBy,
-                'solde_apres' => $soldeApres,
+                'client_id'      => $client->id,
+                'shopId'         => $client->shopId,
+                'montant'        => $montant,
+                'type'           => 'remboursement',
+                'notes'          => $notes,
+                'moyen_paiement' => $moyen,
+                'created_by'     => $createdBy,
+                'solde_apres'    => $soldeApres,
             ]);
 
             $client->decrement('solde_credit', $montant);

@@ -102,6 +102,7 @@
                     <option value="">— Non précisé —</option>
                     <option value="especes">Espèces</option>
                     <option value="orange_money">Orange Money</option>
+                    <option value="moov_money">Moov Money</option>
                     <option value="wave">Wave</option>
                     <option value="mtn_money">MTN Money</option>
                     <option value="cheque">Chèque</option>

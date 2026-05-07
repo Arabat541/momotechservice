@@ -15,7 +15,7 @@ class PurchaseInvoice extends BaseModel
 
     protected $fillable = [
         'id', 'numero', 'shopId', 'supplier_id',
-        'montant_total', 'montant_paye', 'reste_a_payer',
+        'montant_total', 'montant_paye', 'reste_a_payer', 'moyen_paiement',
         'statut', 'date_facture', 'date_echeance', 'notes', 'created_by',
     ];
 

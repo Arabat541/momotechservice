@@ -237,8 +237,8 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
         Route::get('/factures-fournisseurs/{id}/imprimer', [PurchaseInvoiceController::class, 'print'])->name('purchase-invoices.print');
     });
 
-    // Factures — lecture + export PDF (caissière + patron)
-    Route::middleware(['role:caissiere,patron'])->group(function () {
+    // Factures — module désactivé côté UI (redirige vers dashboard)
+    Route::middleware(['role:caissiere,patron', 'invoice.disabled'])->group(function () {
         Route::get('/factures', [InvoiceController::class, 'index'])->name('invoices.index');
         Route::get('/factures/export-pdf', [InvoiceController::class, 'exportPdf'])->name('invoices.export.pdf');
         Route::get('/factures/{id}', [InvoiceController::class, 'show'])->name('invoices.show');

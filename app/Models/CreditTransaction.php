@@ -14,7 +14,7 @@ class CreditTransaction extends BaseModel
     protected $table = 'credit_transactions';
 
     protected $fillable = [
-        'id', 'client_id', 'shopId', 'sale_id', 'montant', 'type', 'solde_apres', 'notes', 'created_by',
+        'id', 'client_id', 'shopId', 'sale_id', 'montant', 'type', 'solde_apres', 'notes', 'moyen_paiement', 'created_by',
     ];
 
     protected $casts = [

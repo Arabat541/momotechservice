@@ -42,7 +42,6 @@
             'title' => 'Caisse & Factures',
             'items' => [
                 ['label' => 'Caisse',                 'icon' => 'fa-cash-register',   'route' => 'caisse.index',     'roles' => ['patron','caissiere']],
-                ['label' => 'Factures clients',       'icon' => 'fa-file-invoice',    'route' => 'invoices.index',   'roles' => ['caissiere','patron']],
                 ['label' => 'Rapport de marge',       'icon' => 'fa-percent',         'route' => 'margin.index',     'roles' => ['patron']],
             ],
         ],

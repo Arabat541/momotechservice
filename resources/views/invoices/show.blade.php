@@ -101,21 +101,36 @@
             <i class="fas fa-chevron-down text-xs" :class="open && 'rotate-180'"></i>
         </button>
         <div x-show="open" x-transition class="mt-4">
-            <form method="POST" action="{{ route('invoices.paiement', $invoice->id) }}" class="flex flex-wrap gap-3 items-end">
+            <form method="POST" action="{{ route('invoices.paiement', $invoice->id) }}" class="space-y-3">
                 @csrf
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Montant (F CFA)</label>
-                    <input type="number" name="montant" min="1" max="{{ $invoice->reste_a_payer }}" required
-                        class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-44 focus:ring-2 focus:ring-green-500">
+                <div class="flex flex-wrap gap-3 items-end">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Montant (F CFA)</label>
+                        <input type="number" name="montant" min="1" max="{{ $invoice->reste_a_payer }}" required
+                            class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-44 focus:ring-2 focus:ring-green-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Montant final (si différent)</label>
+                        <input type="number" name="montant_final" value="{{ $invoice->montant_final ?? $invoice->montant_estime }}" min="0"
+                            class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-44 focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Moyen de paiement</label>
+                        <select name="moyen_paiement" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+                            <option value="">— Non précisé —</option>
+                            <option value="especes">Espèces</option>
+                            <option value="orange_money">Orange Money</option>
+                            <option value="moov_money">Moov Money</option>
+                            <option value="wave">Wave</option>
+                            <option value="mtn_money">MTN Money</option>
+                            <option value="cheque">Chèque</option>
+                            <option value="virement">Virement</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                        Confirmer le paiement
+                    </button>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Montant final (si différent)</label>
-                    <input type="number" name="montant_final" value="{{ $invoice->montant_final ?? $invoice->montant_estime }}" min="0"
-                        class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-44 focus:ring-2 focus:ring-blue-500">
-                </div>
-                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
-                    Confirmer le paiement
-                </button>
             </form>
         </div>
     </div>

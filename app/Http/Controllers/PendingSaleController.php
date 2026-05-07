@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Client;
 use App\Models\PendingSale;
 use App\Models\PendingSaleLine;
+use App\Models\Sale;
+use App\Models\SalePayment;
 use App\Models\Stock;
 use App\Services\CashSessionService;
 use App\Services\PricingService;
@@ -162,7 +164,10 @@ class PendingSaleController extends Controller
         }
 
         $validated = $request->validate([
-            'montant_paye' => 'nullable|numeric|min:0|max:99999999',
+            'montant_paye'           => 'nullable|numeric|min:0|max:99999999',
+            'lignes_moyens'          => 'nullable|array|max:10',
+            'lignes_moyens.*.moyen'  => 'required_with:lignes_moyens|in:especes,orange_money,moov_money,wave,mtn_money,cheque,virement',
+            'lignes_moyens.*.montant'=> 'required_with:lignes_moyens|numeric|min:0.01|max:99999999',
         ]);
 
         $session = $this->cashSessionService->sessionOuverte($shopId);
@@ -175,8 +180,14 @@ class PendingSaleController extends Controller
             ? floatval($validated['montant_paye'])
             : ($sale->mode_paiement === 'comptant' ? $totalGeneral : 0);
 
-        DB::transaction(function () use ($sale, $shopId, $user, $session, $montantPaye, $totalGeneral) {
+        $lignesMoyens = array_filter(
+            $validated['lignes_moyens'] ?? [],
+            fn($l) => !empty($l['moyen']) && floatval($l['montant'] ?? 0) > 0
+        );
+
+        DB::transaction(function () use ($sale, $shopId, $user, $session, $montantPaye, $totalGeneral, $lignesMoyens) {
             $restePaye = $montantPaye;
+            $createdSales = [];
 
             foreach ($sale->lines as $line) {
                 $stock      = Stock::withoutGlobalScopes()->findOrFail($line->stock_id);
@@ -184,7 +195,7 @@ class PendingSaleController extends Controller
                 $linePaye   = min($restePaye, $lineTotal);
                 $restePaye  = max(0, $restePaye - $lineTotal);
 
-                $this->saleService->vendre(
+                $createdSales[] = $this->saleService->vendre(
                     stock:         $stock,
                     quantite:      $line->quantite,
                     shopId:        $shopId,
@@ -195,6 +206,19 @@ class PendingSaleController extends Controller
                     montantPaye:   $linePaye,
                     clientNom:     null,
                 );
+            }
+
+            if ($sale->mode_paiement === 'comptant' && !empty($lignesMoyens)) {
+                foreach ($createdSales as $createdSale) {
+                    foreach ($lignesMoyens as $lm) {
+                        SalePayment::create([
+                            'sale_id'    => $createdSale->id,
+                            'montant'    => floatval($lm['montant']),
+                            'moyen'      => $lm['moyen'],
+                            'created_by' => $user->id,
+                        ]);
+                    }
+                }
             }
 
             $sale->update([

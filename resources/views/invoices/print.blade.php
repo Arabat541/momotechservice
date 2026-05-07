@@ -56,8 +56,8 @@
             <tbody>
                 @foreach($invoice->repair->pannes_services as $panne)
                 <tr>
-                    <td class="px-3 py-2 border border-gray-200">{{ $panne['nom'] ?? $panne }}</td>
-                    <td class="px-3 py-2 border border-gray-200 text-right">{{ isset($panne['prix']) ? number_format($panne['prix'], 0, ',', ' ') . ' F' : '—' }}</td>
+                    <td class="px-3 py-2 border border-gray-200">{{ $panne['description'] ?? $panne['nom'] ?? (is_string($panne) ? $panne : '') }}</td>
+                    <td class="px-3 py-2 border border-gray-200 text-right">{{ isset($panne['montant']) ? number_format($panne['montant'], 0, ',', ' ') . ' F' : (isset($panne['prix']) ? number_format($panne['prix'], 0, ',', ' ') . ' F' : '—') }}</td>
                 </tr>
                 @endforeach
             </tbody>

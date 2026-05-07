@@ -95,11 +95,12 @@ class PurchaseInvoiceController extends Controller
     {
         $invoice   = PurchaseInvoice::findOrFail($id);
         $validated = $request->validate([
-            'montant' => ['required', 'numeric', 'min:0.01', 'max:9999999'],
+            'montant'        => ['required', 'numeric', 'min:0.01', 'max:9999999'],
+            'moyen_paiement' => ['nullable', 'string', 'in:especes,orange_money,moov_money,wave,mtn_money,cheque,virement'],
         ]);
 
         try {
-            $this->service->enregistrerPaiement($invoice, floatval($validated['montant']));
+            $this->service->enregistrerPaiement($invoice, floatval($validated['montant']), $validated['moyen_paiement'] ?? null);
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }

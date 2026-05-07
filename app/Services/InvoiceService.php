@@ -41,12 +41,13 @@ class InvoiceService
         });
     }
 
-    public function enregistrerPaiementFinal(Invoice $invoice, float $montant, string $cashSessionId): Invoice
+    public function enregistrerPaiementFinal(Invoice $invoice, float $montant, string $cashSessionId, ?string $moyen = null): Invoice
     {
-        return DB::transaction(function () use ($invoice, $montant, $cashSessionId) {
+        return DB::transaction(function () use ($invoice, $montant, $cashSessionId, $moyen) {
             $invoice->montant_paye  += $montant;
             $invoice->reste_a_payer  = max(0, $invoice->montant_final - $invoice->montant_paye);
             $invoice->statut         = $invoice->reste_a_payer <= 0 ? 'soldee' : 'partielle';
+            $invoice->moyen_paiement = $moyen;
 
             if ($cashSessionId) {
                 $invoice->cash_session_id = $cashSessionId;

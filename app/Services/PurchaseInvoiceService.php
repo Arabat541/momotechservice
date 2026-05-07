@@ -42,7 +42,7 @@ class PurchaseInvoiceService
         });
     }
 
-    public function enregistrerPaiement(PurchaseInvoice $invoice, float $montant): PurchaseInvoice
+    public function enregistrerPaiement(PurchaseInvoice $invoice, float $montant, ?string $moyen = null): PurchaseInvoice
     {
         if ($montant > $invoice->reste_a_payer) {
             throw new \RuntimeException(
@@ -50,6 +50,7 @@ class PurchaseInvoiceService
             );
         }
 
+        $invoice->moyen_paiement = $moyen;
         $invoice->enregistrerPaiement($montant);
         return $invoice->fresh();
     }

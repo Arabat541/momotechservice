@@ -257,7 +257,11 @@
                         </div>
                         @else
                         <input type="hidden" name="montant_paye" :value="cardTotal">
-                        <p class="text-sm text-gray-600 mb-3">Paiement comptant — le montant total sera encaissé.</p>
+                        <p class="text-sm text-gray-600 mb-2">Paiement comptant — le montant total sera encaissé.</p>
+                        <div class="mb-3">
+                            <label class="text-sm font-medium text-gray-600 block mb-1">Moyen(s) de paiement</label>
+                            <x-paiement-mixte name-prefix="lignes_moyens" :total="0" />
+                        </div>
                         @endif
 
                         <button type="submit"
