@@ -86,31 +86,16 @@
             <div class="text-sm text-gray-600">Total : <span class="font-semibold">{{ number_format($invoice->montant_total, 0, ',', ' ') }} F</span></div>
         </div>
         @if($invoice->statut !== 'soldee')
-        <form method="POST" action="{{ route('purchase-invoices.paiement', $invoice->id) }}" class="flex flex-wrap gap-3 items-end">
+        <form method="POST" action="{{ route('purchase-invoices.paiement', $invoice->id) }}" class="space-y-3">
             @csrf
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Payer (F CFA)</label>
-                <input type="number" name="montant" min="1" max="{{ $invoice->reste_a_payer }}" required
-                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-44 focus:ring-2 focus:ring-green-500"
-                    placeholder="Montant">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Moyen(s) de paiement</label>
+                <x-paiement-mixte name-prefix="lignes" :total="$invoice->reste_a_payer" :show-cheque-virement="true" />
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Date paiement</label>
                 <input type="date" name="date_paiement" value="{{ date('Y-m-d') }}"
                     class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Moyen de paiement</label>
-                <select name="moyen_paiement" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
-                    <option value="">— Non précisé —</option>
-                    <option value="especes">Espèces</option>
-                    <option value="orange_money">Orange Money</option>
-                    <option value="moov_money">Moov Money</option>
-                    <option value="wave">Wave</option>
-                    <option value="mtn_money">MTN Money</option>
-                    <option value="cheque">Chèque</option>
-                    <option value="virement">Virement</option>
-                </select>
             </div>
             <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
                 Confirmer paiement

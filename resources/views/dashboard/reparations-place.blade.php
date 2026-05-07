@@ -73,31 +73,17 @@
                 @endif
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                    <label class="text-xs font-medium text-gray-600">Total</label>
-                    <input type="number" name="total_display" id="totalDisplay" readonly
-                           class="w-full text-sm py-1.5 border-gray-300 rounded-md bg-gray-100 font-semibold px-3 border">
-                </div>
-                <div>
-                    <label class="text-xs font-medium text-gray-600">Payé</label>
-                    <input type="number" name="montant_paye" id="montantPaye" step="any" required
-                           class="w-full text-sm py-1.5 border-gray-300 rounded-md px-3 border no-spinner" oninput="calculateTotal()">
-                </div>
+            <div>
+                <label class="text-xs font-medium text-gray-600">Total estimé</label>
+                <input type="number" name="total_display" id="totalDisplay" readonly
+                       class="w-full text-sm py-1.5 border-gray-300 rounded-md bg-gray-100 font-semibold px-3 border">
             </div>
 
             <div>
-                <label class="text-xs font-medium text-gray-600">Moyen de paiement</label>
-                <select name="mode_paiement" id="modePaiement" class="w-full text-sm py-1.5 border-gray-300 rounded-md px-3 border" onchange="updatePreview()">
-                    <option value="">— Non précisé —</option>
-                    <option value="especes">Espèces</option>
-                    <option value="orange_money">Orange Money</option>
-                    <option value="moov_money">Moov Money</option>
-                    <option value="wave">Wave</option>
-                    <option value="mtn_money">MTN Money</option>
-                    <option value="cheque">Chèque</option>
-                    <option value="virement">Virement</option>
-                </select>
+                <label class="text-xs font-medium text-gray-600 mb-1 block">Moyen(s) de paiement / Acompte</label>
+                <div id="lignesContainer">
+                    <x-paiement-mixte name-prefix="lignes" :total="0" :show-cheque-virement="true" />
+                </div>
             </div>
 
             <div>
@@ -254,6 +240,14 @@
         return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
     }
 
+    function getPayeFromLignes() {
+        let total = 0;
+        document.querySelectorAll('#lignesContainer input[type="number"]').forEach(el => {
+            total += parseFloat(el.value) || 0;
+        });
+        return total;
+    }
+
     function updatePreview() {
         // Client info
         document.getElementById('prevClient').textContent = document.querySelector('input[name="client_nom"]').value || '---';
@@ -292,10 +286,10 @@
 
         // Totals
         const total = parseFloat(document.getElementById('totalDisplay').value) || 0;
-        const paye = parseFloat(document.getElementById('montantPaye').value) || 0;
+        const paye  = getPayeFromLignes();
         const reste = total - paye;
         document.getElementById('prevTotal').textContent = formatNumber(total) + ' cfa';
-        document.getElementById('prevPaye').textContent = formatNumber(paye) + ' cfa';
+        document.getElementById('prevPaye').textContent  = formatNumber(paye)  + ' cfa';
         document.getElementById('prevReste').textContent = formatNumber(reste) + ' cfa';
 
         // Statut & Paiement
@@ -303,15 +297,15 @@
         if (statutSelect) {
             document.getElementById('prevStatut').textContent = statutSelect.value;
         }
-        const etatPaiement = (paye >= total && total > 0) ? 'Soldé' : 'Non soldé';
-        document.getElementById('prevPaiement').textContent = etatPaiement;
+        document.getElementById('prevPaiement').textContent = (paye >= total && total > 0) ? 'Soldé' : 'Non soldé';
 
         // Moyen de paiement
-        const modeLabels = { especes: 'Espèces', orange_money: 'Orange Money', wave: 'Wave', mtn_money: 'MTN Money', cheque: 'Chèque', virement: 'Virement' };
-        const modeSelect = document.getElementById('modePaiement');
-        const modeWrap   = document.getElementById('prevModeWrap');
-        if (modeSelect && modeSelect.value) {
-            document.getElementById('prevMode').textContent = modeLabels[modeSelect.value] || modeSelect.value;
+        const modeLabels = { especes: 'Espèces', orange_money: 'Orange Money', moov_money: 'Moov Money', wave: 'Wave', mtn_money: 'MTN Money', cheque: 'Chèque', virement: 'Virement' };
+        const modeWrap = document.getElementById('prevModeWrap');
+        const moyens   = [];
+        document.querySelectorAll('#lignesContainer select').forEach(el => { if (el.value) moyens.push(el.value); });
+        if (moyens.length > 0) {
+            document.getElementById('prevMode').textContent = moyens.length === 1 ? (modeLabels[moyens[0]] || moyens[0]) : 'Mixte';
             modeWrap.style.display = 'flex';
         } else if (modeWrap) {
             modeWrap.style.display = 'none';
@@ -320,21 +314,19 @@
 
     // Attach live listeners
     document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('input[name="client_nom"], input[name="client_telephone"], input[name="montant_paye"]').forEach(el => {
+        document.querySelectorAll('input[name="client_nom"], input[name="client_telephone"]').forEach(el => {
             el.addEventListener('input', updatePreview);
         });
         document.getElementById('appareilValue').addEventListener('input', updatePreview);
         document.getElementById('appareilSelect').addEventListener('change', updatePreview);
 
-        // Observe pannes/pieces container changes
         const observer = new MutationObserver(() => { setTimeout(updatePreview, 50); });
         observer.observe(document.getElementById('pannesContainer'), { childList: true, subtree: true });
         observer.observe(document.getElementById('piecesContainer'), { childList: true, subtree: true });
+        observer.observe(document.getElementById('lignesContainer'),  { childList: true, subtree: true });
 
-        // Listen for input on dynamically added fields
         document.getElementById('repairForm').addEventListener('input', updatePreview);
         document.getElementById('repairForm').addEventListener('change', updatePreview);
-        // Détection autofill tardif
         setTimeout(updatePreview, 500);
     });
 

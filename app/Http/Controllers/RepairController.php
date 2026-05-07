@@ -103,6 +103,9 @@ class RepairController extends Controller
             'statut_reparation'      => 'nullable|in:En attente,En attente de paiement,En cours,En attente de pièces,Terminé,Prêt pour retrait,Irréparable,Livré,Annulé',
             'date_rendez_vous'       => 'nullable|date',
             'numeroReparation'       => 'nullable|string|max:30',
+            'lignes'                 => 'nullable|array|max:10',
+            'lignes.*.moyen'         => 'nullable|in:especes,orange_money,moov_money,wave,mtn_money,cheque,virement',
+            'lignes.*.montant'       => 'nullable|numeric|min:0.01|max:99999999',
         ]);
 
         $shopId  = $request->attributes->get('shopId');
@@ -111,6 +114,15 @@ class RepairController extends Controller
 
         if (!$session) {
             return back()->with('error', 'La caisse doit être ouverte avant d\'enregistrer une réparation.');
+        }
+
+        // Calculer montant_paye depuis lignes[] si présent
+        $lignesValides = collect($validated['lignes'] ?? [])
+            ->filter(fn($l) => !empty($l['moyen']) && floatval($l['montant'] ?? 0) > 0);
+
+        if ($lignesValides->isNotEmpty()) {
+            $validated['montant_paye']  = $lignesValides->sum(fn($l) => floatval($l['montant']));
+            $validated['mode_paiement'] = $lignesValides->count() === 1 ? $lignesValides->first()['moyen'] : null;
         }
 
         // Retrouver ou créer le client
@@ -141,6 +153,18 @@ class RepairController extends Controller
                 $session->id,
                 $user->id
             );
+        }
+
+        // Créer un RepairPayment par ligne si paiement mixte
+        if ($lignesValides->isNotEmpty()) {
+            foreach ($lignesValides as $ligne) {
+                RepairPayment::create([
+                    'repair_id'  => $repair->id,
+                    'montant'    => floatval($ligne['montant']),
+                    'moyen'      => $ligne['moyen'],
+                    'created_by' => $user->id,
+                ]);
+            }
         }
 
         if ($request->ajax() || $request->wantsJson()) {

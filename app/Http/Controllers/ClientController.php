@@ -245,21 +245,30 @@ class ClientController extends Controller
         }
 
         $validated = $request->validate([
-            'montant'        => ['required', 'numeric', 'min:0.01', 'max:9999999'],
-            'notes'          => ['nullable', 'string', 'max:500'],
-            'moyen_paiement' => ['nullable', 'string', 'in:especes,orange_money,moov_money,wave,mtn_money,cheque,virement'],
+            'lignes'           => ['required', 'array', 'min:1', 'max:10'],
+            'lignes.*.moyen'   => ['required', 'string', 'in:especes,orange_money,moov_money,wave,mtn_money,cheque,virement'],
+            'lignes.*.montant' => ['required', 'numeric', 'min:0.01', 'max:9999999'],
+            'notes'            => ['nullable', 'string', 'max:500'],
         ]);
+
+        $lignes  = collect($validated['lignes'])->filter(fn($l) => floatval($l['montant'] ?? 0) > 0);
+        $montant = $lignes->sum(fn($l) => floatval($l['montant']));
+        $moyen   = $lignes->count() === 1 ? $lignes->first()['moyen'] : 'mixte';
+
+        if ($montant > $client->solde_credit) {
+            return back()->with('error', "Le montant saisi ({$montant} F) dépasse le solde dû (" . number_format($client->solde_credit, 0, ',', ' ') . " F).");
+        }
 
         $user   = $request->attributes->get('user');
         $credit = app(\App\Services\CreditService::class);
 
         try {
-            $credit->enregistrerRemboursement($client, $validated['montant'], $user->id, $validated['notes'] ?? null, $validated['moyen_paiement'] ?? null);
+            $credit->enregistrerRemboursement($client, $montant, $user->id, $validated['notes'] ?? null, $moyen);
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
 
-        return back()->with('success', "Remboursement de {$validated['montant']} enregistré.");
+        return back()->with('success', "Remboursement de " . number_format($montant, 0, ',', ' ') . " F enregistré.");
     }
 
     public function lierCompte(Request $request, string $id)
