@@ -352,13 +352,17 @@ class RepairController extends Controller
 
     public function printReceipt(Request $request, string $id)
     {
-        $repair   = Repair::findOrFail($id);
+        $repair   = Repair::with('repairPayments')->findOrFail($id);
         $settings = Settings::where('shopId', $repair->shopId)->first();
+
+        // Recalculer les montants depuis les paiements pour s'assurer de la fraîcheur
+        $montantPaye = $repair->repairPayments->sum('montant') ?: $repair->montant_paye;
+        $resteAPayer = max(0, $repair->total_reparation - $montantPaye);
 
         $trackUrl = route('track') . '?numero=' . urlencode($repair->numeroReparation);
         $qrCode   = QrCode::format('svg')->size(120)->errorCorrection('M')->generate($trackUrl);
 
-        return view('dashboard.receipt', compact('repair', 'settings', 'qrCode'));
+        return view('dashboard.receipt', compact('repair', 'settings', 'qrCode', 'montantPaye', 'resteAPayer'));
     }
 
     public function enregistrerPaiement(Request $request, string $id)

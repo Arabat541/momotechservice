@@ -133,16 +133,23 @@
     </div>
     <div class="row small">
         <span>Payé:</span>
-        <span>{{ number_format($repair->montant_paye, 0, ',', ' ') }} cfa</span>
+        <span>{{ number_format($montantPaye, 0, ',', ' ') }} cfa</span>
     </div>
     <div class="row small bold">
         <span>Reste à payer:</span>
-        <span>{{ number_format($repair->reste_a_payer, 0, ',', ' ') }} cfa</span>
+        <span style="color: {{ $resteAPayer <= 0 ? 'green' : 'inherit' }};">
+            {{ $resteAPayer <= 0 ? '0' : number_format($resteAPayer, 0, ',', ' ') }} cfa
+        </span>
     </div>
-    @if($repair->mode_paiement)
-    <div class="row small">
-        <span>Mode:</span>
-        <span>{{ $modePaiementLabels[$repair->mode_paiement] ?? $repair->mode_paiement }}</span>
+    @if($repair->repairPayments->count() > 0)
+    <div class="section small" style="margin-top: 4px;">
+        <div class="bold" style="text-decoration:underline;margin-bottom:1px">Moyens de paiement:</div>
+        @foreach($repair->repairPayments as $payment)
+        <div class="row">
+            <span>- {{ $modePaiementLabels[$payment->moyen] ?? $payment->moyen }}</span>
+            <span>{{ number_format($payment->montant, 0, ',', ' ') }} cfa</span>
+        </div>
+        @endforeach
     </div>
     @endif
 </div>
