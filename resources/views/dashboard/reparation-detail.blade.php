@@ -22,6 +22,10 @@
                class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
                 <i class="fas fa-print mr-2"></i> Imprimer Reçu
             </a>
+            <button onclick="window.open('{{ route('qr.repair', $repair->id) }}', '_blank')"
+                    class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm print:hidden">
+                <i class="fas fa-tag mr-2"></i> 🏷️ Imprimer Étiquette
+            </button>
             @endif
             <a href="{{ route('reparations.liste') }}" class="inline-flex items-center px-4 py-2 border rounded-md hover:bg-gray-50 text-sm">
                 <i class="fas fa-arrow-left mr-2"></i> Retour
