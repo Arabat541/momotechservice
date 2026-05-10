@@ -3,7 +3,7 @@
 @section('body')
 <div class="no-print">
     <a href="{{ route('reparations.show', $repair->id) }}" class="btn-ctrl">&#8592; Retour</a>
-    <button onclick="window.print()" class="btn-ctrl btn-blue">Imprimer l'étiquette</button>
+    <button onclick="window.print()" class="btn-ctrl btn-blue btn-print-trigger">Imprimer l'étiquette</button>
 </div>
 
 <div class="label-wrap">
@@ -111,7 +111,8 @@ document.addEventListener('DOMContentLoaded', function () {
             margin: 0,
         });
     } catch (e) {}
-    setTimeout(function () { window.print(); }, 300);
+
+    window.onafterprint = function() { window.close(); };
 });
 </script>
 @endsection

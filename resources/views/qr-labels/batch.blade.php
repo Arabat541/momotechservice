@@ -121,7 +121,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     } catch (e) {}
     @endforeach
-    setTimeout(function () { window.print(); }, 300);
+
+    window.onafterprint = function() { window.close(); };
 });
 </script>
 @endsection

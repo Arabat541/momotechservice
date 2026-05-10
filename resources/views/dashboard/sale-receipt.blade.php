@@ -35,6 +35,17 @@
     .qr-wrap svg { width: 100px; height: 100px; }
     .footer { font-size: 11px; text-align: center; margin-top: 6px; }
     .cut-line { border-top: 1px dashed #000; margin-top: 8px; }
+    .btn-print { text-align: center; margin: 10px 0; }
+    .print-button {
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 14px;
+        cursor: pointer;
+        font-family: sans-serif;
+    }
 
     @media screen {
         body {
@@ -45,6 +56,9 @@
             border: 1px solid #ccc;
             box-shadow: 0 2px 8px rgba(0,0,0,.15);
         }
+    }
+    @media print {
+        .btn-print { display: none !important; }
     }
 </style>
 </head>
@@ -158,9 +172,14 @@
 
 <div class="cut-line"></div>
 
+{{-- Bouton d'impression --}}
+<div class="btn-print">
+    <button onclick="window.print()" class="print-button">Imprimer</button>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(function() { window.print(); }, 400);
+    window.onafterprint = function() { window.close(); };
 });
 </script>
 </body>
