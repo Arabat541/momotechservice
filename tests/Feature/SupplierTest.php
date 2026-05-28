@@ -9,14 +9,12 @@ use App\Models\Shop;
 use App\Models\Stock;
 use App\Models\Supplier;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class SupplierTest extends TestCase
 {
-    use RefreshDatabase;
 
     private User $patron;
     private User $caissiere;
@@ -172,7 +170,7 @@ class SupplierTest extends TestCase
         ]);
 
         $response = $this->post("/dashboard/factures-fournisseurs/{$invoice->id}/paiement", [
-            'montant' => 20000,
+            'lignes' => [['moyen' => 'especes', 'montant' => 20000]],
         ]);
 
         $response->assertRedirect();
@@ -198,7 +196,9 @@ class SupplierTest extends TestCase
             'created_by' => $this->patron->id,
         ]);
 
-        $this->post("/dashboard/factures-fournisseurs/{$invoice->id}/paiement", ['montant' => 10000]);
+        $this->post("/dashboard/factures-fournisseurs/{$invoice->id}/paiement", [
+            'lignes' => [['moyen' => 'especes', 'montant' => 10000]],
+        ]);
 
         $invoice->refresh();
         $this->assertEquals('soldee', $invoice->statut);

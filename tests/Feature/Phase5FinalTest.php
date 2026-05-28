@@ -9,14 +9,12 @@ use App\Models\Shop;
 use App\Models\Stock;
 use App\Models\User;
 use App\Models\Warranty;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class Phase5FinalTest extends TestCase
 {
-    use RefreshDatabase;
 
     private User $patron;
     private User $caissiere;

@@ -6,14 +6,12 @@ use App\Models\Shop;
 use App\Models\Stock;
 use App\Models\StockTransfer;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class StockTransferTest extends TestCase
 {
-    use RefreshDatabase;
 
     private User  $patron;
     private User  $caissSource;

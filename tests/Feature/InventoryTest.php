@@ -9,14 +9,12 @@ use App\Models\Stock;
 use App\Models\Supplier;
 use App\Models\PurchaseOrder;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class InventoryTest extends TestCase
 {
-    use RefreshDatabase;
 
     private User $patron;
     private User $caissiere;
@@ -70,7 +68,7 @@ class InventoryTest extends TestCase
         $stock2 = $this->createStock('Article B', 5);
 
         $this->loginAs($this->patron);
-        $response = $this->post('/dashboard/inventaires/ouvrir', []);
+        $response = $this->post('/dashboard/inventaires/ouvrir', ['shop_id' => $this->shop->id]);
 
         $response->assertRedirect();
         $session = InventorySession::withoutGlobalScopes()->where('shopId', $this->shop->id)->first();
@@ -83,7 +81,7 @@ class InventoryTest extends TestCase
     public function test_double_inventaire_impossible(): void
     {
         $this->loginAs($this->patron);
-        $this->post('/dashboard/inventaires/ouvrir', []);
+        $this->post('/dashboard/inventaires/ouvrir', ['shop_id' => $this->shop->id]);
         $response = $this->post('/dashboard/inventaires/ouvrir', []);
 
         $response->assertSessionHas('error');
@@ -94,7 +92,7 @@ class InventoryTest extends TestCase
     {
         $stock = $this->createStock('Article C', 10);
         $this->loginAs($this->patron);
-        $this->post('/dashboard/inventaires/ouvrir', []);
+        $this->post('/dashboard/inventaires/ouvrir', ['shop_id' => $this->shop->id]);
 
         $session = InventorySession::withoutGlobalScopes()->where('shopId', $this->shop->id)->first();
         $line    = InventoryLine::where('stock_id', $stock->id)->first();
@@ -113,7 +111,7 @@ class InventoryTest extends TestCase
     {
         $stock = $this->createStock('Article D', 10);
         $this->loginAs($this->patron);
-        $this->post('/dashboard/inventaires/ouvrir', []);
+        $this->post('/dashboard/inventaires/ouvrir', ['shop_id' => $this->shop->id]);
 
         $session = InventorySession::withoutGlobalScopes()->where('shopId', $this->shop->id)->first();
         $line    = InventoryLine::where('stock_id', $stock->id)->first();
@@ -131,7 +129,7 @@ class InventoryTest extends TestCase
     {
         $stock = $this->createStock('Article E', 10);
         $this->loginAs($this->patron);
-        $this->post('/dashboard/inventaires/ouvrir', []);
+        $this->post('/dashboard/inventaires/ouvrir', ['shop_id' => $this->shop->id]);
 
         $session = InventorySession::withoutGlobalScopes()->where('shopId', $this->shop->id)->first();
         $line    = InventoryLine::where('stock_id', $stock->id)->first();
@@ -154,6 +152,7 @@ class InventoryTest extends TestCase
 
         $this->loginAs($this->patron);
         $response = $this->post('/dashboard/bons-commande', [
+            'shop_id'              => $this->shop->id,
             'supplier_id'          => $supplier->id,
             'date_commande'        => now()->toDateString(),
             'date_livraison_prevue'=> now()->addDays(7)->toDateString(),
@@ -181,6 +180,7 @@ class InventoryTest extends TestCase
 
         $this->loginAs($this->patron);
         $this->post('/dashboard/bons-commande', [
+            'shop_id'       => $this->shop->id,
             'supplier_id'   => $supplier->id,
             'date_commande' => now()->toDateString(),
             'lignes' => [[
@@ -215,6 +215,7 @@ class InventoryTest extends TestCase
 
         $this->loginAs($this->patron);
         $this->post('/dashboard/bons-commande', [
+            'shop_id'       => $this->shop->id,
             'supplier_id'   => $supplier->id,
             'date_commande' => now()->toDateString(),
             'lignes' => [[

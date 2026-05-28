@@ -11,9 +11,11 @@ class ShopMiddleware
     {
         $user = $request->attributes->get('user');
 
-        // Patron : voit toutes les boutiques sans filtre
+        // Patron : si une boutique est sélectionnée en session (ex: navigation sur une boutique
+        // spécifique), l'utiliser pour les opérations d'écriture. Sinon null = toutes boutiques.
         if ($user->role === 'patron') {
-            $request->attributes->set('shopId', null);
+            $shopId = $request->session()->get('current_shop_id');
+            $request->attributes->set('shopId', $shopId ?: null);
             return $next($request);
         }
 

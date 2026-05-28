@@ -37,7 +37,8 @@ class RepairController extends Controller
         $statut  = $request->input('statut', '');
         $type    = $request->input('type', '');
 
-        $query = Repair::query();
+        $query = Repair::query()
+            ->when($shopId, fn($q) => $q->where('shopId', $shopId));
 
         if ($statut) {
             $query->where('statut_reparation', $statut);
@@ -306,7 +307,9 @@ class RepairController extends Controller
     public function show(Request $request, string $id)
     {
         $shopId = $request->attributes->get('shopId');
-        $repair = Repair::with('photos')->findOrFail($id);
+        $repair = Repair::when($shopId, fn($q) => $q->where('shopId', $shopId))
+            ->with('photos')
+            ->findOrFail($id);
         $stocks = Stock::withoutGlobalScopes()
             ->where('shopId', $repair->shopId)
             ->where('quantite', '>', 0)

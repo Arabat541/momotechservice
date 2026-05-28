@@ -7,15 +7,14 @@ use App\Models\Repair;
 use App\Models\Shop;
 use App\Models\User;
 use Illuminate\Support\Str;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class RepairTest extends TestCase
 {
-    use RefreshDatabase;
 
     private User $patron;
+    private User $caissiere;
     private Shop $shop;
 
     protected function setUp(): void
@@ -31,11 +30,22 @@ class RepairTest extends TestCase
             'role' => 'patron',
         ]);
 
+        $this->caissiere = User::create([
+            'id' => \Illuminate\Support\Str::random(25),
+            'email' => 'caissiere@repairtest.com',
+            'password' => Hash::make('password123'),
+            'nom' => 'Caissiere',
+            'prenom' => 'Test',
+            'role' => 'caissiere',
+        ]);
+
         $this->shop = Shop::create([
             'id' => \Illuminate\Support\Str::random(25),
             'nom' => 'Boutique Test',
             'createdBy' => $this->patron->id,
         ]);
+
+        $this->caissiere->shops()->attach($this->shop->id);
     }
 
     private function loginAs(User $user, Shop $shop): void
@@ -53,11 +63,11 @@ class RepairTest extends TestCase
     public function test_creation_reparation_valide(): void
     {
         CashSession::create([
-            'id' => Str::random(25), 'shopId' => $this->shop->id, 'userId' => $this->patron->id,
+            'id' => Str::random(25), 'shopId' => $this->shop->id, 'userId' => $this->caissiere->id,
             'date' => now()->toDateString(), 'montant_ouverture' => 0, 'statut' => 'ouverte',
         ]);
 
-        $this->loginAs($this->patron, $this->shop);
+        $this->loginAs($this->caissiere, $this->shop);
 
         $response = $this->post('/dashboard/reparations', [
             'type_reparation' => 'place',
@@ -76,7 +86,7 @@ class RepairTest extends TestCase
 
     public function test_creation_reparation_montant_negatif_rejete(): void
     {
-        $this->loginAs($this->patron, $this->shop);
+        $this->loginAs($this->caissiere, $this->shop);
 
         $response = $this->post('/dashboard/reparations', [
             'type_reparation' => 'place',
@@ -91,7 +101,7 @@ class RepairTest extends TestCase
 
     public function test_creation_reparation_telephone_invalide_rejete(): void
     {
-        $this->loginAs($this->patron, $this->shop);
+        $this->loginAs($this->caissiere, $this->shop);
 
         $response = $this->post('/dashboard/reparations', [
             'type_reparation' => 'place',
@@ -131,7 +141,7 @@ class RepairTest extends TestCase
         ]);
 
         // Connecté sur $this->shop — la réparation de autreShop ne doit pas être visible
-        $this->loginAs($this->patron, $this->shop);
+        $this->loginAs($this->caissiere, $this->shop);
 
         $response = $this->get('/dashboard/liste-reparations');
         $response->assertOk();
@@ -164,7 +174,7 @@ class RepairTest extends TestCase
             'userId' => $this->patron->id,
         ]);
 
-        $this->loginAs($this->patron, $this->shop);
+        $this->loginAs($this->caissiere, $this->shop);
 
         // Tentative d'accès direct à la réparation d'un autre shop
         $response = $this->get('/dashboard/reparations/' . $repair->id);

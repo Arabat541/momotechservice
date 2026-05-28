@@ -9,14 +9,12 @@ use App\Models\Sale;
 use App\Models\Shop;
 use App\Models\Stock;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class BusinessLogicTest extends TestCase
 {
-    use RefreshDatabase;
 
     private User $patron;
     private User $caissiere;
@@ -118,6 +116,7 @@ class BusinessLogicTest extends TestCase
             'type'          => 'revendeur',
             'nom_boutique'  => 'Tech Express SARL',
             'credit_limite' => 500000,
+            'shop_id'       => $this->shop->id, // patron doit préciser la boutique cible
         ]);
 
         $response->assertRedirect();
@@ -216,7 +215,8 @@ class BusinessLogicTest extends TestCase
         $stock = Stock::create([
             'id' => Str::random(25), 'shopId' => $this->shop->id,
             'nom' => 'Écran iPhone 12', 'categorie' => 'piece_detachee',
-            'quantite' => 10, 'prixAchat' => 5000, 'prixVente' => 8000, 'prixGros' => 7000,
+            'quantite' => 10, 'prixAchat' => 5000, 'prixVente' => 8000,
+            'prix_revendeur' => 7000, // prixGros exige qty >= 10 ; prix_revendeur s'applique à toute quantité
         ]);
 
         $this->loginAs($this->caissiere, $this->shop);

@@ -16,12 +16,14 @@
     <php>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_KEY" value="base64:G26MSzjsZrngv6sFT0o1ScZVHsTzPi9w5cDtIfR9snk="/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
+        <env name="DB_CONNECTION" value="mysql"/>
+        <env name="DB_HOST" value="localhost"/>
+        <env name="DB_PORT" value="3306"/>
+        <env name="DB_DATABASE" value="momotech_test"/>
+        <env name="DB_USERNAME" value="root"/>
+        <env name="DB_PASSWORD" value=""/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="CACHE_STORE" value="array"/>
         <env name="MAIL_MAILER" value="array"/>
-        <env name="JWT_SECRET" value="test-secret-key-for-phpunit-32chars"/>
-        <env name="JWT_TTL" value="60"/>
     </php>
 </phpunit>
