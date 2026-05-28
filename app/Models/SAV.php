@@ -53,7 +53,7 @@ class SAV extends BaseModel
             $value = (string) $raw;
         }
         if (is_string($value) && str_starts_with($value, 's:')) {
-            $unserialized = @unserialize($value);
+            $unserialized = @unserialize($value, ['allowed_classes' => false]);
             if ($unserialized !== false) return (string) $unserialized;
         }
         return (string) $value;

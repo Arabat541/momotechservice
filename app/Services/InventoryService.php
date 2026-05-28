@@ -71,9 +71,15 @@ class InventoryService
                     ->where('ecart', '!=', 0)
                     ->with('stock')
                     ->each(function (InventoryLine $line) {
-                        if ($line->stock) {
-                            $line->stock->update(['quantite' => $line->quantite_comptee]);
+                        if (!$line->stock) {
+                            return;
                         }
+                        // Verrouiller la ligne stock pour éviter qu'une vente concurrente
+                        // n'écrase silencieusement l'ajustement d'inventaire.
+                        Stock::withoutGlobalScopes()
+                            ->lockForUpdate()
+                            ->find($line->stock->id)
+                            ?->update(['quantite' => $line->quantite_comptee]);
                     });
             }
 

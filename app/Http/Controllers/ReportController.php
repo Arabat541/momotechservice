@@ -5,17 +5,20 @@ namespace App\Http\Controllers;
 use App\Models\CashSession;
 use App\Models\PurchaseInvoice;
 use App\Models\Repair;
+use App\Models\RepairPayment;
 use App\Models\Sale;
-use App\Models\Settings;
 use App\Models\Shop;
 use App\Models\Stock;
 use App\Services\RepairService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use App\Traits\PdfHelperTrait;
 use Illuminate\Support\Carbon;
 
 class ReportController extends Controller
 {
+    use PdfHelperTrait;
+
     // ─────────────────────────────────────────────────────────────
     //  VENTES
     // ─────────────────────────────────────────────────────────────
@@ -210,10 +213,16 @@ class ReportController extends Controller
         $fin        = $request->input('fin', now()->toDateString());
         $boutiqueId = $request->input('boutique_id');
 
-        $recettesReparations = (float) Repair::query()
-            ->whereBetween('date_creation', [$debut . ' 00:00:00', $fin . ' 23:59:59'])
-            ->when($boutiqueId, fn($q) => $q->where('shopId', $boutiqueId))
-            ->sum('montant_paye');
+        // Agréger depuis repair_payments.created_at (date effective du paiement),
+        // pas depuis repair.date_creation — évite les imputations sur mauvaise période.
+        $recettesReparations = (float) RepairPayment::query()
+            ->whereBetween('created_at', [$debut . ' 00:00:00', $fin . ' 23:59:59'])
+            ->whereHas('repair', fn($r) => $r
+                ->withoutGlobalScopes()
+                ->when($boutiqueId, fn($q) => $q->where('shopId', $boutiqueId))
+                ->where('statut_reparation', '!=', 'Annulé')
+            )
+            ->sum('montant');
 
         $recettesVentes = (float) Sale::query()
             ->whereBetween('date', [$debut . ' 00:00:00', $fin . ' 23:59:59'])
@@ -260,24 +269,4 @@ class ReportController extends Controller
     //  HELPERS
     // ─────────────────────────────────────────────────────────────
 
-    private function getCompanyInfo(?string $shopId): array
-    {
-        $settings = $shopId
-            ? Settings::withoutGlobalScopes()->where('shopId', $shopId)->first()
-            : Settings::withoutGlobalScopes()->first();
-
-        $default = ['nom' => 'MOMO TECH SERVICE', 'adresse' => '', 'telephone' => '', 'email' => ''];
-        return array_merge($default, $settings?->companyInfo ?? []);
-    }
-
-    private function getLogoBase64(): ?string
-    {
-        foreach (['logo-receipt.png', 'logo-app.png'] as $file) {
-            $path = public_path('images/' . $file);
-            if (file_exists($path)) {
-                return base64_encode(file_get_contents($path));
-            }
-        }
-        return null;
-    }
 }

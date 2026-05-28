@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\CashSession;
 use App\Models\Client;
-use App\Models\Invoice;
 use App\Models\PurchaseInvoice;
 use App\Models\Repair;
+use App\Models\RepairPayment;
 use App\Models\Sale;
 use App\Models\Shop;
 use App\Models\Stock;
@@ -37,10 +37,14 @@ class AnalyticsController extends Controller
             ->whereBetween('date', [$debut, $fin])
             ->sum('total');
 
-        $encaisseReparations = Invoice::withoutGlobalScopes()
-            ->whereIn('shopId', $shopIds)
+        $encaisseReparations = RepairPayment::query()
             ->whereBetween('created_at', [$debut, $fin])
-            ->sum('montant_paye');
+            ->whereHas('repair', fn($r) => $r
+                ->withoutGlobalScopes()
+                ->whereIn('shopId', $shopIds)
+                ->where('statut_reparation', '!=', 'Annulé')
+            )
+            ->sum('montant');
 
         // ── Évolution CA mensuel (12 mois glissants) — 2 requêtes groupées ─
         $startOf12Months = Carbon::now()->subMonths(11)->startOfMonth();

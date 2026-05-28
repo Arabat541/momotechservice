@@ -14,10 +14,13 @@ use App\Services\SaleService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Traits\PdfHelperTrait;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class ArticleController extends Controller
 {
+    use PdfHelperTrait;
+
     public function __construct(
         private SaleService $saleService,
         private CashSessionService $cashSessionService,
@@ -349,23 +352,4 @@ class ArticleController extends Controller
         return $valides->count() === 1 ? $valides->first()['moyen'] : 'mixte';
     }
 
-    private function getCompanyInfo(?string $shopId): array
-    {
-        $settings = $shopId
-            ? Settings::withoutGlobalScopes()->where('shopId', $shopId)->first()
-            : Settings::withoutGlobalScopes()->first();
-        $default = ['nom' => 'MOMO TECH SERVICE', 'adresse' => '', 'telephone' => ''];
-        return array_merge($default, $settings?->companyInfo ?? []);
-    }
-
-    private function getLogoBase64(): ?string
-    {
-        foreach (['logo-receipt.png', 'logo-app.png'] as $file) {
-            $path = public_path('images/' . $file);
-            if (file_exists($path)) {
-                return base64_encode(file_get_contents($path));
-            }
-        }
-        return null;
-    }
 }

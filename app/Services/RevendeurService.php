@@ -28,7 +28,7 @@ class RevendeurService
             return 0.0;
         }
 
-        $annee = $revendeur->annee_debut_fidelite ?? Carbon::now()->year;
+        $annee = Carbon::now()->year;
         $caAnnuel = $client->sales()
             ->whereYear('date', $annee)
             ->sum('total');

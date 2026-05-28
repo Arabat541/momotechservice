@@ -76,40 +76,21 @@
         </tbody>
     </table>
 
-    {{-- Acomptes réparations --}}
+    {{-- Paiements réparations --}}
     <table class="w-full text-sm mb-6 border-collapse">
         <thead>
             <tr class="bg-gray-100">
-                <th class="text-left px-4 py-2 border border-gray-300 font-semibold" colspan="2">ACOMPTES RÉPARATIONS</th>
+                <th class="text-left px-4 py-2 border border-gray-300 font-semibold" colspan="2">PAIEMENTS RÉPARATIONS</th>
             </tr>
         </thead>
         <tbody>
             <tr class="border-b border-gray-200">
-                <td class="px-4 py-2 border border-gray-300">Nombre d'acomptes</td>
-                <td class="px-4 py-2 border border-gray-300 text-right">{{ $report['nb_acomptes'] }}</td>
+                <td class="px-4 py-2 border border-gray-300">Nombre de paiements</td>
+                <td class="px-4 py-2 border border-gray-300 text-right">{{ $report['nb_paiements_reparations'] }}</td>
             </tr>
             <tr>
-                <td class="px-4 py-2 border border-gray-300 font-semibold">Total acomptes</td>
-                <td class="px-4 py-2 border border-gray-300 text-right font-bold">{{ number_format($report['total_acomptes'], 0, ',', ' ') }} F</td>
-            </tr>
-        </tbody>
-    </table>
-
-    {{-- Factures soldées --}}
-    <table class="w-full text-sm mb-6 border-collapse">
-        <thead>
-            <tr class="bg-gray-100">
-                <th class="text-left px-4 py-2 border border-gray-300 font-semibold" colspan="2">FACTURES SOLDÉES</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr class="border-b border-gray-200">
-                <td class="px-4 py-2 border border-gray-300">Nombre de factures soldées</td>
-                <td class="px-4 py-2 border border-gray-300 text-right">{{ $report['nb_factures_soldees'] }}</td>
-            </tr>
-            <tr>
-                <td class="px-4 py-2 border border-gray-300 font-semibold">Total factures soldées</td>
-                <td class="px-4 py-2 border border-gray-300 text-right font-bold">{{ number_format($report['total_factures_soldees'], 0, ',', ' ') }} F</td>
+                <td class="px-4 py-2 border border-gray-300 font-semibold">Total encaissé réparations</td>
+                <td class="px-4 py-2 border border-gray-300 text-right font-bold">{{ number_format($report['total_paiements_reparations'], 0, ',', ' ') }} F</td>
             </tr>
         </tbody>
     </table>

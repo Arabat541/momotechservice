@@ -2,14 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Settings;
 use App\Models\Shop;
+use App\Traits\PdfHelperTrait;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
 class UserController extends Controller
 {
+    use PdfHelperTrait;
+
     public function updateProfile(Request $request)
     {
         $user = $request->attributes->get('user');
@@ -90,23 +92,4 @@ class UserController extends Controller
             ->download('utilisateurs-' . now()->format('Y-m-d') . '.pdf');
     }
 
-    private function getCompanyInfo(?string $shopId): array
-    {
-        $settings = $shopId
-            ? Settings::withoutGlobalScopes()->where('shopId', $shopId)->first()
-            : Settings::withoutGlobalScopes()->first();
-        $default = ['nom' => 'MOMO TECH SERVICE', 'adresse' => '', 'telephone' => ''];
-        return array_merge($default, $settings?->companyInfo ?? []);
-    }
-
-    private function getLogoBase64(): ?string
-    {
-        foreach (['logo-receipt.png', 'logo-app.png'] as $file) {
-            $path = public_path('images/' . $file);
-            if (file_exists($path)) {
-                return base64_encode(file_get_contents($path));
-            }
-        }
-        return null;
-    }
 }

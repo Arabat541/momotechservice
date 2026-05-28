@@ -114,11 +114,16 @@ class PurchaseOrderService
     {
         $annee = now()->format('Y');
         $mois  = now()->format('m');
-        $count = PurchaseOrder::withoutGlobalScopes()
+
+        $lastNum = PurchaseOrder::withoutGlobalScopes()
             ->where('shopId', $shopId)
             ->whereYear('created_at', $annee)
             ->whereMonth('created_at', $mois)
-            ->count() + 1;
+            ->lockForUpdate()
+            ->selectRaw("MAX(CAST(SUBSTRING_INDEX(numero, '-', -1) AS UNSIGNED)) as last_num")
+            ->value('last_num');
+
+        $count = ($lastNum ?? 0) + 1;
 
         return sprintf('BC-%s%s-%04d', $annee, $mois, $count);
     }

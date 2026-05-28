@@ -16,10 +16,13 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use App\Traits\PdfHelperTrait;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class RepairController extends Controller
 {
+    use PdfHelperTrait;
+
     public function __construct(
         private RepairService $repairService,
         private InvoiceService $invoiceService,
@@ -46,8 +49,10 @@ class RepairController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('numeroReparation', 'like', "%{$search}%")
                   ->orWhere('appareil_marque_modele', 'like', "%{$search}%")
-                  ->orWhere('client_nom', 'like', "%{$search}%")
-                  ->orWhere('client_telephone', 'like', "%{$search}%");
+                  ->orWhereHas('client', fn($cq) => $cq
+                      ->where('nom', 'like', "%{$search}%")
+                      ->orWhere('telephone', 'like', "%{$search}%")
+                  );
             });
         }
 
@@ -143,29 +148,41 @@ class RepairController extends Controller
         $validated['client_id']       = $client->id;
         $validated['cash_session_id'] = $session?->id;
 
-        $repair = $this->repairService->create($validated, $shopId, $user->id);
+        // Réparation + facture + RepairPayments dans une transaction globale pour garantir
+        // qu'une facture avec montant_paye > 0 ne peut pas exister sans sa trace en caisse.
+        DB::transaction(function () use ($validated, $shopId, $user, $session, $lignesValides, &$repair) {
+            $repair = $this->repairService->create($validated, $shopId, $user->id);
 
-        // Créer la facture immédiatement si une caisse est ouverte
-        if ($session) {
-            $this->invoiceService->creerDepuisReparation(
-                $repair,
-                floatval($validated['montant_paye'] ?? 0),
-                $session->id,
-                $user->id
-            );
-        }
+            if ($session) {
+                $this->invoiceService->creerDepuisReparation(
+                    $repair,
+                    floatval($validated['montant_paye'] ?? 0),
+                    $session->id,
+                    $user->id
+                );
+            }
 
-        // Créer un RepairPayment par ligne si paiement mixte
-        if ($lignesValides->isNotEmpty()) {
-            foreach ($lignesValides as $ligne) {
+            $acompte = floatval($validated['montant_paye'] ?? 0);
+            if ($lignesValides->isNotEmpty()) {
+                foreach ($lignesValides as $ligne) {
+                    RepairPayment::create([
+                        'repair_id'       => $repair->id,
+                        'montant'         => floatval($ligne['montant']),
+                        'moyen'           => $ligne['moyen'],
+                        'created_by'      => $user->id,
+                        'cash_session_id' => $session?->id,
+                    ]);
+                }
+            } elseif ($acompte > 0 && $session) {
                 RepairPayment::create([
-                    'repair_id'  => $repair->id,
-                    'montant'    => floatval($ligne['montant']),
-                    'moyen'      => $ligne['moyen'],
-                    'created_by' => $user->id,
+                    'repair_id'       => $repair->id,
+                    'montant'         => $acompte,
+                    'moyen'           => $validated['mode_paiement'] ?? null,
+                    'created_by'      => $user->id,
+                    'cash_session_id' => $session->id,
                 ]);
             }
-        }
+        });
 
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json(['success' => true, 'id' => $repair->id, 'numero' => $repair->numeroReparation]);
@@ -194,67 +211,78 @@ class RepairController extends Controller
             'notes_technicien'         => 'nullable|string|max:1000',
         ]);
 
-        $data = [];
+        $ancienStatut = $repair->statut_reparation;
+        $role         = $request->attributes->get('userRole', session('user_role', 'caissiere'));
 
-        if (isset($validated['statut_reparation'])) {
-            if ($validated['statut_reparation'] !== $repair->statut_reparation) {
-                $role    = $request->attributes->get('userRole', session('user_role', 'caissiere'));
-                $allowed = $this->repairService->allowedTransitions($repair->statut_reparation, $role);
-                if (!in_array($validated['statut_reparation'], $allowed)) {
-                    return back()->with('error', "Transition vers « {$validated['statut_reparation']} » non autorisée depuis « {$repair->statut_reparation} ».");
+        // Vérification de la transition avant d'ouvrir la transaction
+        if (isset($validated['statut_reparation'])
+            && $validated['statut_reparation'] !== $repair->statut_reparation
+        ) {
+            $allowed = $this->repairService->allowedTransitions($repair->statut_reparation, $role);
+            if (!in_array($validated['statut_reparation'], $allowed)) {
+                return back()->with('error', "Transition vers « {$validated['statut_reparation']} » non autorisée depuis « {$repair->statut_reparation} ».");
+            }
+        }
+
+        // Toutes les écritures stock + réparation + facture dans une seule transaction atomique
+        $nouveauStatut = DB::transaction(function () use ($repair, $validated, $shopId, $ancienStatut) {
+            $data = [];
+
+            if (isset($validated['statut_reparation'])) {
+                $data['statut_reparation'] = $validated['statut_reparation'];
+            }
+
+            if (isset($validated['notes_technicien'])) {
+                $data['notes_technicien'] = $validated['notes_technicien'];
+            }
+
+            if (!empty($validated['panne_description'])) {
+                $pannes = $this->repairService->buildPannes(
+                    $validated['panne_description'],
+                    $validated['panne_montant'] ?? []
+                );
+                // Restore previous stock quantities before reprocessing so we don't double-decrement.
+                $this->repairService->restorePiecesStock(
+                    $repair->pieces_rechange_utilisees ?? [],
+                    $shopId
+                );
+                $pieces = $this->repairService->buildPieces(
+                    $validated['piece_stock_id'] ?? [],
+                    $validated['piece_quantite'] ?? [],
+                    $shopId
+                );
+                $totals = $this->repairService->computeTotals($pannes, $pieces, $repair->montant_paye);
+
+                $data['pannes_services']           = $pannes;
+                $data['pieces_rechange_utilisees'] = $pieces;
+                $data['total_reparation']          = $totals['total'];
+                $data['reste_a_payer']             = $totals['reste'];
+                $data['etat_paiement']             = $totals['etat_paiement'];
+
+                // Mettre à jour la facture liée
+                if ($repair->invoice) {
+                    $nouveauReste = max(0, $totals['total'] - $repair->invoice->montant_paye);
+                    $repair->invoice->update([
+                        'montant_final' => $totals['total'],
+                        'reste_a_payer' => $nouveauReste,
+                        'statut'        => $nouveauReste <= 0
+                            ? 'soldee'
+                            : ($repair->invoice->montant_paye > 0 ? 'partielle' : 'en_attente'),
+                    ]);
                 }
             }
-            $data['statut_reparation'] = $validated['statut_reparation'];
-        }
 
-        if (isset($validated['notes_technicien'])) {
-            $data['notes_technicien'] = $validated['notes_technicien'];
-        }
-
-        if (!empty($validated['panne_description'])) {
-            $pannes = $this->repairService->buildPannes(
-                $validated['panne_description'],
-                $validated['panne_montant'] ?? []
-            );
-            // Restore previous stock quantities before reprocessing so we don't double-decrement.
-            $this->repairService->restorePiecesStock(
-                $repair->pieces_rechange_utilisees ?? [],
-                $shopId
-            );
-            $pieces = $this->repairService->buildPieces(
-                $validated['piece_stock_id'] ?? [],
-                $validated['piece_quantite'] ?? [],
-                $shopId
-            );
-            $totals = $this->repairService->computeTotals($pannes, $pieces, $repair->montant_paye);
-
-            $data['pannes_services']           = $pannes;
-            $data['pieces_rechange_utilisees'] = $pieces;
-            $data['total_reparation']          = $totals['total'];
-            $data['reste_a_payer']             = $totals['reste'];
-            $data['etat_paiement']             = $totals['etat_paiement'];
-
-            // Mettre à jour la facture liée
-            if ($repair->invoice) {
-                $repair->invoice->update([
-                    'montant_final' => $totals['total'],
-                    'reste_a_payer' => max(0, $totals['total'] - $repair->invoice->montant_paye),
-                ]);
+            // Dates automatiques selon le nouveau statut
+            if (isset($data['statut_reparation']) && $data['statut_reparation'] !== $ancienStatut) {
+                $data = array_merge($data, $this->repairService->autoDateFields($data['statut_reparation']));
             }
-        }
 
-        $ancienStatut = $repair->statut_reparation;
+            $repair->update($data);
 
-        // Dates automatiques selon le nouveau statut
-        if (isset($data['statut_reparation']) && $data['statut_reparation'] !== $ancienStatut) {
-            $data = array_merge($data, $this->repairService->autoDateFields($data['statut_reparation']));
-        }
+            return $data['statut_reparation'] ?? null;
+        });
 
-        $repair->update($data);
-
-        $nouveauStatut = $data['statut_reparation'] ?? null;
-
-        // SMS + notifications internes lors des transitions de statut
+        // SMS + notifications internes — en dehors de la transaction (effets de bord)
         if ($nouveauStatut && $nouveauStatut !== $ancienStatut) {
             $telephone = $repair->client?->telephone ?? $repair->client_telephone;
 
@@ -320,12 +348,15 @@ class RepairController extends Controller
             }
         }
 
-        if (isset($data['montant_paye'])) {
-            $data = array_merge($data, $this->repairService->applyPayment($repair, $data['montant_paye']));
-        }
+        // montant_paye ne peut pas être modifié directement — utiliser l'endpoint /paiement
+        unset($data['montant_paye']);
 
         if ($request->has('mark_retrieved')) {
-            $data['date_retrait'] = now();
+            $allowed = $this->repairService->allowedTransitions($repair->statut_reparation, $role);
+            if (!in_array('Livré', $allowed)) {
+                return back()->with('error', "Transition vers « Livré » non autorisée depuis « {$repair->statut_reparation} ».");
+            }
+            $data['date_retrait']      = now();
             $data['statut_reparation'] = 'Livré';
         }
         if ($request->has('unmark_retrieved')) {
@@ -383,14 +414,18 @@ class RepairController extends Controller
             return back()->with('error', 'Le total saisi (' . number_format($totalLignes, 0, ',', ' ') . ' cfa) dépasse le reste à payer (' . number_format($repair->reste_a_payer, 0, ',', ' ') . ' cfa).');
         }
 
-        DB::transaction(function () use ($repair, $validated, $totalLignes, $user) {
+        $shopId  = $request->attributes->get('shopId');
+        $session = $this->cashSessionService->sessionOuverte($shopId);
+
+        DB::transaction(function () use ($repair, $validated, $user, $session) {
             foreach ($validated['lignes'] as $ligne) {
                 RepairPayment::create([
-                    'repair_id'  => $repair->id,
-                    'montant'    => floatval($ligne['montant']),
-                    'moyen'      => $ligne['moyen'],
-                    'notes'      => $ligne['notes'] ?? null,
-                    'created_by' => $user->id,
+                    'repair_id'       => $repair->id,
+                    'montant'         => floatval($ligne['montant']),
+                    'moyen'           => $ligne['moyen'],
+                    'notes'           => $ligne['notes'] ?? null,
+                    'created_by'      => $user->id,
+                    'cash_session_id' => $session?->id,
                 ]);
             }
 
@@ -441,23 +476,4 @@ class RepairController extends Controller
             ->download('reparations-' . now()->format('Y-m-d') . '.pdf');
     }
 
-    private function getCompanyInfo(?string $shopId): array
-    {
-        $settings = $shopId
-            ? Settings::withoutGlobalScopes()->where('shopId', $shopId)->first()
-            : Settings::withoutGlobalScopes()->first();
-        $default = ['nom' => 'MOMO TECH SERVICE', 'adresse' => '', 'telephone' => ''];
-        return array_merge($default, $settings?->companyInfo ?? []);
-    }
-
-    private function getLogoBase64(): ?string
-    {
-        foreach (['logo-receipt.png', 'logo-app.png'] as $file) {
-            $path = public_path('images/' . $file);
-            if (file_exists($path)) {
-                return base64_encode(file_get_contents($path));
-            }
-        }
-        return null;
-    }
 }

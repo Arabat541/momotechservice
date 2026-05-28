@@ -37,10 +37,12 @@ class SearchController extends Controller
     private function searchReparations(string $esc): array
     {
         return Repair::where(function ($q) use ($esc) {
-            $q->where('numeroReparation',       'like', "%{$esc}%")
-              ->orWhere('appareil_marque_modele','like', "%{$esc}%")
-              ->orWhere('client_nom',            'like', "%{$esc}%")
-              ->orWhere('client_telephone',      'like', "%{$esc}%");
+            $q->where('numeroReparation',        'like', "%{$esc}%")
+              ->orWhere('appareil_marque_modele', 'like', "%{$esc}%")
+              ->orWhereHas('client', fn($cq) => $cq
+                  ->where('nom', 'like', "%{$esc}%")
+                  ->orWhere('telephone', 'like', "%{$esc}%")
+              );
         })
         ->orderByDesc('date_creation')
         ->limit(5)
@@ -119,7 +121,7 @@ class SearchController extends Controller
         ->where(function ($q) use ($esc) {
             $q->where('numero_facture', 'like', "%{$esc}%")
               ->orWhereHas('client', fn($cq) => $cq->where('nom', 'like', "%{$esc}%"))
-              ->orWhereHas('repair',  fn($rq) => $rq->where('client_nom', 'like', "%{$esc}%"));
+              ->orWhereHas('repair', fn($rq) => $rq->whereHas('client', fn($cq) => $cq->where('nom', 'like', "%{$esc}%")));
         })
         ->orderByDesc('created_at')
         ->limit(5)

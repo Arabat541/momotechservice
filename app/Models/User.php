@@ -13,9 +13,9 @@ class User extends Authenticatable
     public $incrementing = false;
     protected $keyType = 'string';
 
-    protected $fillable = ['id', 'email', 'password', 'nom', 'prenom', 'role', 'google2fa_secret', 'two_factor_enabled'];
+    protected $fillable = ['id', 'email', 'password', 'nom', 'prenom', 'role', 'google2fa_secret', 'google2fa_ts', 'two_factor_enabled'];
     protected $hidden   = ['password', 'google2fa_secret'];
-    protected $casts    = ['two_factor_enabled' => 'boolean'];
+    protected $casts    = ['two_factor_enabled' => 'boolean', 'google2fa_ts' => 'integer'];
 
     protected static function boot()
     {

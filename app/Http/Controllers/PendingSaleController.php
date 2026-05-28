@@ -185,15 +185,15 @@ class PendingSaleController extends Controller
             fn($l) => !empty($l['moyen']) && floatval($l['montant'] ?? 0) > 0
         );
 
-        DB::transaction(function () use ($sale, $shopId, $user, $session, $montantPaye, $totalGeneral, $lignesMoyens) {
-            $restePaye = $montantPaye;
+        DB::transaction(function () use ($sale, $shopId, $user, $session, $montantPaye, $lignesMoyens) {
+            $restePaye    = $montantPaye;
             $createdSales = [];
 
             foreach ($sale->lines as $line) {
-                $stock      = Stock::withoutGlobalScopes()->findOrFail($line->stock_id);
-                $lineTotal  = $line->prix_unitaire * $line->quantite;
-                $linePaye   = min($restePaye, $lineTotal);
-                $restePaye  = max(0, $restePaye - $lineTotal);
+                $stock     = Stock::withoutGlobalScopes()->findOrFail($line->stock_id);
+                $lineTotal = $line->prix_unitaire * $line->quantite;
+                $linePaye  = min($restePaye, $lineTotal);
+                $restePaye = max(0, $restePaye - $lineTotal);
 
                 $createdSales[] = $this->saleService->vendre(
                     stock:         $stock,
@@ -208,15 +208,21 @@ class PendingSaleController extends Controller
                 );
             }
 
-            if ($sale->mode_paiement === 'comptant' && !empty($lignesMoyens)) {
+            // Pro-rater les SalePayments : chaque vente reçoit sa part des moyens de paiement
+            // proportionnellement à son montant_paye, pour éviter la multiplication des montants.
+            if ($sale->mode_paiement === 'comptant' && !empty($lignesMoyens) && $montantPaye > 0) {
                 foreach ($createdSales as $createdSale) {
+                    $ratio = $createdSale->montant_paye / $montantPaye;
                     foreach ($lignesMoyens as $lm) {
-                        SalePayment::create([
-                            'sale_id'    => $createdSale->id,
-                            'montant'    => floatval($lm['montant']),
-                            'moyen'      => $lm['moyen'],
-                            'created_by' => $user->id,
-                        ]);
+                        $montantPro = round(floatval($lm['montant']) * $ratio, 2);
+                        if ($montantPro > 0) {
+                            SalePayment::create([
+                                'sale_id'    => $createdSale->id,
+                                'montant'    => $montantPro,
+                                'moyen'      => $lm['moyen'],
+                                'created_by' => $user->id,
+                            ]);
+                        }
                     }
                 }
             }

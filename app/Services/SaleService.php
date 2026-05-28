@@ -28,10 +28,6 @@ class SaleService
         ?string $clientNom = null,
         float $remise = 0.0,
     ): Sale {
-        if ($stock->quantite < $quantite) {
-            throw new \RuntimeException("Stock insuffisant. Disponible : {$stock->quantite}");
-        }
-
         if ($modePaiement === 'credit') {
             if (!$client || !$client->isRevendeur()) {
                 throw new \RuntimeException('Le paiement à crédit est réservé aux revendeurs.');
@@ -39,6 +35,13 @@ class SaleService
         }
 
         return DB::transaction(function () use ($stock, $quantite, $shopId, $createdBy, $client, $cashSessionId, $modePaiement, $montantPaye, $clientNom, $remise) {
+            // Verrouillage de la ligne pour prévenir les ventes concurrentes sur le même stock
+            $stock = Stock::withoutGlobalScopes()->lockForUpdate()->findOrFail($stock->id);
+
+            if ($stock->quantite < $quantite) {
+                throw new \RuntimeException("Stock insuffisant. Disponible : {$stock->quantite}");
+            }
+
             $prixUnitaire = PricingService::resolvePrix($stock, $quantite, $client);
 
             $sousTotal    = $prixUnitaire * $quantite;
@@ -79,9 +82,9 @@ class SaleService
         });
     }
 
-    public function annuler(Sale $vente): void
+    public function annuler(Sale $vente, ?string $userId = null): void
     {
-        DB::transaction(function () use ($vente) {
+        DB::transaction(function () use ($vente, $userId) {
             $stock = Stock::withoutGlobalScopes()->find($vente->stockId);
             if ($stock) {
                 $stock->increment('quantite', $vente->quantite);
@@ -89,9 +92,29 @@ class SaleService
 
             if ($vente->statut === 'credit' && $vente->client_id) {
                 $client = $vente->client()->withoutGlobalScopes()->first();
-                if ($client && $vente->reste_credit > 0) {
-                    $client->decrement('solde_credit', $vente->reste_credit);
+                if ($client) {
+                    // Annuler la dette (reste_credit) via un avoir de crédit traçable.
+                    if ($vente->reste_credit > 0) {
+                        $this->creditService->enregistrerAvoir(
+                            $client,
+                            $vente->reste_credit,
+                            $userId ?? 'system',
+                            "Avoir — annulation vente {$vente->numeroVente}"
+                        );
+                    }
+
+                    // Si un acompte en espèces avait été perçu, l'enregistrer comme avoir
+                    // distinct pour que le solde crédit reflète l'intégralité du remboursement dû.
+                    if ($vente->montant_paye > 0) {
+                        $this->creditService->enregistrerAvoir(
+                            $client,
+                            $vente->montant_paye,
+                            $userId ?? 'system',
+                            "Avoir acompte espèces — annulation vente {$vente->numeroVente}"
+                        );
+                    }
                 }
+                // Les transactions dette originales sont supprimées ; les avoirs sont la trace d'annulation
                 $vente->creditTransactions()->delete();
             }
 

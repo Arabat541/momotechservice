@@ -72,7 +72,7 @@ class Repair extends BaseModel
         }
         // Nettoyer l'ancien format sérialisé PHP (s:N:"valeur";)
         if (is_string($value) && str_starts_with($value, 's:')) {
-            $unserialized = @unserialize($value);
+            $unserialized = @unserialize($value, ['allowed_classes' => false]);
             if ($unserialized !== false) return (string) $unserialized;
         }
         return (string) $value;

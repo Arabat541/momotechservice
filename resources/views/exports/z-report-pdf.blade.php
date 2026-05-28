@@ -69,23 +69,13 @@ $session = $report['session'];
     </tbody>
 </table>
 
-{{-- Acomptes réparations --}}
-<h3>Acomptes réparations</h3>
+{{-- Paiements réparations --}}
+<h3>Paiements réparations</h3>
 <table>
     <thead><tr><th>Libellé</th><th class="right">Valeur</th></tr></thead>
     <tbody>
-        <tr class="recap-row"><td>Nombre d'acomptes</td><td class="right">{{ $report['nb_acomptes'] }}</td></tr>
-        <tr class="recap-row"><td>Total acomptes</td><td class="right" style="font-weight:700;">{{ number_format($report['total_acomptes'], 0, ',', ' ') }} F</td></tr>
-    </tbody>
-</table>
-
-{{-- Factures soldées --}}
-<h3>Factures soldées</h3>
-<table>
-    <thead><tr><th>Libellé</th><th class="right">Valeur</th></tr></thead>
-    <tbody>
-        <tr class="recap-row"><td>Nombre de factures</td><td class="right">{{ $report['nb_factures_soldees'] }}</td></tr>
-        <tr class="recap-row"><td>Total encaissé</td><td class="right" style="font-weight:700; color:#16a34a;">{{ number_format($report['total_factures_soldees'], 0, ',', ' ') }} F</td></tr>
+        <tr class="recap-row"><td>Nombre de paiements</td><td class="right">{{ $report['nb_paiements_reparations'] }}</td></tr>
+        <tr class="recap-row"><td>Total encaissé réparations</td><td class="right" style="font-weight:700; color:#16a34a;">{{ number_format($report['total_paiements_reparations'], 0, ',', ' ') }} F</td></tr>
     </tbody>
 </table>
 
@@ -95,7 +85,7 @@ $session = $report['session'];
     <thead><tr><th>Libellé</th><th class="right">Montant (F)</th></tr></thead>
     <tbody>
         <tr class="recap-row"><td>Fonds à l'ouverture</td><td class="right">{{ number_format($report['montant_ouverture'], 0, ',', ' ') }}</td></tr>
-        <tr class="recap-row"><td>Total encaissé (ventes comptant + acomptes)</td><td class="right" style="color:#16a34a; font-weight:700;">{{ number_format($report['total_encaisse'], 0, ',', ' ') }}</td></tr>
+        <tr class="recap-row"><td>Total encaissé (ventes comptant + réparations)</td><td class="right" style="color:#16a34a; font-weight:700;">{{ number_format($report['total_encaisse'], 0, ',', ' ') }}</td></tr>
         <tr class="recap-row"><td>Attendu en caisse</td><td class="right" style="font-weight:700;">{{ number_format($report['montant_fermeture_attendu'] ?? 0, 0, ',', ' ') }}</td></tr>
         <tr class="recap-row"><td>Réel compté</td><td class="right" style="font-weight:700;">{{ number_format($report['montant_fermeture_reel'] ?? 0, 0, ',', ' ') }}</td></tr>
     </tbody>

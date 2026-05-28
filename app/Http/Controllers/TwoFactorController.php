@@ -37,7 +37,7 @@ class TwoFactorController extends Controller
 
     public function confirm(Request $request)
     {
-        $user    = $request->attributes->get('user');
+        $user      = $request->attributes->get('user');
         $google2fa = new Google2FA();
 
         $validated = $request->validate([
@@ -48,13 +48,14 @@ class TwoFactorController extends Controller
             return back()->with('error', 'Aucun secret 2FA généré. Activez d\'abord le 2FA.');
         }
 
-        $valid = $google2fa->verifyKey($user->google2fa_secret, $validated['otp']);
+        $oldTs     = $user->google2fa_ts;
+        $newTs     = $google2fa->verifyKeyNewer($user->google2fa_secret, $validated['otp'], $oldTs);
 
-        if (!$valid) {
-            return back()->with('error', 'Code invalide. Vérifiez votre application et réessayez.');
+        if ($newTs === false) {
+            return back()->with('error', 'Code invalide ou déjà utilisé. Vérifiez votre application et réessayez.');
         }
 
-        $user->update(['two_factor_enabled' => true]);
+        $user->update(['two_factor_enabled' => true, 'google2fa_ts' => $newTs]);
 
         return redirect()->route('two-factor.show')->with('success', '2FA activé avec succès.');
     }
@@ -68,13 +69,14 @@ class TwoFactorController extends Controller
         ]);
 
         $google2fa = new Google2FA();
-        $valid = $google2fa->verifyKey($user->google2fa_secret ?? '', $validated['otp']);
+        $oldTs     = $user->google2fa_ts;
+        $newTs     = $google2fa->verifyKeyNewer($user->google2fa_secret ?? '', $validated['otp'], $oldTs);
 
-        if (!$valid) {
-            return back()->with('error', 'Code invalide.');
+        if ($newTs === false) {
+            return back()->with('error', 'Code invalide ou déjà utilisé.');
         }
 
-        $user->update(['two_factor_enabled' => false, 'google2fa_secret' => null]);
+        $user->update(['two_factor_enabled' => false, 'google2fa_secret' => null, 'google2fa_ts' => null]);
 
         return redirect()->route('two-factor.show')->with('success', '2FA désactivé.');
     }
@@ -108,11 +110,15 @@ class TwoFactorController extends Controller
         ]);
 
         $google2fa = new Google2FA();
-        $valid = $google2fa->verifyKey($user->google2fa_secret ?? '', $validated['otp']);
+        $oldTs     = $user->google2fa_ts;
+        $newTs     = $google2fa->verifyKeyNewer($user->google2fa_secret ?? '', $validated['otp'], $oldTs);
 
-        if (!$valid) {
-            return back()->with('error', 'Code invalide. Réessayez.');
+        if ($newTs === false) {
+            return back()->with('error', 'Code invalide ou déjà utilisé. Réessayez.');
         }
+
+        // Mémoriser le timestamp du code utilisé pour prévenir le rejeu
+        $user->update(['google2fa_ts' => $newTs]);
 
         // Complete the login process
         session()->forget('2fa_user_id');
@@ -124,6 +130,14 @@ class TwoFactorController extends Controller
             'user_nom'   => $user->nom,
             'user_prenom'=> $user->prenom,
         ]);
+
+        $firstShop = $user->role === 'patron'
+            ? \App\Models\Shop::orderBy('nom')->first()
+            : $user->shops()->orderBy('nom')->first();
+
+        if ($firstShop) {
+            session(['current_shop_id' => $firstShop->id]);
+        }
 
         return redirect()->route('dashboard');
     }

@@ -3,13 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Invoice;
-use App\Services\CreditService;
+use App\Models\RepairPayment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class RefundController extends Controller
 {
-    public function __construct(private CreditService $creditService) {}
 
     public function rembourser(Request $request, string $id)
     {
@@ -26,25 +25,21 @@ class RefundController extends Controller
         ]);
 
         DB::transaction(function () use ($invoice, $user, $validated) {
-            // Créer un avoir si un client est lié et que du montant a été payé
-            if ($invoice->client && $invoice->montant_paye > 0) {
-                $this->creditService->enregistrerAvoir(
-                    $invoice->client,
-                    $invoice->montant_paye,
-                    $user->id,
-                    $validated['notes'] ?? "Avoir suite annulation facture {$invoice->numero_facture}"
-                );
-            }
-
             $invoice->update(['statut' => 'annulee']);
 
-            // Remettre la réparation liée en "En cours" si elle était soldée
-            if ($invoice->repair && $invoice->repair->etat_paiement === 'Soldé') {
-                $invoice->repair->update([
-                    'etat_paiement' => 'Non soldé',
-                    'reste_a_payer' => $invoice->montant_final,
-                    'montant_paye'  => 0,
-                ]);
+            if ($invoice->repair_id) {
+                // Supprimer les RepairPayments : ils servent à l'imputation en caisse.
+                // Les garder après annulation gonflerait artificiellement le montant attendu
+                // en caisse et corromprait le prochain calcul de montant_paye sur la réparation.
+                RepairPayment::where('repair_id', $invoice->repair_id)->delete();
+
+                if ($invoice->repair) {
+                    $invoice->repair->update([
+                        'etat_paiement' => 'Non soldé',
+                        'reste_a_payer' => $invoice->montant_final,
+                        'montant_paye'  => 0,
+                    ]);
+                }
             }
         });
 
