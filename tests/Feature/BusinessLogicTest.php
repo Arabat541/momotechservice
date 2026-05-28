@@ -20,7 +20,6 @@ class BusinessLogicTest extends TestCase
 
     private User $patron;
     private User $caissiere;
-    private User $technicien;
     private Shop $shop;
 
     protected function setUp(): void
@@ -35,18 +34,12 @@ class BusinessLogicTest extends TestCase
             'id' => Str::random(25), 'email' => 'caissiere@test.com',
             'password' => Hash::make('password123'), 'nom' => 'Caissiere', 'prenom' => 'Test', 'role' => 'caissiere',
         ]);
-        $this->technicien = User::create([
-            'id' => Str::random(25), 'email' => 'tech@test.com',
-            'password' => Hash::make('password123'), 'nom' => 'Tech', 'prenom' => 'Test', 'role' => 'technicien',
-        ]);
 
         $this->shop = Shop::create([
             'id' => Str::random(25), 'nom' => 'Boutique Test', 'createdBy' => $this->patron->id,
         ]);
 
-        // Attacher caissière et technicien à la boutique
         $this->caissiere->shops()->attach($this->shop->id);
-        $this->technicien->shops()->attach($this->shop->id);
     }
 
     private function loginAs(User $user, Shop $shop): void
@@ -89,9 +82,10 @@ class BusinessLogicTest extends TestCase
         $this->assertEquals(1, CashSession::withoutGlobalScopes()->where('shopId', $this->shop->id)->count());
     }
 
-    public function test_technicien_ne_peut_pas_ouvrir_caisse(): void
+    public function test_patron_ne_peut_pas_ouvrir_caisse(): void
     {
-        $this->loginAs($this->technicien, $this->shop);
+        // L'ouverture de caisse est réservée à la caissière (role:caissiere)
+        $this->loginAs($this->patron, $this->shop);
 
         $response = $this->post('/dashboard/caisse/ouvrir', ['montant_ouverture' => 50000]);
 
@@ -175,9 +169,9 @@ class BusinessLogicTest extends TestCase
         $this->assertDatabaseMissing('repairs', ['numeroReparation' => 'REP-NOFACT-001']);
     }
 
-    // ── Diagnostic technicien ────────────────────────────────────────────────
+    // ── Diagnostic (caissière) ──────────────────────────────────────────────
 
-    public function test_technicien_peut_mettre_a_jour_diagnostic(): void
+    public function test_caissiere_peut_mettre_a_jour_diagnostic(): void
     {
         $repair = Repair::create([
             'id' => Str::random(25), 'shopId' => $this->shop->id,
@@ -190,17 +184,17 @@ class BusinessLogicTest extends TestCase
             'userId' => $this->caissiere->id,
         ]);
 
-        $this->loginAs($this->technicien, $this->shop);
+        $this->loginAs($this->caissiere, $this->shop);
 
         $response = $this->put("/dashboard/reparations/{$repair->id}/diagnostic", [
-            'statut_reparation' => 'En diagnostic',
-            'notes_technicien'  => 'Écran fissuré, batterie faible.',
+            'statut_reparation' => 'Terminé',
+            'notes_technicien'  => 'Écran fissuré remplacé, batterie changée.',
         ]);
 
         $response->assertRedirect();
         $this->assertDatabaseHas('repairs', [
-            'id'               => $repair->id,
-            'statut_reparation'=> 'En diagnostic',
+            'id'                => $repair->id,
+            'statut_reparation' => 'Terminé',
         ]);
     }
 
@@ -312,9 +306,12 @@ class BusinessLogicTest extends TestCase
 
         $this->loginAs($this->caissiere, $this->shop);
 
+        // L'endpoint attend lignes[].moyen + lignes[].montant (paiement multi-lignes)
         $response = $this->post("/dashboard/clients/{$revendeur->id}/remboursement", [
-            'montant' => 5000,
-            'notes'   => 'Paiement partiel',
+            'lignes' => [
+                ['moyen' => 'especes', 'montant' => 5000],
+            ],
+            'notes' => 'Paiement partiel',
         ]);
 
         $response->assertRedirect();

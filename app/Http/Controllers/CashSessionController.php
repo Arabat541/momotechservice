@@ -52,7 +52,7 @@ class CashSessionController extends Controller
             ->with(['sales.stock', 'invoices.repair', 'user'])
             ->findOrFail($id);
 
-        // Vérifier l'accès : patron voit tout, caissière/technicien seulement sa boutique
+        // Vérifier l'accès : patron voit tout, caissière seulement sa boutique
         $user   = $request->attributes->get('user');
         $shopId = $request->attributes->get('shopId');
         if ($user->role !== 'patron' && $session->shopId !== $shopId) {

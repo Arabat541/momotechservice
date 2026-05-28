@@ -17,7 +17,14 @@ class ShopMiddleware
             return $next($request);
         }
 
-        // Caissière : boutique unique auto-détectée depuis son compte
+        // Caissière : réutiliser la boutique déjà mise en session pour éviter
+        // une requête DB sur chaque requête HTTP.
+        $cachedShopId = $request->session()->get('current_shop_id');
+        if ($cachedShopId) {
+            $request->attributes->set('shopId', $cachedShopId);
+            return $next($request);
+        }
+
         $shop = $user->shops()->first();
 
         if (!$shop) {

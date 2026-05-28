@@ -307,7 +307,11 @@ class RepairController extends Controller
     {
         $shopId = $request->attributes->get('shopId');
         $repair = Repair::with('photos')->findOrFail($id);
-        $stocks = Stock::query()->get();
+        $stocks = Stock::withoutGlobalScopes()
+            ->where('shopId', $repair->shopId)
+            ->where('quantite', '>', 0)
+            ->orderBy('nom')
+            ->get();
 
         $userRole    = $request->attributes->get('userRole');
         $allStatuts  = array_keys(RepairService::STATUTS);

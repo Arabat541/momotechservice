@@ -3,8 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Client;
-use App\Models\CreditTransaction;
-use App\Models\Repair;
 use App\Models\Sale;
 use App\Models\Settings;
 use App\Models\Shop;
@@ -22,7 +20,6 @@ class Phase5FinalTest extends TestCase
 
     private User $patron;
     private User $caissiere;
-    private User $technicien;
     private Shop $shop;
 
     protected function setUp(): void
@@ -37,15 +34,10 @@ class Phase5FinalTest extends TestCase
             'id' => Str::random(25), 'email' => 'caiss@phase5.test',
             'password' => Hash::make('password123'), 'nom' => 'Caissiere', 'prenom' => 'C', 'role' => 'caissiere',
         ]);
-        $this->technicien = User::create([
-            'id' => Str::random(25), 'email' => 'tech@phase5.test',
-            'password' => Hash::make('password123'), 'nom' => 'Tech', 'prenom' => 'T', 'role' => 'technicien',
-        ]);
         $this->shop = Shop::create([
             'id' => Str::random(25), 'nom' => 'Boutique P5', 'createdBy' => $this->patron->id,
         ]);
         $this->caissiere->shops()->attach($this->shop->id);
-        $this->technicien->shops()->attach($this->shop->id);
     }
 
     private function loginAs(User $user): void
@@ -85,59 +77,6 @@ class Phase5FinalTest extends TestCase
         $this->loginAs($this->caissiere);
         $response = $this->get("/dashboard/clients/{$particulier->id}/dashboard");
         $response->assertRedirect(route('clients.show', $particulier->id));
-    }
-
-    // ── Planning technicien ──────────────────────────────────────────────────
-
-    public function test_planning_accessible_tous_roles(): void
-    {
-        $this->loginAs($this->technicien);
-        $response = $this->get('/dashboard/planning');
-        $response->assertOk();
-    }
-
-    public function test_assignation_reparation_a_technicien(): void
-    {
-        $repair = Repair::create([
-            'id' => Str::random(25), 'shopId' => $this->shop->id,
-            'numeroReparation' => 'REP-PLAN-001', 'type_reparation' => 'place',
-            'client_nom' => 'Client', 'client_telephone' => '0600000001',
-            'appareil_marque_modele' => 'iPhone', 'pannes_services' => [],
-            'pieces_rechange_utilisees' => [], 'total_reparation' => 0,
-            'montant_paye' => 0, 'reste_a_payer' => 0,
-            'statut_reparation' => 'En cours', 'etat_paiement' => 'Non soldé',
-            'userId' => $this->caissiere->id,
-        ]);
-
-        $this->loginAs($this->caissiere);
-        $response = $this->post("/dashboard/planning/{$repair->id}/assigner", [
-            'assigned_to' => $this->technicien->id,
-        ]);
-
-        $response->assertRedirect();
-        $this->assertDatabaseHas('repairs', [
-            'id'          => $repair->id,
-            'assigned_to' => $this->technicien->id,
-        ]);
-    }
-
-    public function test_desassignation_reparation(): void
-    {
-        $repair = Repair::create([
-            'id' => Str::random(25), 'shopId' => $this->shop->id,
-            'numeroReparation' => 'REP-PLAN-002', 'type_reparation' => 'place',
-            'client_nom' => 'Client2', 'client_telephone' => '0600000002',
-            'appareil_marque_modele' => 'Samsung', 'pannes_services' => [],
-            'pieces_rechange_utilisees' => [], 'total_reparation' => 0,
-            'montant_paye' => 0, 'reste_a_payer' => 0,
-            'statut_reparation' => 'En cours', 'etat_paiement' => 'Non soldé',
-            'userId' => $this->caissiere->id, 'assigned_to' => $this->technicien->id,
-        ]);
-
-        $this->loginAs($this->patron);
-        $this->post("/dashboard/planning/{$repair->id}/assigner", ['assigned_to' => null]);
-
-        $this->assertDatabaseHas('repairs', ['id' => $repair->id, 'assigned_to' => null]);
     }
 
     // ── Garanties ────────────────────────────────────────────────────────────

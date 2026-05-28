@@ -4,14 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\Client;
 use App\Models\CreditTransaction;
-use App\Models\Settings;
 use App\Services\RevendeurService;
+use App\Traits\PdfHelperTrait;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
 class CreditController extends Controller
 {
+    use PdfHelperTrait;
+
+    public function __construct(private RevendeurService $revendeurService) {}
     public function index(Request $request)
     {
         $clientId = $request->query('client_id');
@@ -49,14 +52,10 @@ class CreditController extends Controller
         $debut = $request->query('debut', Carbon::now()->startOfMonth()->toDateString());
         $fin   = $request->query('fin', Carbon::now()->toDateString());
 
-        $service      = new RevendeurService();
-        $transactions = $service->getRelevéCompte($client, $debut, $fin);
+        $transactions = $this->revendeurService->getRelevéCompte($client, $debut, $fin);
 
         $shopId      = $request->attributes->get('shopId');
-        $settings    = $shopId
-            ? Settings::where('shopId', $shopId)->first()
-            : Settings::first();
-        $companyInfo = $settings ? json_decode($settings->value ?? '{}', true) : [];
+        $companyInfo = $this->getCompanyInfo($shopId ?? $client->shopId);
         $logoBase64  = $this->getLogoBase64();
 
         $pdf = Pdf::loadView('credit.releve-pdf', compact(
@@ -68,14 +67,4 @@ class CreditController extends Controller
         return $pdf->download($filename);
     }
 
-    private function getLogoBase64(): string
-    {
-        foreach (['logo-receipt.png', 'logo-app.png'] as $name) {
-            $path = public_path($name);
-            if (file_exists($path)) {
-                return base64_encode(file_get_contents($path));
-            }
-        }
-        return '';
-    }
 }
