@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\CashSession;
+use App\Models\RepairPayment;
 use Illuminate\Support\Facades\DB;
 
 class CashSessionService
@@ -74,9 +75,11 @@ class CashSessionService
             ->where('mode_paiement', 'comptant')
             ->sum('montant_paye');
 
-        $totalAcomptes = $session->invoices()
-            ->sum('montant_paye');
+        // Paiements de réparations directement imputés à cette session via repair_payments.cash_session_id.
+        // Couvre les paiements à la création, les acomptes et les soldes — quelle que soit la session
+        // d'ouverture de la réparation.
+        $totalRepairPayments = RepairPayment::where('cash_session_id', $session->id)->sum('montant');
 
-        return $session->montant_ouverture + $totalVentes + $totalAcomptes;
+        return $session->montant_ouverture + $totalVentes + $totalRepairPayments;
     }
 }

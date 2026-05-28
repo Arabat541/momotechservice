@@ -121,7 +121,7 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
         Route::delete('/article/annuler/{id}', [ArticleController::class, 'annuler'])->name('article.annuler');
         Route::get('/article/{id}/edit', [ArticleController::class, 'edit'])->name('article.edit');
         Route::put('/article/{id}', [ArticleController::class, 'update'])->name('article.update');
-        Route::post('/reparations/{id}/paiement', [RepairController::class, 'enregistrerPaiement'])->name('repairs.paiement');
+        Route::post('/reparations/{id}/paiement', [RepairController::class, 'enregistrerPaiement'])->middleware('throttle:30,1')->name('repairs.paiement');
     });
 
     // Ventes en attente (caissière uniquement)
@@ -233,7 +233,7 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
         Route::get('/factures-fournisseurs/create', [PurchaseInvoiceController::class, 'create'])->name('purchase-invoices.create');
         Route::post('/factures-fournisseurs', [PurchaseInvoiceController::class, 'store'])->name('purchase-invoices.store');
         Route::get('/factures-fournisseurs/{id}', [PurchaseInvoiceController::class, 'show'])->name('purchase-invoices.show');
-        Route::post('/factures-fournisseurs/{id}/paiement', [PurchaseInvoiceController::class, 'paiement'])->name('purchase-invoices.paiement');
+        Route::post('/factures-fournisseurs/{id}/paiement', [PurchaseInvoiceController::class, 'paiement'])->middleware('throttle:30,1')->name('purchase-invoices.paiement');
         Route::get('/factures-fournisseurs/{id}/imprimer', [PurchaseInvoiceController::class, 'print'])->name('purchase-invoices.print');
     });
 
@@ -248,7 +248,7 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
     // Factures — écriture (caissière uniquement)
     Route::middleware(['role:caissiere'])->group(function () {
         Route::post('/reparations/{repairId}/facture', [InvoiceController::class, 'creerDepuisReparation'])->name('invoices.create-from-repair');
-        Route::post('/factures/{id}/paiement', [InvoiceController::class, 'paiementFinal'])->name('invoices.paiement');
+        Route::post('/factures/{id}/paiement', [InvoiceController::class, 'paiementFinal'])->middleware('throttle:30,1')->name('invoices.paiement');
     });
 
     // Crédit revendeurs

@@ -5,13 +5,17 @@ namespace App\Http\Controllers;
 use App\Models\Client;
 use App\Models\CreditTransaction;
 use App\Models\Sale;
-use App\Models\Settings;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use App\Traits\PdfHelperTrait;
 use Illuminate\Support\Carbon;
 
 class ClientController extends Controller
 {
+    use PdfHelperTrait;
+
     public function index(Request $request)
     {
         $shopId  = $request->attributes->get('shopId');
@@ -57,13 +61,20 @@ class ClientController extends Controller
 
         $validated = $request->validate([
             'nom'           => ['required', 'string', 'max:100'],
-            'telephone'     => ['required', 'string', 'max:30', 'regex:/^[\d\+\-\s\(\)]{7,30}$/'],
+            'telephone'     => [
+                'required', 'string', 'max:30', 'regex:/^[\d\+\-\s\(\)]{7,30}$/',
+                Rule::unique('clients', 'telephone')->where('shopId', $shopId),
+            ],
             'type'          => ['required', 'in:particulier,revendeur'],
             'nom_boutique'  => ['nullable', 'string', 'max:100'],
             'credit_limite' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
         ]);
 
-        $client = Client::create(array_merge($validated, ['shopId' => $shopId]));
+        try {
+            $client = Client::create(array_merge($validated, ['shopId' => $shopId]));
+        } catch (UniqueConstraintViolationException) {
+            return back()->withInput()->withErrors(['telephone' => 'Ce numéro de téléphone est déjà utilisé par un client de cette boutique.']);
+        }
 
         return redirect()->route('clients.show', $client->id)
             ->with('success', 'Client créé avec succès.');
@@ -90,12 +101,19 @@ class ClientController extends Controller
 
         $validated = $request->validate([
             'nom'           => ['required', 'string', 'max:100'],
-            'telephone'     => ['required', 'string', 'max:30', 'regex:/^[\d\+\-\s\(\)]{7,30}$/'],
+            'telephone'     => [
+                'required', 'string', 'max:30', 'regex:/^[\d\+\-\s\(\)]{7,30}$/',
+                Rule::unique('clients', 'telephone')->where('shopId', $client->shopId)->ignore($client->id),
+            ],
             'nom_boutique'  => ['nullable', 'string', 'max:100'],
             'credit_limite' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
         ]);
 
-        $client->update($validated);
+        try {
+            $client->update($validated);
+        } catch (UniqueConstraintViolationException) {
+            return back()->withInput()->withErrors(['telephone' => 'Ce numéro de téléphone est déjà utilisé par un autre client de cette boutique.']);
+        }
 
         return redirect()->route('clients.show', $client->id)
             ->with('success', 'Client mis à jour.');
@@ -214,26 +232,6 @@ class ClientController extends Controller
         ))
             ->setPaper('a4', 'portrait')
             ->download('revendeur-' . \Illuminate\Support\Str::slug($client->nom) . '-' . now()->format('Y-m-d') . '.pdf');
-    }
-
-    private function getCompanyInfo(?string $shopId): array
-    {
-        $settings = $shopId
-            ? Settings::withoutGlobalScopes()->where('shopId', $shopId)->first()
-            : Settings::withoutGlobalScopes()->first();
-        $default = ['nom' => 'MOMO TECH SERVICE', 'adresse' => '', 'telephone' => ''];
-        return array_merge($default, $settings?->companyInfo ?? []);
-    }
-
-    private function getLogoBase64(): ?string
-    {
-        foreach (['logo-receipt.png', 'logo-app.png'] as $file) {
-            $path = public_path('images/' . $file);
-            if (file_exists($path)) {
-                return base64_encode(file_get_contents($path));
-            }
-        }
-        return null;
     }
 
     public function remboursement(Request $request, string $id)

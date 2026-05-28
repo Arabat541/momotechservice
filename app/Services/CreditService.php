@@ -24,6 +24,7 @@ class CreditService
         }
 
         return DB::transaction(function () use ($sale, $client, $montantCredit, $createdBy) {
+            $client     = Client::withoutGlobalScopes()->lockForUpdate()->findOrFail($client->id);
             $soldeApres = $client->solde_credit + $montantCredit;
 
             $transaction = CreditTransaction::create([
@@ -49,6 +50,7 @@ class CreditService
     public function enregistrerAvoir(Client $client, float $montant, string $createdBy, ?string $notes = null): CreditTransaction
     {
         return DB::transaction(function () use ($client, $montant, $createdBy, $notes) {
+            $client     = Client::withoutGlobalScopes()->lockForUpdate()->findOrFail($client->id);
             $soldeApres = max(0.0, $client->solde_credit - min($montant, $client->solde_credit));
 
             $transaction = CreditTransaction::create([
@@ -77,6 +79,7 @@ class CreditService
         }
 
         return DB::transaction(function () use ($client, $montant, $createdBy, $notes, $moyen) {
+            $client     = Client::withoutGlobalScopes()->lockForUpdate()->findOrFail($client->id);
             $soldeApres = max(0, $client->solde_credit - $montant);
 
             $transaction = CreditTransaction::create([

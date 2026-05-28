@@ -7,7 +7,7 @@ class RepairPayment extends BaseModel
     protected $table = 'repair_payments';
 
     protected $fillable = [
-        'id', 'repair_id', 'montant', 'moyen', 'notes', 'created_by',
+        'id', 'repair_id', 'montant', 'moyen', 'notes', 'created_by', 'cash_session_id',
     ];
 
     protected $casts = [

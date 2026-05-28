@@ -136,7 +136,7 @@ class RepairService
             if (!$stockId) continue;
 
             $qte = intval($pieceQtes[$i] ?? 1);
-            $stock = Stock::withoutGlobalScopes()->where('id', $stockId)->where('shopId', $shopId)->first();
+            $stock = Stock::withoutGlobalScopes()->lockForUpdate()->where('id', $stockId)->where('shopId', $shopId)->first();
 
             if ($stock && $stock->quantite >= $qte) {
                 $stock->decrement('quantite', $qte);
@@ -221,6 +221,8 @@ class RepairService
                 'etat_paiement'            => $totals['etat_paiement'],
                 'mode_paiement'            => $validated['mode_paiement'] ?? null,
                 'userId'                   => $userId,
+                'client_id'               => $validated['client_id'] ?? null,
+                'cash_session_id'         => $validated['cash_session_id'] ?? null,
             ]);
         });
     }

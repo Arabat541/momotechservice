@@ -41,19 +41,26 @@ class InvoiceService
         });
     }
 
-    public function enregistrerPaiementFinal(Invoice $invoice, float $montant, string $cashSessionId, ?string $moyen = null): Invoice
+    public function enregistrerPaiementFinal(Invoice $invoice, float $montant, string $cashSessionId, ?string $moyen = null, ?string $createdBy = null): Invoice
     {
-        return DB::transaction(function () use ($invoice, $montant, $cashSessionId, $moyen) {
+        return DB::transaction(function () use ($invoice, $montant, $cashSessionId, $moyen, $createdBy) {
             $invoice->montant_paye  += $montant;
             $invoice->reste_a_payer  = max(0, $invoice->montant_final - $invoice->montant_paye);
             $invoice->statut         = $invoice->reste_a_payer <= 0 ? 'soldee' : 'partielle';
             $invoice->moyen_paiement = $moyen;
-
-            if ($cashSessionId) {
-                $invoice->cash_session_id = $cashSessionId;
-            }
-
+            // cash_session_id conserve la session d'origine de la facture — ne pas écraser
             $invoice->save();
+
+            // Tracer ce paiement comme RepairPayment pour l'imputation à la session courante
+            if ($invoice->repair_id) {
+                \App\Models\RepairPayment::create([
+                    'repair_id'       => $invoice->repair_id,
+                    'montant'         => $montant,
+                    'moyen'           => $moyen,
+                    'created_by'      => $createdBy ?? 'system',
+                    'cash_session_id' => $cashSessionId,
+                ]);
+            }
 
             if ($invoice->repair) {
                 $invoice->repair->update([
