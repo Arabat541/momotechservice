@@ -170,6 +170,7 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
 
     // Shops management (patron only)
     Route::middleware(['role:patron'])->group(function () {
+        Route::post('/boutiques/selectionner', [ShopController::class, 'switchShop'])->name('shops.switch');
         Route::post('/boutiques', [ShopController::class, 'store'])->name('shops.store');
         Route::put('/boutiques/{id}', [ShopController::class, 'update'])->name('shops.update');
         Route::delete('/boutiques/{id}', [ShopController::class, 'destroy'])->name('shops.destroy');

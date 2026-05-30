@@ -5,7 +5,8 @@
     $user = session('user_id') ? \App\Models\User::find(session('user_id')) : null;
     $role = session('user_role', 'caissiere');
     $currentShopId = session('current_shop_id');
-    $currentShop = $currentShopId ? \App\Models\Shop::find($currentShopId) : null;
+    $currentShop   = $currentShopId ? \App\Models\Shop::find($currentShopId) : null;
+    $allShops      = $role === 'patron' ? \App\Models\Shop::orderBy('nom')->get() : collect();
 
     $menuSections = [
         [
@@ -92,16 +93,37 @@
                 </button>
             </div>
 
-            {{-- Boutique label --}}
+            {{-- Sélecteur de boutique --}}
             <div x-show="sidebarOpen" class="px-4 mb-3">
-                <div class="flex items-center gap-2 bg-white/20 rounded-lg px-3 py-2">
-                    <i class="fas fa-store text-blue-200 text-sm flex-shrink-0"></i>
-                    @if($role === 'patron')
-                        <span class="text-white text-sm font-medium truncate">Toutes les boutiques</span>
-                    @else
+                @if($role === 'patron')
+                    {{-- Patron : dropdown pour choisir une boutique ou voir tout --}}
+                    <form method="POST" action="{{ route('shops.switch') }}">
+                        @csrf
+                        <div class="flex items-center gap-2 bg-white/20 rounded-lg px-2 py-1.5">
+                            <i class="fas fa-store text-blue-200 text-sm flex-shrink-0"></i>
+                            <select name="shop_id"
+                                    onchange="this.form.submit()"
+                                    class="bg-transparent text-white text-sm font-medium w-full focus:outline-none cursor-pointer appearance-none truncate">
+                                <option value="" class="bg-slate-800 text-white" {{ !$currentShopId ? 'selected' : '' }}>
+                                    Toutes les boutiques
+                                </option>
+                                @foreach($allShops as $shop)
+                                    <option value="{{ $shop->id }}" class="bg-slate-800 text-white"
+                                            {{ $currentShopId === $shop->id ? 'selected' : '' }}>
+                                        {{ $shop->nom }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <i class="fas fa-chevron-down text-blue-200 text-xs pointer-events-none"></i>
+                        </div>
+                    </form>
+                @else
+                    {{-- Caissière : affichage statique de sa boutique --}}
+                    <div class="flex items-center gap-2 bg-white/20 rounded-lg px-3 py-2">
+                        <i class="fas fa-store text-blue-200 text-sm flex-shrink-0"></i>
                         <span class="text-white text-sm font-medium truncate">{{ $currentShop?->nom ?? 'Ma boutique' }}</span>
-                    @endif
-                </div>
+                    </div>
+                @endif
             </div>
 
             {{-- Navigation --}}

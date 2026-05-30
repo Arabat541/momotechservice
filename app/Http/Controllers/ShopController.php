@@ -11,10 +11,9 @@ class ShopController extends Controller
 {
     public function switchShop(Request $request)
     {
-        $shopId = $request->input('shop_id');
-        if ($shopId) {
-            session(['current_shop_id' => $shopId]);
-        }
+        // shop_id vide = "Toutes les boutiques" (null = pas de filtre)
+        $shopId = $request->input('shop_id') ?: null;
+        session(['current_shop_id' => $shopId]);
         return back();
     }
 
@@ -89,10 +88,10 @@ class ShopController extends Controller
             $shop->delete();
         });
 
-        // If deleted shop was current, switch to another
+        // Si la boutique supprimée était la boutique sélectionnée :
+        // le patron revient en vue "toutes boutiques" (null)
         if (session('current_shop_id') === $id) {
-            $nextShop = Shop::first();
-            session(['current_shop_id' => $nextShop?->id]);
+            session(['current_shop_id' => null]);
         }
 
         return back()->with('success', 'Boutique supprimée.');

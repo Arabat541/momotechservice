@@ -57,13 +57,15 @@ class AuthController extends Controller
             'user_prenom' => $user->prenom,
         ]);
 
-        // Set first shop as current if not set
-        $firstShop = $user->role === 'patron'
-            ? \App\Models\Shop::orderBy('nom')->first()
-            : $user->shops()->orderBy('nom')->first();
-
-        if ($firstShop) {
-            session(['current_shop_id' => $firstShop->id]);
+        // Patron : vue "toutes boutiques" par défaut (null = pas de filtre shop)
+        // Caissière : boutique unique assignée à son compte
+        if ($user->role === 'patron') {
+            session(['current_shop_id' => null]);
+        } else {
+            $firstShop = $user->shops()->orderBy('nom')->first();
+            if ($firstShop) {
+                session(['current_shop_id' => $firstShop->id]);
+            }
         }
 
         return redirect()->route('dashboard');

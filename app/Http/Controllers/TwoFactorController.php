@@ -131,12 +131,13 @@ class TwoFactorController extends Controller
             'user_prenom'=> $user->prenom,
         ]);
 
-        $firstShop = $user->role === 'patron'
-            ? \App\Models\Shop::orderBy('nom')->first()
-            : $user->shops()->orderBy('nom')->first();
-
-        if ($firstShop) {
-            session(['current_shop_id' => $firstShop->id]);
+        if ($user->role === 'patron') {
+            session(['current_shop_id' => null]);
+        } else {
+            $firstShop = $user->shops()->orderBy('nom')->first();
+            if ($firstShop) {
+                session(['current_shop_id' => $firstShop->id]);
+            }
         }
 
         return redirect()->route('dashboard');
