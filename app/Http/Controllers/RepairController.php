@@ -347,8 +347,10 @@ class RepairController extends Controller
             'statut_reparation', 'montant_paye', 'mode_paiement', 'date_rendez_vous', 'date_retrait',
         ]));
 
+        // Rôle utilisé pour valider toutes les transitions de statut (y compris « Récupéré »)
+        $role = $request->attributes->get('userRole', session('user_role', 'caissiere'));
+
         if (isset($data['statut_reparation']) && $data['statut_reparation'] !== $repair->statut_reparation) {
-            $role    = $request->attributes->get('userRole', session('user_role', 'caissiere'));
             $allowed = $this->repairService->allowedTransitions($repair->statut_reparation, $role);
             if (!in_array($data['statut_reparation'], $allowed)) {
                 return back()->with('error', "Transition vers « {$data['statut_reparation']} » non autorisée depuis « {$repair->statut_reparation} ».");
