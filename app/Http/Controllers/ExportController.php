@@ -43,37 +43,37 @@ class ExportController extends Controller
         };
     }
 
-    private function exportCreditsPdf(string $shopId, array $companyInfo, ?string $logoBase64)
+    private function exportCreditsPdf(?string $shopId, array $companyInfo, ?string $logoBase64)
     {
-        $transactions = CreditTransaction::where('shopId', $shopId)->with('client')->orderBy('created_at', 'desc')->get();
+        $transactions = CreditTransaction::when($shopId, fn($q) => $q->where('shopId', $shopId))->with('client')->orderBy('created_at', 'desc')->get();
 
         return Pdf::loadView('exports.credits-pdf', compact('transactions', 'companyInfo', 'logoBase64'))
             ->setPaper('a4', 'portrait')
             ->download('credits-' . now()->format('Y-m-d') . '.pdf');
     }
 
-    private function exportPurchaseInvoicesPdf(string $shopId, array $companyInfo, ?string $logoBase64)
+    private function exportPurchaseInvoicesPdf(?string $shopId, array $companyInfo, ?string $logoBase64)
     {
-        $rows = PurchaseInvoice::where('shopId', $shopId)->with('supplier', 'lines')->get();
+        $rows = PurchaseInvoice::when($shopId, fn($q) => $q->where('shopId', $shopId))->with('supplier', 'lines')->get();
 
         return Pdf::loadView('exports.factures-fournisseurs-pdf', compact('rows', 'companyInfo', 'logoBase64'))
             ->setPaper('a4', 'portrait')
             ->download('factures-fournisseurs-' . now()->format('Y-m-d') . '.pdf');
     }
 
-    private function exportInventoryPdf(string $shopId, array $companyInfo, ?string $logoBase64)
+    private function exportInventoryPdf(?string $shopId, array $companyInfo, ?string $logoBase64)
     {
-        $sessions = InventorySession::where('shopId', $shopId)->with('lines.stock')->orderBy('created_at', 'desc')->get();
+        $sessions = InventorySession::when($shopId, fn($q) => $q->where('shopId', $shopId))->with('lines.stock')->orderBy('created_at', 'desc')->get();
 
         return Pdf::loadView('exports.inventaires-pdf', compact('sessions', 'companyInfo', 'logoBase64'))
             ->setPaper('a4', 'portrait')
             ->download('inventaires-' . now()->format('Y-m-d') . '.pdf');
     }
 
-    private function exportTransfersPdf(string $shopId, array $companyInfo, ?string $logoBase64)
+    private function exportTransfersPdf(?string $shopId, array $companyInfo, ?string $logoBase64)
     {
         $rows = StockTransfer::withoutGlobalScopes()
-            ->where(fn($q) => $q->where('shop_from_id', $shopId)->orWhere('shop_to_id', $shopId))
+            ->when($shopId, fn($q) => $q->where(fn($q2) => $q2->where('shop_from_id', $shopId)->orWhere('shop_to_id', $shopId)))
             ->with('shopFrom', 'shopTo', 'lines.stock')
             ->orderBy('created_at', 'desc')
             ->get();
@@ -83,9 +83,9 @@ class ExportController extends Controller
             ->download('transferts-' . now()->format('Y-m-d') . '.pdf');
     }
 
-    private function exportPurchaseInvoices(string $shopId): Response
+    private function exportPurchaseInvoices(?string $shopId): Response
     {
-        $rows = PurchaseInvoice::where('shopId', $shopId)->with('supplier', 'lines')->get();
+        $rows = PurchaseInvoice::when($shopId, fn($q) => $q->where('shopId', $shopId))->with('supplier', 'lines')->get();
 
         $csv = implode(',', ['N° Facture', 'Fournisseur', 'Date', 'Montant TTC', 'Montant Payé', 'Reste', 'Statut']) . "\n";
 
@@ -107,9 +107,9 @@ class ExportController extends Controller
         ]);
     }
 
-    private function exportCredits(string $shopId): Response
+    private function exportCredits(?string $shopId): Response
     {
-        $rows = CreditTransaction::where('shopId', $shopId)->with('client')->orderBy('created_at', 'desc')->get();
+        $rows = CreditTransaction::when($shopId, fn($q) => $q->where('shopId', $shopId))->with('client')->orderBy('created_at', 'desc')->get();
 
         $csv = implode(',', ['Date', 'Client', 'Type', 'Montant', 'Notes']) . "\n";
 
@@ -129,9 +129,9 @@ class ExportController extends Controller
         ]);
     }
 
-    private function exportInventory(string $shopId): Response
+    private function exportInventory(?string $shopId): Response
     {
-        $sessions = InventorySession::where('shopId', $shopId)->with('lines.stock')->orderBy('created_at', 'desc')->get();
+        $sessions = InventorySession::when($shopId, fn($q) => $q->where('shopId', $shopId))->with('lines.stock')->orderBy('created_at', 'desc')->get();
 
         $csv = implode(',', ['Session', 'Date', 'Article', 'Qté théorique', 'Qté comptée', 'Écart']) . "\n";
 
@@ -155,10 +155,10 @@ class ExportController extends Controller
         ]);
     }
 
-    private function exportTransfers(string $shopId): Response
+    private function exportTransfers(?string $shopId): Response
     {
         $rows = StockTransfer::withoutGlobalScopes()
-            ->where(fn ($q) => $q->where('shop_from_id', $shopId)->orWhere('shop_to_id', $shopId))
+            ->when($shopId, fn($q) => $q->where(fn($q2) => $q2->where('shop_from_id', $shopId)->orWhere('shop_to_id', $shopId)))
             ->with('shopFrom', 'shopTo', 'createdBy', 'lines.stock')
             ->orderBy('created_at', 'desc')
             ->get();

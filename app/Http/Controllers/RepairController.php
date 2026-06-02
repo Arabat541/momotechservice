@@ -197,7 +197,7 @@ class RepairController extends Controller
     public function updateDiagnostic(Request $request, string $id)
     {
         $shopId = $request->attributes->get('shopId');
-        $repair = Repair::where('id', $id)->where('shopId', $shopId)->firstOrFail();
+        $repair = Repair::when($shopId, fn($q) => $q->where('shopId', $shopId))->findOrFail($id);
 
         $validated = $request->validate([
             'statut_reparation'        => 'sometimes|in:En cours,En attente de pièces,Terminé,Prêt pour retrait,Irréparable',
@@ -311,7 +311,7 @@ class RepairController extends Controller
             ->with('photos')
             ->findOrFail($id);
         $stocks = Stock::withoutGlobalScopes()
-            ->where('shopId', $repair->shopId)
+            ->when($repair->shopId, fn($q) => $q->where('shopId', $repair->shopId))
             ->where('quantite', '>', 0)
             ->orderBy('nom')
             ->get();
@@ -329,7 +329,7 @@ class RepairController extends Controller
     public function update(Request $request, string $id)
     {
         $shopId = $request->attributes->get('shopId');
-        $repair = Repair::where('id', $id)->where('shopId', $shopId)->firstOrFail();
+        $repair = Repair::when($shopId, fn($q) => $q->where('shopId', $shopId))->findOrFail($id);
 
         $validated = $request->validate([
             'client_nom'           => 'sometimes|string|max:150',
@@ -385,7 +385,7 @@ class RepairController extends Controller
     public function destroy(Request $request, string $id)
     {
         $shopId = $request->attributes->get('shopId');
-        Repair::where('id', $id)->where('shopId', $shopId)->firstOrFail()->delete();
+        Repair::when($shopId, fn($q) => $q->where('shopId', $shopId))->findOrFail($id)->delete();
 
         return redirect()->route('reparations.liste')->with('success', 'Réparation supprimée.');
     }

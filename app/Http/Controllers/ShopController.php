@@ -11,9 +11,11 @@ class ShopController extends Controller
 {
     public function switchShop(Request $request)
     {
+        $request->validate([
+            'shop_id' => ['nullable', 'exists:shops,id'],
+        ]);
         // shop_id vide = "Toutes les boutiques" (null = pas de filtre)
-        $shopId = $request->input('shop_id') ?: null;
-        session(['current_shop_id' => $shopId]);
+        session(['current_shop_id' => $request->input('shop_id') ?: null]);
         return back();
     }
 
@@ -49,7 +51,10 @@ class ShopController extends Controller
             return $shop;
         });
 
-        session(['current_shop_id' => $shop->id]);
+        // Le patron reste en vue "toutes boutiques" après une création
+        if ($user->role !== 'patron') {
+            session(['current_shop_id' => $shop->id]);
+        }
 
         return back()->with('success', "Boutique \"{$shop->nom}\" créée.");
     }

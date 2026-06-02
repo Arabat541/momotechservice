@@ -19,12 +19,17 @@ class ShopMiddleware
             return $next($request);
         }
 
-        // Caissière : réutiliser la boutique déjà mise en session pour éviter
-        // une requête DB sur chaque requête HTTP.
+        // Caissière : réutiliser la boutique en session si elle appartient toujours
+        // à l'utilisateur (re-validation DB légère pour détecter les réassignations).
         $cachedShopId = $request->session()->get('current_shop_id');
-        if ($cachedShopId) {
+        if ($cachedShopId && $user->shops()->where('id', $cachedShopId)->exists()) {
             $request->attributes->set('shopId', $cachedShopId);
             return $next($request);
+        }
+
+        // Cache invalide ou absent : le nettoyer pour forcer une nouvelle résolution.
+        if ($cachedShopId) {
+            $request->session()->forget('current_shop_id');
         }
 
         $shop = $user->shops()->first();

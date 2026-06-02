@@ -54,8 +54,8 @@ class CreditController extends Controller
 
         $transactions = $this->revendeurService->getRelevéCompte($client, $debut, $fin);
 
-        $shopId      = $request->attributes->get('shopId');
-        $companyInfo = $this->getCompanyInfo($shopId ?? $client->shopId);
+        $shopId      = $request->attributes->get('shopId') ?? $client->shopId;
+        $companyInfo = $this->getCompanyInfo($shopId);
         $logoBase64  = $this->getLogoBase64();
 
         $pdf = Pdf::loadView('credit.releve-pdf', compact(
