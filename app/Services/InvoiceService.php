@@ -43,7 +43,21 @@ class InvoiceService
 
     public function enregistrerPaiementFinal(Invoice $invoice, float $montant, string $cashSessionId, ?string $moyen = null, ?string $createdBy = null): Invoice
     {
+        if (!$createdBy) {
+            throw new \RuntimeException('Utilisateur requis pour enregistrer un paiement.');
+        }
+
         return DB::transaction(function () use ($invoice, $montant, $cashSessionId, $moyen, $createdBy) {
+            // Verrou pour éviter le surpaiement concurrent
+            $invoice = Invoice::withoutGlobalScopes()->lockForUpdate()->findOrFail($invoice->id);
+
+            if ($montant > $invoice->reste_a_payer + 0.01) {
+                throw new \RuntimeException(
+                    'Le montant (' . number_format($montant, 0, ',', ' ') . ' cfa) dépasse le reste à payer ('
+                    . number_format($invoice->reste_a_payer, 0, ',', ' ') . ' cfa).'
+                );
+            }
+
             $invoice->montant_paye  += $montant;
             $invoice->reste_a_payer  = max(0, $invoice->montant_final - $invoice->montant_paye);
             $invoice->statut         = $invoice->reste_a_payer <= 0 ? 'soldee' : 'partielle';
@@ -57,7 +71,7 @@ class InvoiceService
                     'repair_id'       => $invoice->repair_id,
                     'montant'         => $montant,
                     'moyen'           => $moyen,
-                    'created_by'      => $createdBy ?? 'system',
+                    'created_by'      => $createdBy,
                     'cash_session_id' => $cashSessionId,
                 ]);
             }

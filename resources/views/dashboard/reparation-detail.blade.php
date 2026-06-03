@@ -86,8 +86,9 @@
                 </div>
                 <div>
                     <label class="text-sm font-medium text-gray-600">Montant payé</label>
-                    <input type="number" name="montant_paye" step="any" value="{{ $repair->montant_paye }}"
-                           class="w-full text-sm py-2 border-gray-300 rounded-md px-3 border no-spinner">
+                    <input type="number" value="{{ $repair->montant_paye }}" readonly tabindex="-1"
+                           class="w-full text-sm py-2 border-gray-200 bg-gray-100 text-gray-500 rounded-md px-3 border no-spinner cursor-not-allowed">
+                    <p class="text-[11px] text-gray-400 mt-0.5">Utilisez « Enregistrer un paiement » ci-dessous pour encaisser.</p>
                 </div>
             </div>
 

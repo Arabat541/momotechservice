@@ -68,7 +68,7 @@ class RepairController extends Controller
     public function createPlace(Request $request)
     {
         $shopId = $request->attributes->get('shopId');
-        $stocks = Stock::where('shopId', $shopId)->where('quantite', '>', 0)->get();
+        $stocks = Stock::when($shopId, fn($q) => $q->where('shopId', $shopId))->where('quantite', '>', 0)->get();
         $numero = 'REP-' . strtoupper(Str::random(8));
         $settings = Settings::where('shopId', $shopId)->first();
 
@@ -78,7 +78,7 @@ class RepairController extends Controller
     public function createRdv(Request $request)
     {
         $shopId = $request->attributes->get('shopId');
-        $stocks = Stock::where('shopId', $shopId)->where('quantite', '>', 0)->get();
+        $stocks = Stock::when($shopId, fn($q) => $q->where('shopId', $shopId))->where('quantite', '>', 0)->get();
         $numero = 'REP-' . strtoupper(Str::random(8));
         $settings = Settings::where('shopId', $shopId)->first();
 
@@ -151,19 +151,21 @@ class RepairController extends Controller
 
         // Réparation + facture + RepairPayments dans une transaction globale pour garantir
         // qu'une facture avec montant_paye > 0 ne peut pas exister sans sa trace en caisse.
+        // NB : l'acompte peut dépasser le total (total = 0 à la création tant que le
+        // diagnostic n'a pas chiffré la panne) — il est alors enregistré comme avance.
         DB::transaction(function () use ($validated, $shopId, $user, $session, $lignesValides, &$repair) {
-            $repair = $this->repairService->create($validated, $shopId, $user->id);
+            $repair  = $this->repairService->create($validated, $shopId, $user->id);
+            $acompte = floatval($validated['montant_paye'] ?? 0);
 
             if ($session) {
                 $this->invoiceService->creerDepuisReparation(
                     $repair,
-                    floatval($validated['montant_paye'] ?? 0),
+                    $acompte,
                     $session->id,
                     $user->id
                 );
             }
 
-            $acompte = floatval($validated['montant_paye'] ?? 0);
             if ($lignesValides->isNotEmpty()) {
                 foreach ($lignesValides as $ligne) {
                     RepairPayment::create([
@@ -225,8 +227,12 @@ class RepairController extends Controller
             }
         }
 
+        // Le formulaire diagnostic soumet toujours les sélecteurs de pièces : ce marqueur
+        // distingue une édition pannes/pièces (même vidée) d'une soumission sans ces champs.
+        $editPannes = $request->has('panne_description') || $request->has('piece_stock_id');
+
         // Toutes les écritures stock + réparation + facture dans une seule transaction atomique
-        $nouveauStatut = DB::transaction(function () use ($repair, $validated, $shopId, $ancienStatut) {
+        $nouveauStatut = DB::transaction(function () use ($repair, $validated, $shopId, $ancienStatut, $editPannes) {
             $data = [];
 
             if (isset($validated['statut_reparation'])) {
@@ -237,9 +243,9 @@ class RepairController extends Controller
                 $data['notes_technicien'] = $validated['notes_technicien'];
             }
 
-            if (!empty($validated['panne_description'])) {
+            if ($editPannes) {
                 $pannes = $this->repairService->buildPannes(
-                    $validated['panne_description'],
+                    $validated['panne_description'] ?? [],
                     $validated['panne_montant'] ?? []
                 );
                 // Restore previous stock quantities before reprocessing so we don't double-decrement.
@@ -392,7 +398,10 @@ class RepairController extends Controller
 
     public function printReceipt(Request $request, string $id)
     {
-        $repair   = Repair::with('repairPayments')->findOrFail($id);
+        $shopId = $request->attributes->get('shopId');
+        $repair = Repair::with('repairPayments')
+            ->when($shopId, fn($q) => $q->where('shopId', $shopId))
+            ->findOrFail($id);
         $settings = Settings::where('shopId', $repair->shopId)->first();
 
         // Recalculer les montants depuis les paiements pour s'assurer de la fraîcheur
@@ -407,8 +416,9 @@ class RepairController extends Controller
 
     public function enregistrerPaiement(Request $request, string $id)
     {
-        $repair = Repair::findOrFail($id);
-        $user   = $request->attributes->get('user');
+        $shopId  = $request->attributes->get('shopId');
+        $repair  = Repair::when($shopId, fn($q) => $q->where('shopId', $shopId))->findOrFail($id);
+        $user    = $request->attributes->get('user');
 
         $validated = $request->validate([
             'lignes'           => 'required|array|min:1|max:10',
@@ -418,53 +428,58 @@ class RepairController extends Controller
         ]);
 
         $totalLignes = collect($validated['lignes'])->sum(fn($l) => floatval($l['montant']));
+        $session     = $this->cashSessionService->sessionOuverte($shopId);
 
-        if ($totalLignes > $repair->reste_a_payer + 0.01) {
-            return back()->with('error', 'Le total saisi (' . number_format($totalLignes, 0, ',', ' ') . ' cfa) dépasse le reste à payer (' . number_format($repair->reste_a_payer, 0, ',', ' ') . ' cfa).');
+        try {
+            DB::transaction(function () use ($repair, $validated, $totalLignes, $user, $session) {
+                // Re-lire avec verrou pour éviter le surpaiement concurrent
+                $repair = Repair::lockForUpdate()->findOrFail($repair->id);
+
+                if ($totalLignes > $repair->reste_a_payer + 0.01) {
+                    throw new \RuntimeException('Le total saisi (' . number_format($totalLignes, 0, ',', ' ') . ' cfa) dépasse le reste à payer (' . number_format($repair->reste_a_payer, 0, ',', ' ') . ' cfa).');
+                }
+
+                foreach ($validated['lignes'] as $ligne) {
+                    RepairPayment::create([
+                        'repair_id'       => $repair->id,
+                        'montant'         => floatval($ligne['montant']),
+                        'moyen'           => $ligne['moyen'],
+                        'notes'           => $ligne['notes'] ?? null,
+                        'created_by'      => $user->id,
+                        'cash_session_id' => $session?->id,
+                    ]);
+                }
+
+                $nouveauMontantPaye = $repair->repairPayments()->sum('montant');
+                $nouveauReste       = max(0.0, $repair->total_reparation - $nouveauMontantPaye);
+
+                $repair->montant_paye  = $nouveauMontantPaye;
+                $repair->reste_a_payer = $nouveauReste;
+
+                if ($nouveauReste <= 0) {
+                    $repair->etat_paiement = 'Soldé';
+                    $repair->reste_a_payer = 0;
+                }
+
+                $repair->save();
+
+                $invoice = \App\Models\Invoice::withoutGlobalScopes()
+                    ->where('repair_id', $repair->id)
+                    ->first();
+
+                if ($invoice) {
+                    $invoice->update([
+                        'montant_paye'  => $repair->montant_paye,
+                        'reste_a_payer' => $repair->reste_a_payer,
+                        'statut'        => $repair->reste_a_payer <= 0
+                            ? 'soldee'
+                            : ($repair->montant_paye > 0 ? 'partielle' : 'en_attente'),
+                    ]);
+                }
+            });
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
         }
-
-        $shopId  = $request->attributes->get('shopId');
-        $session = $this->cashSessionService->sessionOuverte($shopId);
-
-        DB::transaction(function () use ($repair, $validated, $user, $session) {
-            foreach ($validated['lignes'] as $ligne) {
-                RepairPayment::create([
-                    'repair_id'       => $repair->id,
-                    'montant'         => floatval($ligne['montant']),
-                    'moyen'           => $ligne['moyen'],
-                    'notes'           => $ligne['notes'] ?? null,
-                    'created_by'      => $user->id,
-                    'cash_session_id' => $session?->id,
-                ]);
-            }
-
-            $nouveauMontantPaye = $repair->repairPayments()->sum('montant');
-            $nouveauReste       = max(0.0, $repair->total_reparation - $nouveauMontantPaye);
-
-            $repair->montant_paye  = $nouveauMontantPaye;
-            $repair->reste_a_payer = $nouveauReste;
-
-            if ($nouveauReste <= 0) {
-                $repair->etat_paiement = 'Soldé';
-                $repair->reste_a_payer = 0;
-            }
-
-            $repair->save();
-
-            $invoice = \App\Models\Invoice::withoutGlobalScopes()
-                ->where('repair_id', $repair->id)
-                ->first();
-
-            if ($invoice) {
-                $invoice->update([
-                    'montant_paye'  => $repair->montant_paye,
-                    'reste_a_payer' => $repair->reste_a_payer,
-                    'statut'        => $repair->reste_a_payer <= 0
-                        ? 'soldee'
-                        : ($repair->montant_paye > 0 ? 'partielle' : 'en_attente'),
-                ]);
-            }
-        });
 
         $montantFormate = number_format($totalLignes, 0, ',', ' ');
         return back()->with('success', "Paiement de {$montantFormate} cfa enregistré.");

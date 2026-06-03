@@ -76,7 +76,8 @@ class RepairService
      */
     public function allowedTransitions(string $currentStatut, string $role): array
     {
-        return self::TRANSITIONS[$currentStatut][$role] ?? array_keys(self::STATUTS);
+        $knownRole = in_array($role, ['patron', 'caissiere']) ? $role : 'caissiere';
+        return self::TRANSITIONS[$currentStatut][$knownRole] ?? [];
     }
 
     /**
@@ -136,7 +137,10 @@ class RepairService
             if (!$stockId) continue;
 
             $qte = intval($pieceQtes[$i] ?? 1);
-            $stock = Stock::withoutGlobalScopes()->lockForUpdate()->where('id', $stockId)->where('shopId', $shopId)->first();
+            $stock = Stock::withoutGlobalScopes()->lockForUpdate()
+                ->where('id', $stockId)
+                ->when($shopId, fn($q) => $q->where('shopId', $shopId))
+                ->first();
 
             if ($stock && $stock->quantite >= $qte) {
                 $stock->decrement('quantite', $qte);
@@ -162,7 +166,7 @@ class RepairService
 
             Stock::withoutGlobalScopes()
                 ->where('id', $stockId)
-                ->where('shopId', $shopId)
+                ->when($shopId, fn($q) => $q->where('shopId', $shopId))
                 ->increment('quantite', $qte);
         }
     }
@@ -175,11 +179,13 @@ class RepairService
             $pieces
         ));
         $total = $totalPannes + $totalPieces;
-        $reste = $total - $montantPaye;
+        // reste plafonné à 0 (pas de dette négative) ; paye reflète le versement réel
+        // pour rester cohérent avec sum(repairPayments).
+        $reste = max(0.0, $total - $montantPaye);
 
         return [
             'total' => $total,
-            'paye' => $montantPaye,
+            'paye'  => $montantPaye,
             'reste' => $reste,
             'etat_paiement' => $reste <= 0 ? 'Soldé' : 'Non soldé',
         ];

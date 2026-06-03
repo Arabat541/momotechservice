@@ -374,7 +374,7 @@
                 document.getElementById('modalReceiptContent').innerHTML = document.getElementById('receiptPreview').innerHTML;
                 document.getElementById('successModal').classList.remove('hidden');
             } else {
-                alert('Erreur lors de l\'enregistrement');
+                alert(data.message || 'Erreur lors de l\'enregistrement');
                 btn.disabled = false;
                 btn.textContent = 'Enregistrer';
             }
