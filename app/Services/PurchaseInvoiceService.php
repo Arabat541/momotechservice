@@ -87,8 +87,9 @@ class PurchaseInvoiceService
         $annee = now()->format('Y');
         $mois  = now()->format('m');
 
+        // Numéro séquentiel GLOBAL (toutes boutiques) : la contrainte d'unicité sur
+        // numero est globale et le numéro ne contient pas d'identifiant boutique.
         $lastNum = PurchaseInvoice::withoutGlobalScopes()
-            ->where('shopId', $shopId)
             ->whereYear('created_at', $annee)
             ->whereMonth('created_at', $mois)
             ->lockForUpdate()
