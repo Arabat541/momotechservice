@@ -265,6 +265,32 @@ class StockTransferTest extends TestCase
         $response->assertSee(optional($this->shopSource)->nom);
     }
 
+    public function test_patron_peut_ouvrir_page_creation(): void
+    {
+        // Régression : /transferts/create ne doit pas être capturée par /transferts/{id}
+        $this->loginAs($this->patron, $this->shopSource);
+
+        $response = $this->get('/dashboard/transferts/create');
+        $response->assertOk();
+        $response->assertSee('Nouveau transfert');
+    }
+
+    public function test_patron_toutes_boutiques_peut_ouvrir_page_creation(): void
+    {
+        // Patron en mode "toutes boutiques" (current_shop_id = null), comme en production
+        $this->withSession([
+            'user_id'         => $this->patron->id,
+            'user_role'       => 'patron',
+            'user_email'      => $this->patron->email,
+            'user_nom'        => $this->patron->nom,
+            'user_prenom'     => $this->patron->prenom,
+            'current_shop_id' => null,
+        ]);
+
+        $response = $this->get('/dashboard/transferts/create');
+        $response->assertOk();
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     private function creerTransfert(int $quantite): StockTransfer

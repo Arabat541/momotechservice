@@ -426,17 +426,19 @@ Route::middleware(['auth.jwt', 'shop'])->prefix('dashboard')->group(function () 
         Route::delete('/photos/{photoId}', [RepairPhotoController::class, 'destroy'])->name('repair-photos.destroy');
     });
 
-    // Transferts intra-boutique (caissière uniquement)
+    // Transferts inter-boutiques
+    // NB : /transferts/create DOIT être déclarée avant /transferts/{id},
+    // sinon « create » est capturé comme un {id} → findOrFail → 404.
+    Route::middleware(['role:patron'])->group(function () {
+        Route::get('/transferts/create', [StockTransferController::class, 'create'])->name('transfers.create');
+        Route::post('/transferts', [StockTransferController::class, 'store'])->name('transfers.store');
+        Route::post('/transferts/{id}/annuler', [StockTransferController::class, 'annuler'])->name('transfers.annuler');
+    });
     Route::middleware(['role:caissiere,patron'])->group(function () {
         Route::get('/transferts', [StockTransferController::class, 'index'])->name('transfers.index');
         Route::get('/transferts/{id}', [StockTransferController::class, 'show'])->name('transfers.show');
         Route::post('/transferts/{id}/valider-envoi', [StockTransferController::class, 'validerEnvoi'])->name('transfers.valider-envoi');
         Route::post('/transferts/{id}/valider-reception', [StockTransferController::class, 'validerReception'])->name('transfers.valider-reception');
-    });
-    Route::middleware(['role:patron'])->group(function () {
-        Route::get('/transferts/create', [StockTransferController::class, 'create'])->name('transfers.create');
-        Route::post('/transferts', [StockTransferController::class, 'store'])->name('transfers.store');
-        Route::post('/transferts/{id}/annuler', [StockTransferController::class, 'annuler'])->name('transfers.annuler');
     });
 });
 
