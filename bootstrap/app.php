@@ -12,6 +12,14 @@ $app = Application::configure(basePath: dirname(__DIR__))
     )
     ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule) {
         $schedule->command('app:envoyer-relances')->dailyAt('09:00');
+
+        // Hébergement mutualisé : pas de worker persistant possible (queue:work en
+        // démon). On traite la file toutes les minutes via le scheduler, qui tourne
+        // déjà sur un seul cron `schedule:run`. --stop-when-empty évite un process
+        // qui reste accroché ; --max-time borne la durée en cas de lot important.
+        $schedule->command('queue:work --stop-when-empty --max-time=50 --tries=3')
+            ->everyMinute()
+            ->withoutOverlapping();
     })
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([

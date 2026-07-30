@@ -32,7 +32,7 @@ DB_DATABASE=votre_base_de_donnees
 DB_USERNAME=votre_utilisateur
 DB_PASSWORD=votre_mot_de_passe
 
-JWT_SECRET=Arabat54a
+JWT_SECRET=générez une valeur aléatoire longue, ex: `openssl rand -hex 32`
 ```
 
 ---
@@ -149,6 +149,42 @@ Via le gestionnaire de fichiers Hostinger, faites un clic droit sur `storage/` e
    ```
 
 ---
+
+## Cron (obligatoire)
+
+Un seul cron à configurer dans hPanel → Avancé → Cron Jobs, exécuté chaque minute :
+
+```bash
+* * * * * cd /home/USER/domains/momotechservice.com/app_laravel && php artisan schedule:run >> /dev/null 2>&1
+```
+
+Il déclenche automatiquement :
+- **`app:envoyer-relances`** — relances SMS quotidiennes à 9h
+- **`queue:work --stop-when-empty`** — traitement des SMS en file d'attente (`QUEUE_CONNECTION=database`), toutes les minutes. L'hébergement mutualisé ne permettant pas de worker persistant, ce mode « déclenché par cron » remplace `queue:work` en démon.
+
+Sans ce cron, les relances ne partent jamais et les SMS restent bloqués dans la table `jobs`.
+
+## Sauvegardes
+
+`deploy.sh` sauvegarde automatiquement la base de données (`~/backups/db-*.sql.gz`) avant chaque migration, et ne conserve que les 14 dernières. Pour une sauvegarde manuelle :
+
+```bash
+mysqldump -u DB_USER -p DB_NAME | gzip > ~/backups/db-manuel-$(date +%F).sql.gz
+```
+
+## Assets front-end (Tailwind, FontAwesome, Alpine, JsBarcode, QRCode.js)
+
+Toutes les dépendances front sont auto-hébergées dans `public/vendor/` (plus aucun CDN externe) : l'application reste utilisable même sans connexion internet côté boutique, et évite l'avertissement « ne pas utiliser en production » du CDN Tailwind.
+
+**Conséquence pratique** : contrairement au CDN (qui compilait le CSS à la volée dans le navigateur), `public/vendor/tailwind/app.css` est un fichier **statique**, généré une fois. Si une modification introduit une **nouvelle classe Tailwind** (dans une vue `.blade.php` ou dans du PHP contenant des classes littérales, ex. les badges de statut dans `app/Services/RepairService.php`), il faut la régénérer avant de déployer :
+
+```bash
+bash bin/build-css.sh
+git add public/vendor/tailwind/app.css
+git commit -m "chore: rebuild CSS Tailwind"
+```
+
+Le script télécharge automatiquement le CLI Tailwind standalone (v3.4.17, aucune dépendance npm/node requise) et scanne `resources/views/**/*.blade.php` + `app/**/*.php`.
 
 ## Maintenance
 

@@ -98,7 +98,7 @@ body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000;
 }
 </style>
 
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="{{ asset('vendor/jsbarcode/JsBarcode.all.min.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     try {

@@ -394,6 +394,6 @@
 
     document.addEventListener('DOMContentLoaded', function() { initQrPreview(); });
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" onload="initQrPreview()"></script>
+<script src="{{ asset('vendor/qrcodejs/qrcode.min.js') }}" onload="initQrPreview()"></script>
 @endpush
 @endsection
