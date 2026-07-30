@@ -25,8 +25,8 @@
     .separator-double { border-top: 2px solid #000; margin: 5px 0; }
     .row { display: flex; justify-content: space-between; }
     .header { margin-bottom: 6px; }
-    .header h1 { font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
-    .header p { font-size: 11px; line-height: 1.3; }
+    .header h1 { font-size: 22px; font-weight: bold; text-transform: uppercase; margin-bottom: 3px; letter-spacing: 0.5px; }
+    .header p { font-size: 14px; line-height: 1.4; font-weight: bold; }
     .section { margin: 4px 0; }
     .label { font-weight: bold; }
     .total-row { font-size: 16px; font-weight: bold; }
