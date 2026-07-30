@@ -30,7 +30,7 @@
     .section { margin: 4px 0; }
     .label { font-weight: bold; }
     .total-row { font-size: 16px; font-weight: bold; }
-    .small { font-size: 11px; }
+    .small { font-size: 12px; font-weight: bold; }
     .qr-wrap { text-align: center; margin: 6px 0; }
     .qr-wrap svg { width: 120px; height: 120px; }
     .footer { font-size: 11px; text-align: center; margin-top: 6px; }
@@ -85,7 +85,6 @@
     <h1>{{ $company['nom'] ?? 'MOMO TECH SERVICE' }}</h1>
     @if(!empty($company['adresse']))<p>{{ $company['adresse'] }}</p>@endif
     @if(!empty($company['telephone']))<p>Tél: {{ $company['telephone'] }}</p>@endif
-    @if(!empty($company['slogan']))<p>{{ $company['slogan'] }}</p>@endif
 </div>
 
 <div class="separator-double"></div>
