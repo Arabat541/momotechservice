@@ -27,4 +27,4 @@ hostinger-deploy/
 !/storage/framework/views/.gitkeep
 !/storage/logs/.gitkeep
 Todo
-laravel.log
+laravel.logTodo
